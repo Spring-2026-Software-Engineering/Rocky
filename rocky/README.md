@@ -1,8 +1,16 @@
 # Rocky Interface
-Everyone has access to do things in this branch.
+Kent State University's Computer Science's Web Interface to Obtain API Keys for Student Projects.
 
 ## Developing
 
+### First time running
+
+After cloning the repository or switching branches, install the dependencies:
+```sh
+npm install
+```
+
+### Testing
 Everything you need to build a Svelte project: (https://github.com/sveltejs/cli).
 
 Make sure you have npm and svelte installed. Then, start a development server:
@@ -14,7 +22,7 @@ npm run dev
 npm run dev -- --open
 ```
 
-## Building
+### Building
 
 To create a production version:
 
