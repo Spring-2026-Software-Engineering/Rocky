@@ -1,0 +1,6 @@
+(
+echo "closedAt,createdAt,number,state,title"
+gh issue list --state all --limit 1000 \
+  --json closedAt,createdAt,number,state,title \
+  --jq '.[] | [.closedAt, .createdAt, .number, .state, .title] | @csv'
+) > issues.csv
