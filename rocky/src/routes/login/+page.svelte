@@ -1,9 +1,4 @@
-<!-- later this will redirect to OAuth -->
-<script lang="ts">
-  function signIn() {
-    alert("Redirecting to authentication...");
-  }
-</script>
+
 
 <div class="background">
   <div class="card">
@@ -16,7 +11,7 @@
 
     <h1>Sign in to Rocky</h1>
 
-    <button class="signin" on:click={signIn}>
+    <button class="signin" >
       Sign In
     </button>
   </div>
@@ -57,7 +52,8 @@
     margin: 0;
     font-size: 28px;
     font-weight: 700;
-    color: #002664; /* Kent-ish navy */
+    color: #003976;
+    font-family: "National", "Soho", "ui-sans-serif", "system-ui";
   }
 
   .logo {
