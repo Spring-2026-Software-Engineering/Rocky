@@ -1,4 +1,4 @@
-
+<!-- Login Page for ROCKY -->
 
 <div class="background">
   <div class="card">
@@ -78,7 +78,7 @@
   }
 
   .signin {
-    background-color: #005bbb; /* school-style blue */
+    background-color: #003976;
     color: white;
     border: none;
     padding: 14px 30px;
