@@ -8,14 +8,6 @@ client = MongitaClientDisk()
 db = client["rocky_db"]
 collection = db["items"]
 
-def build_doubled_value(value):
-    return f"{value}{value}"
-
-@app.route("/double")
-def double_value():
-    value = request.args.get("value", "Hello")
-    return f"<p>{build_doubled_value(value)}</p>"
-
 #Create
 @app.route("/items", methods=["POST"])
 def add_item():
