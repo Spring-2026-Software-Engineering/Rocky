@@ -5,7 +5,7 @@
 Make sure you are logged in to your github account on the CLI, and make sure the repository is
 cloned on your device.
 
-Use 'cd Rocky' to go to the repo on your device. If the repo is kept within other folders,
+Use ```cd Rocky``` to go to the repo on your device. If the repo is kept within other folders,
 you will need to add the full path.
 
 ## Milestone Chart
@@ -14,7 +14,7 @@ you will need to add the full path.
 
 2. Paste this code in to the CLI, changing the name to match the milestone name:
 
-
+```
 (
 echo "closedAt,createdAt,number,state,title"
 gh issue list --state all --limit 1000 \
@@ -22,36 +22,32 @@ gh issue list --state all --limit 1000 \
   --json closedAt,createdAt,number,state,title \
   --jq '.[] | [.closedAt, .createdAt, .number, .state, .title] | @csv'
 ) > milestone_issues.csv
-
+```
 
 
 3. Run milestoneBurndown.py in your CLI like this:
 
-
+```
 Python3 milestoneBurndown.py
+```
 
 ## Overall Chart
 
 1. paste this code in to the CLI:
 
-
+```
  (
 echo "closedAt,createdAt,number,state,title"
 gh issue list --state all --limit 1000 \
   --json closedAt,createdAt,number,state,title \
   --jq '.[] | [.closedAt, .createdAt, .number, .state, .title] | @csv'
 ) > issues.csv
-
+```
 
 
 2. Run it in your CLI like this:
 
-
+```
 python3 burndown.py
-
-
-
-
-
-
+```
 
