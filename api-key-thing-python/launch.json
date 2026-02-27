@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Generate Key",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "args": ["generate"]
+    },
+    {
+      "name": "Validate Key",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "args": ["validate", "${input:keyToValidate}"]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "keyToValidate",
+      "type": "promptString",
+      "description": "Enter the key to validate",
+      "default": "sk_kent_..."
+    }
+  ]
+}
