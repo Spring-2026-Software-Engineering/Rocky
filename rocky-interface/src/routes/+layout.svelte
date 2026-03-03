@@ -5,16 +5,14 @@
 	import Topbar from '$lib/components/shell/Topbar.svelte';
 
 	import { page } from '$app/state';
-	let isloginRoute = $derived(page.url.pathname.startsWith('/login'));
+	let isRootRoute = $derived(page.url.pathname === '/');
 
 	let { children } = $props();
 </script>
 
 
 <main>
-	{#if isloginRoute}
-		{@render children?.()}
-	{:else}
+	{#if isRootRoute}
 		<Topbar />
 		<div class="app-shell">
 			<Sidebar />
@@ -22,5 +20,7 @@
 				{@render children?.()}
 			</section>
 		</div>
+	{:else}
+		{@render children?.()}
 	{/if}
 </main>
