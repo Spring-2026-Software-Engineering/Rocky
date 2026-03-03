@@ -1,11 +1,5 @@
 /* Login page styles */
 
-body {
-    margin: 0;
-
-    font-family: "National", "Soho", "ui-sans-serif", "system-ui";
-  }
-
 .background {
   min-height: 100vh;
   min-width: 100vw;
@@ -18,8 +12,6 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
-
-  position: absolute;
 }
 
 .card {
@@ -62,10 +54,7 @@ body {
   font-size: 14px;
 }
 
-h1 {
-  margin: 30px 0 20px;
-  font-weight: 500;
-}
+
 
 .signin {
   background-color: #003976;
