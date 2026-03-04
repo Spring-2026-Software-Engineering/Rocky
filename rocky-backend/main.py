@@ -115,3 +115,6 @@ def get_api_key(key_id):
 def delete_api_key(key_id):
     api_keys.delete_one({"_id": ObjectId(key_id)})
     return jsonify({"message": "API key deleted"})
+
+if __name__ == "__main__":
+    app.run(debug=True, port = 5001)
