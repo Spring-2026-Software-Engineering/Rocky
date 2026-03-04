@@ -14,20 +14,13 @@ REM Activate
 # Install Dependencies
 
 ```cmd
-pip install flask mongita
+pip install -r requirements.txt
 ```
 
 # Running Flask
 
 ```cmd
-flask --app main run
-flask --app main run --debug
-flask --app main run --debug --port 5001
-```
-
-REM Alternative
-```cmd
-python main.py
+python main.py  flask --app main run --debug
 ```
 
 # Adding a New Collection
