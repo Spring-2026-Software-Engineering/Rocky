@@ -3,8 +3,10 @@ from flask import request, jsonify
 from mongita import MongitaClientDisk
 from bson import ObjectId
 from datetime import datetime, timezone
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 client = MongitaClientDisk()
 db = client["rocky_db"]
