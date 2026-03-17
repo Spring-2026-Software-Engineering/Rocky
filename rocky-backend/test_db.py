@@ -27,3 +27,14 @@ class UserTests(BaseTest):
         data = response.get_json()
         self.assertEqual(data["message"], "User created")
         
+    def test_get_users(self):
+        # Create a user first
+        self.client.post("/users", json={
+            "name": "Bob",
+            "email": "bob@example.com",
+            "flash_id": "bob123",
+            "role": "student"
+        })
+        # Now test getting users
+        response = self.client.get("/users")
+        self.assertEqual(response.status_code, 200)
