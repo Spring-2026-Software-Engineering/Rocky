@@ -1,5 +1,5 @@
 <script>
-	import WidgetCard from './WidgetCard.svelte';
+	import WidgetCard from './cards/WidgetCard.svelte';
 </script>
 
 <div class="widget-panel">

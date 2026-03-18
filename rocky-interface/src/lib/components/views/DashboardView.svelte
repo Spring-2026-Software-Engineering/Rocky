@@ -1,5 +1,6 @@
 <script lang="ts">
-  import CourseCard from '$lib/components/CourseCard.svelte';
+  import CourseCard from '$lib/components/cards/CourseCard.svelte';
+  import '$lib/styles/dashboard.css';
 
   type ViewMode = 'card' | 'list';
   let viewMode: ViewMode = 'card';
@@ -7,14 +8,14 @@
 
   // Placeholder course data
   const courses = [
-    { id: 1, code: '...', name: '...', instructor: '...', color: '#1a4a8a' },
-    { id: 2, code: '...', name: '...', instructor: '...', color: '#7b2d8b' },
-    { id: 3, code: '...', name: '...', instructor: '...', color: '#2d6a4f' },
-    { id: 4, code: '...', name: '...', instructor: '...', color: '#c05621' },
-    { id: 5, code: '...', name: '...', instructor: '...', color: '#155e75' },
-    { id: 6, code: '...', name: '...', instructor: '...', color: '#7f1d1d' },
-    { id: 7, code: '...', name: '...', instructor: '...', color: '#3b0764' },
-    { id: 8, code: '...', name: '...', instructor: '...', color: '#14532d' },
+    { id: 1, code: 'SE 3010', name: 'Software Engineering I', instructor: 'Dr. Alicia Moreno', color: '#1a4a8a' },
+    { id: 2, code: 'CS 2410', name: 'Data Structures & Algorithms', instructor: 'Prof. Marcus Chen', color: '#7b2d8b' },
+    { id: 3, code: 'CS 3560', name: 'Database Systems', instructor: 'Dr. Priya Narayanan', color: '#2d6a4f' },
+    { id: 4, code: 'CS 3200', name: 'Operating Systems', instructor: 'Prof. Evan Brooks', color: '#c05621' },
+    { id: 5, code: 'MATH 2280', name: 'Discrete Mathematics', instructor: 'Dr. Hannah Reed', color: '#155e75' },
+    { id: 6, code: 'CS 3620', name: 'Computer Networks', instructor: 'Prof. Samuel Ortiz', color: '#7f1d1d' },
+    { id: 7, code: 'CS 3810', name: 'Human-Computer Interaction', instructor: 'Dr. Lily Park', color: '#3b0764' },
+    { id: 8, code: 'CS 4990', name: 'Senior Capstone Project', instructor: 'Prof. Jordan Patel', color: '#14532d' },
   ];
 
   function setView(mode: ViewMode) {
@@ -79,134 +80,3 @@
   </div>
 </div>
 
-<style>
-  .dashboard-wrapper {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding: 24px 28px;
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  .dashboard-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    flex-shrink: 0;
-  }
-
-  h1 {
-    font-size: 1.6rem;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin: 0;
-  }
-
-
-  .view-switcher {
-    position: relative;
-  }
-
-  .view-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    background: #fff;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-
-  .view-btn:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-  }
-
-  .view-menu-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 10;
-  }
-
-  .view-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    z-index: 20;
-    min-width: 140px;
-    overflow: hidden;
-  }
-
-  .view-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 10px 16px;
-    background: none;
-    border: none;
-    font-size: 0.875rem;
-    color: #374151;
-    cursor: pointer;
-    transition: background 0.12s;
-    text-align: left;
-  }
-
-  .view-option:hover {
-    background: #f3f4f6;
-  }
-
-  .view-option.active {
-    background: #eff6ff;
-    color: #1d4ed8;
-    font-weight: 600;
-  }
-
-
-  .dashboard-scroll-area {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 6px;
-  }
-
-  .dashboard-scroll-area::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .dashboard-scroll-area::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .dashboard-scroll-area::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 3px;
-  }
-
-
-  .courses-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    padding-bottom: 24px;
-  }
-
-
-  .courses-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    padding-bottom: 24px;
-  }
-</style>

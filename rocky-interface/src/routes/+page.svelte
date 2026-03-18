@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { currentFrame, frameMap, type frameName } from '$lib/stores/frameStore';
-	import WidgetPanel from '$lib/components/shell/WidgetPanel.svelte';
+	import WidgetPanel from '$lib/components/WidgetPanel.svelte';
+	import '$lib/styles/global.css';
 	import '$lib/styles/widget-panel.css';
 </script>
 
