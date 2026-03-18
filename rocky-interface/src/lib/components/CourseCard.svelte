@@ -1,0 +1,209 @@
+<script lang="ts">
+  export let course: {
+    id: number;
+    code: string;
+    name: string;
+    instructor: string;
+    color: string;
+  };
+  export let mode: 'card' | 'list' = 'card';
+</script>
+
+{#if mode === 'card'}
+  <div class="course-card">
+    <div class="card-banner" style="background-color: {course.color};">
+      <span class="course-code">{course.code}</span>
+    </div>
+    <div class="card-body">
+      <p class="course-name">{course.name}</p>
+      <p class="instructor">{course.instructor}</p>
+    </div>
+    <div class="card-footer">
+      <button class="go-btn">Go to Course →</button>
+    </div>
+  </div>
+{:else}
+  <div class="list-row">
+    <div class="list-color-bar" style="background-color: {course.color};"></div>
+    <div class="list-course-icon" style="background-color: {course.color};">
+      {course.code.slice(0, 2)}
+    </div>
+    <div class="list-info">
+      <p class="list-course-name">{course.name}</p>
+      <p class="list-course-meta">{course.code} · {course.instructor}</p>
+    </div>
+    <button class="list-go-btn">Go →</button>
+  </div>
+{/if}
+
+<style>
+  /* CARD */
+  .course-card {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+
+  .course-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+  }
+
+  .card-banner {
+    height: 90px;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px 14px;
+    position: relative;
+  }
+
+  .course-code {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .card-body {
+    padding: 12px 14px 8px;
+    flex: 1;
+  }
+
+  .course-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 4px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .instructor {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin: 0;
+  }
+
+  .card-footer {
+    padding: 8px 14px 12px;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .go-btn {
+    background: none;
+    border: none;
+    font-size: 0.8rem;
+    color: #1d4ed8;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s;
+  }
+
+  .go-btn:hover {
+    color: #1e40af;
+    text-decoration: underline;
+  }
+
+  /* LIST*/
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.12s;
+    position: relative;
+  }
+
+  .list-row:first-child {
+    border-radius: 8px 8px 0 0;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .list-row:last-child {
+    border-radius: 0 0 8px 8px;
+  }
+
+  .list-row:only-child {
+    border-radius: 8px;
+  }
+
+  .list-row:hover {
+    background: #f9fafb;
+  }
+
+  .list-color-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 8px 0 0 8px;
+  }
+
+  .list-course-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: rgba(255,255,255,0.9);
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .list-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .list-course-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .list-course-meta {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin: 0;
+  }
+
+  .list-go-btn {
+    background: none;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    color: #374151;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .list-go-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+</style>

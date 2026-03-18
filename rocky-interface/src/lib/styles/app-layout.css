@@ -1,0 +1,10 @@
+.app-shell {
+	display: flex;
+    min-height: calc(100vh - 60px); /* subtracting topbar height */
+}
+
+.app-content {
+    flex: 1;
+    background: #E9ECF3;
+    padding: 24px;
+}
