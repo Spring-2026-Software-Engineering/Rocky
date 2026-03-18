@@ -21,6 +21,11 @@ pip install -r requirements.txt
 
 ```cmd
 python main.py  flask --app main run --debug
+
+OR
+
+python main.py
+
 ```
 
 # Adding a New Collection
