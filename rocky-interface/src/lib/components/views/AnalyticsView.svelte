@@ -1,215 +1,137 @@
-<script lang="ts">
-  const widgets = [
+<script context="module" lang="ts">
+  export type AnalyticsWidget = {
+    title: string;
+    html: string;
+  };
+
+  // Widget data synced with right-side widget bar when Analytics frame is active
+  export const analyticsWidgets: AnalyticsWidget[] = [
     {
-      title: 'Temperature',
-      value: '70°F',
-      description: 'Current system temperature'
+      title: 'Temperature Trend',
+      html: `
+        <div class="widget-metric">71°F</div>
+        <p class="widget-note">Campus server room average</p>
+        <div class="mini-bars" aria-label="Temperature trend bars">
+          <span style="--h:40%"></span>
+          <span style="--h:52%"></span>
+          <span style="--h:58%"></span>
+          <span style="--h:64%"></span>
+          <span style="--h:61%"></span>
+          <span style="--h:68%"></span>
+        </div>
+      `
     },
     {
-      title: 'Requests',
-      value: '128',
-      description: 'Current AI request count'
+      title: 'Request Mix',
+      html: `
+        <div class="widget-metric">1,284</div>
+        <p class="widget-note">Model requests in the last 24h</p>
+        <div class="mini-pie" role="img" aria-label="68 percent successful, 20 percent queued, 12 percent flagged"></div>
+      `
     },
     {
-      title: 'Flagged Requests',
-      value: '6',
-      description: 'Requests flagged for review'
+      title: 'Flagged Queue',
+      html: `
+        <div class="widget-metric">12</div>
+        <p class="widget-note">Open items awaiting review</p>
+        <div class="widget-stat-grid">
+          <div><strong>5</strong><span>Safety</span></div>
+          <div><strong>4</strong><span>Policy</span></div>
+          <div><strong>3</strong><span>Other</span></div>
+        </div>
+      `
     },
     {
-      title: 'CPU Usage',
-      value: '62%',
-      description: 'Current CPU utilization'
+      title: 'CPU Utilization',
+      html: `
+        <div class="widget-metric">64%</div>
+        <p class="widget-note">Average utilization this hour</p>
+        <div class="mini-gauge" aria-hidden="true">
+          <div class="mini-gauge-fill" style="--p:64"></div>
+        </div>
+      `
     }
+  ];
+</script>
+
+<script lang="ts">
+  import '$lib/styles/analytics.css';
+
+  // Key performance indicators displayed in main grid
+  const kpis = [
+    { label: 'Total Requests (24h)', value: '1,284', delta: '+7.2%' },
+    { label: 'Avg Response Time', value: '412 ms', delta: '-5.8%' },
+    { label: 'Model Success Rate', value: '98.1%', delta: '+0.6%' },
+    { label: 'Escalations', value: '12', delta: '-2 today' }
+  ];
+
+  // Hourly activity breakdown table
+  const recentActivity = [
+    { window: '08:00-09:00', requests: 142, flagged: 2, successRate: '98.6%' },
+    { window: '09:00-10:00', requests: 176, flagged: 1, successRate: '99.1%' },
+    { window: '10:00-11:00', requests: 221, flagged: 3, successRate: '97.4%' },
+    { window: '11:00-12:00', requests: 248, flagged: 4, successRate: '96.9%' },
+    { window: '12:00-13:00', requests: 201, flagged: 2, successRate: '98.2%' }
   ];
 </script>
 
 <div class="analytics-page">
   <div class="page-header">
-    <h1>Analytics View</h1>
+    <h1>Analytics</h1>
     <p>
-      This page shows a larger analytics section with smaller sidebar widgets for quick system summaries.
+      Live system insights and quick-read widgets styled to match the dashboard shell.
     </p>
   </div>
 
   <div class="analytics-layout">
     <section class="analytics-main">
       <div class="section-header">
-        <h2>Analytics</h2>
-        <span class="tag">Main Panel</span>
+        <h2>Overview</h2>
+        <span class="tag">Live</span>
       </div>
 
       <p class="section-text">
-        This area is for detailed analytics graphs such as temperature over time, request activity over time, and other system trends.
+        Main trend area for workload, health, and moderation metrics. The widget bar on the right mirrors these values for quick scanning.
       </p>
 
+      <div class="kpi-grid">
+        {#each kpis as kpi}
+          <article class="kpi-card">
+            <p>{kpi.label}</p>
+            <strong>{kpi.value}</strong>
+            <span>{kpi.delta}</span>
+          </article>
+        {/each}
+      </div>
+
       <div class="graph-placeholder">
-        <div class="graph-label">Detailed Analytics Graph Area</div>
+        <div class="graph-grid" aria-hidden="true"></div>
+        <div class="graph-line" aria-hidden="true"></div>
+        <div class="graph-label">Detailed analytics graph area</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Window</th>
+              <th>Requests</th>
+              <th>Flagged</th>
+              <th>Success Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each recentActivity as row}
+              <tr>
+                <td>{row.window}</td>
+                <td>{row.requests}</td>
+                <td>{row.flagged}</td>
+                <td>{row.successRate}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
     </section>
-
-    <aside class="analytics-sidebar">
-      <div class="sidebar-header">
-        <h2>Quick Widgets</h2>
-        <span class="tag">Sidebar</span>
-      </div>
-
-      {#each widgets as widget}
-        <div class="widget-card">
-          <h3>{widget.title}</h3>
-          <div class="widget-value">{widget.value}</div>
-          <p>{widget.description}</p>
-        </div>
-      {/each}
-    </aside>
   </div>
-
-  <section class="template-section">
-    <div class="section-header">
-      <h2>Reusable Widget Template</h2>
-      <span class="tag">Generic</span>
-    </div>
-
-    <p class="section-text">
-      Each sidebar widget uses the same card structure with only the title, value, and description changing.
-    </p>
-
-    <pre class="template-box">
-&lt;div class="widget-card"&gt;
-  &lt;h3&gt;Widget Title&lt;/h3&gt;
-  &lt;div class="widget-value"&gt;70%&lt;/div&gt;
-  &lt;p&gt;Short widget description&lt;/p&gt;
-&lt;/div&gt;
-    </pre>
-  </section>
 </div>
-
-<style>
-  .analytics-page {
-    padding: 24px;
-    background: #f4f7fb;
-    min-height: 100vh;
-    color: #1f2937;
-  }
-
-  .page-header {
-    margin-bottom: 24px;
-  }
-
-  .page-header h1 {
-    font-size: 2rem;
-    margin-bottom: 8px;
-  }
-
-  .page-header p {
-    color: #6b7280;
-    max-width: 700px;
-  }
-
-  .analytics-layout {
-    display: grid;
-    grid-template-columns: 2.3fr 1fr;
-    gap: 20px;
-    margin-bottom: 24px;
-  }
-
-  .analytics-main,
-  .analytics-sidebar,
-  .template-section {
-    background: white;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 6px 18px rgba(17, 24, 39, 0.08);
-  }
-
-  .section-header,
-  .sidebar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .section-header h2,
-  .sidebar-header h2 {
-    font-size: 1.25rem;
-    margin: 0;
-  }
-
-  .tag {
-    background: #e0ecff;
-    color: #2457c5;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 999px;
-  }
-
-  .section-text {
-    color: #6b7280;
-    margin-bottom: 16px;
-  }
-
-  .graph-placeholder {
-    height: 360px;
-    border: 2px dashed #93c5fd;
-    background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .graph-label {
-    color: #2563eb;
-    font-weight: 700;
-    font-size: 1.1rem;
-  }
-
-  .analytics-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .widget-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 14px;
-    padding: 16px;
-    background: #fafafa;
-  }
-
-  .widget-card h3 {
-    margin: 0 0 8px 0;
-    font-size: 1rem;
-    color: #374151;
-  }
-
-  .widget-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 6px;
-    color: #111827;
-  }
-
-  .widget-card p {
-    margin: 0;
-    color: #6b7280;
-    font-size: 0.9rem;
-  }
-
-  .template-box {
-    background: #111827;
-    color: #f9fafb;
-    padding: 16px;
-    border-radius: 12px;
-    overflow-x: auto;
-    font-size: 0.9rem;
-    line-height: 1.5;
-  }
-
-  @media (max-width: 900px) {
-    .analytics-layout {
-      grid-template-columns: 1fr;
-    }
-  }
-</style><h1>AnalyticsView</h1>
