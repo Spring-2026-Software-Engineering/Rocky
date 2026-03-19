@@ -1,8 +1,8 @@
 <script>
 	import '$lib/styles/global.css';
 	import '$lib/styles/app-layout.css';
-	import Sidebar from '$lib/components/shell/Sidebar.svelte';
-	import Topbar from '$lib/components/shell/Topbar.svelte';
+	import Sidebar from '$lib/components/Sidebar.svelte';
+	import Topbar from '$lib/components/Topbar.svelte';
 
 	import { page } from '$app/state';
 	let isRootRoute = $derived(page.url.pathname === '/');

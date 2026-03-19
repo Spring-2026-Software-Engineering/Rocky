@@ -1,14 +1,8 @@
 .page-layout {
 	display: flex;
-	height: 100%;
+	min-height: 100%;
 	width: 100%;
-}
-
-.main-content {
-	flex: 1;
-	padding: 32px;
-	overflow-y: auto;
-	min-width: 0;
+	align-items: stretch;
 }
 
 .widget-panel {
@@ -16,10 +10,11 @@
 	min-width: 300px;
 	height: 100%;
 	background: #f3f4f6;
-	border-left: 1px solid #d1d5db;
+	border: 1px solid #d1d5db;
+	box-shadow: 1px 2px 8px rgba(0, 0, 0, 0.1);
 	padding: 20px 16px;
 	box-sizing: border-box;
-	overflow-y: auto;
+	overflow: visible;
 }
 
 .widget-card {
@@ -44,4 +39,80 @@
 	margin: 0 0 16px 0;
 	font-size: 1.1rem;
 	font-weight: 700;
+}
+
+/* Analytics widget-specific styling */
+.widget-panel .widget-metric {
+	font-size: 1.6rem;
+	font-weight: 700;
+	color: #111827;
+	margin-bottom: 4px;
+}
+
+.widget-panel .widget-note {
+	margin: 0 0 10px 0;
+	color: #6b7280;
+	font-size: 0.88rem;
+}
+
+.widget-panel .mini-bars {
+	height: 52px;
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 6px;
+	align-items: end;
+}
+
+.widget-panel .mini-bars span {
+	height: var(--h);
+	background: linear-gradient(180deg, #1d4ed8 0%, #60a5fa 100%);
+	border-radius: 6px 6px 2px 2px;
+}
+
+.widget-panel .mini-pie {
+	width: 70px;
+	height: 70px;
+	border-radius: 50%;
+	margin-top: 6px;
+	background: conic-gradient(#1d4ed8 0 62%, #93c5fd 62% 86%, #bfdbfe 86% 100%);
+	border: 1px solid #dbeafe;
+}
+
+.widget-panel .widget-stat-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 6px;
+}
+
+.widget-panel .widget-stat-grid div {
+	background: #ffffff;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	padding: 6px 4px;
+	text-align: center;
+}
+
+.widget-panel .widget-stat-grid strong {
+	display: block;
+	font-size: 1rem;
+	color: #111827;
+}
+
+.widget-panel .widget-stat-grid span {
+	font-size: 0.75rem;
+	color: #6b7280;
+}
+
+.widget-panel .mini-gauge {
+	height: 8px;
+	border-radius: 999px;
+	background: #dbeafe;
+	overflow: hidden;
+	margin-top: 8px;
+}
+
+.widget-panel .mini-gauge-fill {
+	width: calc(var(--p) * 1%);
+	height: 100%;
+	background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
 }
