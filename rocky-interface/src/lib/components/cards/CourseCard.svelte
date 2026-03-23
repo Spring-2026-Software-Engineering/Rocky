@@ -3,9 +3,8 @@
   
   export let course: {
     id: number;
-    code: string;
     name: string;
-    instructor: string;
+    code: string;
     color: string;
   };
   export let mode: 'card' | 'list' = 'card';
@@ -14,11 +13,10 @@
 {#if mode === 'card'}
   <div class="course-card">
     <div class="card-banner" style="background-color: {course.color};">
-      <span class="course-code">{course.code}</span>
     </div>
     <div class="card-body">
       <p class="course-name">{course.name}</p>
-      <p class="instructor">{course.instructor}</p>
+      <p class="instructor">{course.code}</p>
     </div>
     <div class="card-footer">
       <button class="go-btn">Go to Course →</button>
@@ -32,7 +30,7 @@
     </div>
     <div class="list-info">
       <p class="list-course-name">{course.name}</p>
-      <p class="list-course-meta">{course.code} · {course.instructor}</p>
+      <p class="list-course-meta">{course.code}</p>
     </div>
     <button class="list-go-btn">Go →</button>
   </div>

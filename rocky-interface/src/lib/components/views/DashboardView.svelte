@@ -8,15 +8,16 @@
 
   // Placeholder course data
   const courses = [
-    { id: 1, code: 'SE 3010', name: 'Software Engineering I', instructor: 'Dr. Alicia Moreno', color: '#1a4a8a' },
-    { id: 2, code: 'CS 2410', name: 'Data Structures & Algorithms', instructor: 'Prof. Marcus Chen', color: '#7b2d8b' },
-    { id: 3, code: 'CS 3560', name: 'Database Systems', instructor: 'Dr. Priya Narayanan', color: '#2d6a4f' },
-    { id: 4, code: 'CS 3200', name: 'Operating Systems', instructor: 'Prof. Evan Brooks', color: '#c05621' },
-    { id: 5, code: 'MATH 2280', name: 'Discrete Mathematics', instructor: 'Dr. Hannah Reed', color: '#155e75' },
-    { id: 6, code: 'CS 3620', name: 'Computer Networks', instructor: 'Prof. Samuel Ortiz', color: '#7f1d1d' },
-    { id: 7, code: 'CS 3810', name: 'Human-Computer Interaction', instructor: 'Dr. Lily Park', color: '#3b0764' },
-    { id: 8, code: 'CS 4990', name: 'Senior Capstone Project', instructor: 'Prof. Jordan Patel', color: '#14532d' },
+    { id: 1, code: 'SE 3010', name: 'Software Engineering I', color: '#1a4a8a' },
+    { id: 2, code: 'CS 2410', name: 'Data Structures & Algorithms', color: '#7b2d8b' },
+    { id: 3, code: 'CS 3560', name: 'Database Systems', color: '#2d6a4f' },
+    { id: 4, code: 'CS 3200', name: 'Operating Systems', color: '#c05621' },
+    { id: 5, code: 'MATH 2280', name: 'Discrete Mathematics', color: '#155e75' },
+    { id: 6, code: 'CS 3620', name: 'Computer Networks', color: '#7f1d1d' },
+    { id: 7, code: 'CS 3810', name: 'Human-Computer Interaction', color: '#3b0764' },
+    { id: 8, code: 'CS 4990', name: 'Senior Capstone Project', color: '#14532d' },
   ];
+
 
   function setView(mode: ViewMode) {
     viewMode = mode;
