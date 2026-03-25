@@ -41,7 +41,11 @@
     "widgetIdsByFrame": {}
   },
   "id:local-003": {
+<<<<<<< HEAD
+    "themePreference": "light"
+=======
     "themePreference": "light",
     "widgetIdsByFrame": {}
+>>>>>>> parent of 6ae0e5b (updated rocky logo and dark mode theme)
   }
 }
