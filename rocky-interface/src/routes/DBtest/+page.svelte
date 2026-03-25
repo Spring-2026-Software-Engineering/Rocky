@@ -46,6 +46,7 @@
 <h3>Add User</h3>
 <input placeholder="name" bind:value={name} />
 <input placeholder="email" bind:value={email} />
+<input placeholder="role (student/instructor/admin)" bind:value={role} />
 <button on:click={addUser}>Add User</button>
 
 <h3>Users</h3>
