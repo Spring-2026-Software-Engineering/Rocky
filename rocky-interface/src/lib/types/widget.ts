@@ -3,7 +3,6 @@ export type PanelWidget = {
 	html?: string;
 	lines?: string[];
 };
-
 export function toPanelWidget(widget: Partial<PanelWidget>): PanelWidget {
 	return {
 		title: widget.title?.trim() || 'Untitled Widget',

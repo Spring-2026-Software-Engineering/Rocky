@@ -3,6 +3,24 @@ export type ApiFaqItem = Partial<{
 	answer: string;
 }>;
 
+export type HelpResource = {
+	label: string;
+	description: string;
+	action: string;
+	href: string;
+	isInternalRoute: boolean;
+};
+
+export type HelpDocumentStatus = 'New' | 'Updated' | 'Current';
+
+export type HelpDocument = {
+	title: string;
+	category: string;
+	date: string;
+	status: HelpDocumentStatus;
+	url: string;
+};
+
 export type FaqItem = {
 	question: string;
 	answer: string;

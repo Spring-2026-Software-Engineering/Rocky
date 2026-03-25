@@ -1,11 +1,47 @@
 {
   "id:local-002": {
-    "themePreference": "light"
+    "themePreference": "light",
+    "widgetIdsByFrame": {
+      "dashboard": [
+        "dashboard-analytics",
+        "dashboard-system-info",
+        "dashboard-notifications"
+      ],
+      "users": [
+        "dashboard-analytics",
+        "dashboard-system-info",
+        "dashboard-notifications"
+      ],
+      "courses": [
+        "dashboard-analytics",
+        "dashboard-system-info",
+        "dashboard-notifications"
+      ],
+      "account": [
+        "dashboard-analytics",
+        "dashboard-system-info",
+        "dashboard-notifications"
+      ],
+      "analytics": [
+        "analytics-temperature-trend",
+        "analytics-request-mix",
+        "analytics-flagged-queue",
+        "analytics-cpu-utilization"
+      ],
+      "help": [
+        "help-system-status",
+        "help-quick-contact",
+        "help-maintenance-info",
+        "help-support-tickets"
+      ]
+    }
   },
   "id:local-001": {
-    "themePreference": "dark"
+    "themePreference": "dark",
+    "widgetIdsByFrame": {}
   },
   "id:local-003": {
-    "themePreference": "light"
+    "themePreference": "light",
+    "widgetIdsByFrame": {}
   }
 }

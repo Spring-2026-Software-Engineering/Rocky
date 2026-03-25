@@ -9,7 +9,7 @@
 </script>
 
 <header class="topbar">
-		<img src="/rock.png" alt="Rocky" class="brand-logo" />
+		<img src="/rocky.svg" alt="Rocky" class="brand-logo" style="fill: #ffffff"/>
 		<div class="brand-text">
 			<div class="brand-name">{nameLabel}</div>
 			<div class="brand-sub">{roleLabel}</div>

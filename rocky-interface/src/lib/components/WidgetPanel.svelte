@@ -5,7 +5,6 @@
 	import { currentFrame } from '$lib/stores/frameStore';
 	import type { AnalyticsWidget } from '$lib/types/analytics';
 	import type { PanelWidget } from '$lib/types/widget';
-	import type { FrameName } from '$lib/types/frame';
 
 	let defaultWidgets: PanelWidget[] = [];
 	let analyticsWidgets: AnalyticsWidget[] = [];
@@ -17,6 +16,7 @@
 				fetchDefaultWidgets(),
 				fetchAnalyticsWidgets()
 			]);
+
 			defaultWidgets = loadedDefaultWidgets;
 			analyticsWidgets = loadedAnalyticsWidgets;
 		} catch (err) {
@@ -24,11 +24,7 @@
 		}
 	});
 
-	$: frameWidgets = {
-		analytics: analyticsWidgets
-	} satisfies Partial<Record<FrameName, PanelWidget[]>>;
-
-	$: widgets = frameWidgets[$currentFrame] ?? defaultWidgets;
+	$: widgets = $currentFrame === 'analytics' ? analyticsWidgets : defaultWidgets;
 	$: panelTitle = $currentFrame === 'analytics' ? 'Analytics Widgets' : 'Widgets';
 </script>
 
