@@ -1,0 +1,174 @@
+.courses-wrapper {
+    padding: 24px 28px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 24px;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 9px 18px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tab:hover {
+    color: #1e3a5f;
+    background: #f3f4f6;
+  }
+
+  .tab.active {
+    color: #1e3a5f;
+    border-bottom-color: #1e3a5f;
+    font-weight: 600;
+  }
+
+  /* Content area */
+  .tab-content {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .placeholder-text {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    margin-top: 40px;
+    text-align: center;
+  }
+
+  /* People panel */
+  .people-panel {
+    max-width: 640px;
+  }
+
+  .action-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+    justify-content: flex-end;
+  }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 7px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid;
+    transition: background 0.15s;
+  }
+
+  .action-btn.upload {
+    background: #fff;
+    border-color: #d1d5db;
+    color: #374151;
+  }
+
+  .action-btn.upload:hover {
+    background: #f3f4f6;
+  }
+
+  .action-btn.add {
+    background: #1e3a5f;
+    border-color: #1e3a5f;
+    color: #fff;
+  }
+
+  .action-btn.add:hover {
+    background: #162d4a;
+  }
+
+  /* People list box */
+  .people-list {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .empty-msg {
+    padding: 28px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 1rem;
+  }
+
+  .person-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 17px 20px;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.1s;
+  }
+
+  .person-row:last-child {
+    border-bottom: none;
+  }
+
+  .person-row:hover {
+    background: #f9fafb;
+  }
+
+  .person-name {
+    flex: 1;
+    font-size: 1rem;
+    color: #111827;
+    font-weight: 500;
+  }
+
+  .role-badge {
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+  }
+
+  .role-badge.instructor {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .role-badge.student {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s;
+    flex-shrink: 0;
+  }
+
+  .delete-btn:hover {
+    background: #fee2e2;
+  }
