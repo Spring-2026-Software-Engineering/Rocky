@@ -39,7 +39,7 @@
 </script>
 
 <script lang="ts">
-  import '$lib/styles/analytics.css';
+  import '$lib/styles/help.css';
   import { currentFrame } from '$lib/stores/frameStore';
 
   // Replace the '#' with actual routes, external links, and email.
@@ -67,16 +67,17 @@
   }
 </script>
 
-<div class="analytics-page">
-  <div class="page-header">
-    <h1>Help Center</h1>
-    <p>
-      Find answers, browse guides, and connect with support resources.
-    </p>
-  </div>
+<div class="help-wrapper">
+  <div class="help-page">
+    <div class="page-header">
+      <h1>Help Center</h1>
+      <p>
+        Find answers, browse guides, and connect with support resources.
+      </p>
+    </div>
 
-  <div class="analytics-layout">
-    <section class="analytics-main">
+    <div class="help-layout">
+      <section class="help-main">
       <div class="section-header">
         <h2>Other Resources</h2>
         <span class="tag">Support</span>
@@ -86,12 +87,12 @@
         Quick links to our most commonly used support channels and training materials.
       </p>
 
-      <div class="kpi-grid">
+      <div class="help-grid">
         {#each resources as resource}
           <a 
             href={resource.href} 
             on:click={(e) => handleResourceClick(e, resource.isInternalRoute)}
-            class="kpi-card" 
+            class="help-card" 
             style="text-decoration: none; color: inherit; display: block; transition: transform 0.2s ease;"
           >
             <p>{resource.label}</p>
@@ -148,4 +149,5 @@
       </div>
     </section>
   </div>
+</div>
 </div>
