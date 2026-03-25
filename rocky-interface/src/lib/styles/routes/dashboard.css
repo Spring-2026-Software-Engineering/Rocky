@@ -1,4 +1,4 @@
 /* Dashboard styles consolidated in components.css and layout.css
    This file is kept for backward compatibility */
-@import './components.css';
-@import './layout.css';
+@import '../components/components.css';
+@import '../layout/layout.css';

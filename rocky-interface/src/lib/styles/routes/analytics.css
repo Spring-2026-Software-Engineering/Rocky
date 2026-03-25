@@ -1,7 +1,6 @@
 /* Analytics styles - Import consolidated design system */
-@import './components.css';
-@import './layout.css';
-
+@import '../components/components.css';
+@import '../layout/layout.css';
 /* Additional analytics-specific styles */
 .analytics-page {
 	padding: 0;

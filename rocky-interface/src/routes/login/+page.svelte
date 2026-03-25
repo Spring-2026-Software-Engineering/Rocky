@@ -1,5 +1,5 @@
 <script lang="ts">
-	import '$lib/styles/login.css';
+  import '$lib/styles/routes/login.css';
 </script>
 
 <div class="login-background">

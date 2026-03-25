@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { User } from '$lib/types/user';
-	import '$lib/styles/topbar.css';
+	import '$lib/styles/components/topbar.css';
 
 	export let user: User | null = null;
 

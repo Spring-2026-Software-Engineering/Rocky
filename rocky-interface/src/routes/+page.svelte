@@ -3,7 +3,7 @@
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
 	import type { FrameName } from '$lib/types/frame';
 	import WidgetPanel from '$lib/components/WidgetPanel.svelte';
-	import '$lib/styles/global.css';
+	import '$lib/styles/foundation/global.css';
 
 	let currentUser = $derived(page.data.currentUser);
 

@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { fetchUsersForViews } from '$lib/api/users';
-	import '$lib/styles/login.css';
+	import '$lib/styles/routes/login.css';
 	import type { User } from '$lib/types/user';
 
 	let users: User[] = [];

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import '$lib/styles/course-card.css';
+  import '$lib/styles/components/course-card.css';
   
   export let course: {
     id: number;

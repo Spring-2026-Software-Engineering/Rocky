@@ -1,5 +1,5 @@
 	<script lang="ts">
-	import '$lib/styles/sidebar.css';
+	import '$lib/styles/components/sidebar.css';
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
 	import { toFrameLabel, type FrameName } from '$lib/types/frame';
 

@@ -9,10 +9,10 @@
 @import './base.css';
 
 /* Component-specific styles */
-@import './components.css';
+@import '../components/components.css';
 
 /* Layout and grid system */
-@import './layout.css';
+@import '../layout/layout.css';
 
 /* View-level extracted styles */
-@import './views.css';
+@import '../routes/views.css';
