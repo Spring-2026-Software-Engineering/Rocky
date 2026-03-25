@@ -1,44 +1,18 @@
-body {
-	margin: 0;
-	padding: 0;
-	height: 100%;
-	font-family: "National", "Soho", "ui-sans-serif", "system-ui";
+/* ============================================================================
+   GLOBAL STYLES - Import all design system files
+   ============================================================================ */
 
-}
+/* Design tokens and variables */
+@import './tokens.css';
 
-.main-content {
-	flex: 1;
-	overflow: visible;
-	min-width: 0;
-	margin-left: 16px;
-	margin-right: 16px;
-}
+/* Base element styles */
+@import './base.css';
 
-* {
-	box-sizing: border-box;
-}
+/* Component-specific styles */
+@import './components.css';
 
-/* Typography */
-h1 {
-  font-size: 2.5em;
-}
+/* Layout and grid system */
+@import './layout.css';
 
-h2 {
-	font-size: 1.8em;
-}
-
-h3 {
-	font-size: 1.3em;
-}
-
-h4 {
-	font-size: 1.1em;
-}
-
-h5 {
-	font-size: 1em;
-}
-
-p {
-	font-size: 1em;
-}
+/* View-level extracted styles */
+@import './views.css';

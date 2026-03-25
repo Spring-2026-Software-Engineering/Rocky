@@ -1,31 +1,3 @@
-.topbar {
-	height: 60px;
-	background: #0B2560;
-	display: flex;
-	align-items: center;
-	padding: 0 18px;
-	gap: 12px;
-	box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-}
-
-.brand-logo {
-	height: 34px;
-	width: auto;
-}
-
-.brand-text {
-	display: flex;
-	flex-direction: column;
-	line-height: 1.1;
-}
-
-.brand-name {
-	color: white;
-	font-weight: 700;
-	font-size: 20px;
-}
-
-.brand-role {
-	color: #E9ECF3;
-	font-size: 13px;
-}
+/* Topbar styles are now consolidated in components.css
+   This file is kept for backward compatibility */
+@import './components.css';

@@ -1,72 +1,255 @@
-/* Login page styles */
+@import './components.css';
 
-.background {
-  min-height: 100vh;
-  min-width: 100vw;
-  
-  display: grid;
-  place-items: center;
-
-  background-image: url("/commencement_dark.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+.login-background {
+	min-height: 100vh;
+	min-width: 100vw;
+	background: #1e2e56 url('/commencement_dark.jpg') center / cover no-repeat fixed;
 }
 
-.card {
-  width: 100%;
-  max-width: 500px;
-  background: white;
-  border-radius: 6px;
-  padding: 40px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
-  text-align: center;
+.login-overlay {
+	min-height: 100vh;
+	padding: 64px 32px 40px;
+	background: linear-gradient(180deg, rgba(6, 17, 44, 0.65) 0%, rgba(6, 17, 44, 0.45) 100%);
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 24px;
 }
 
-.header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.login-shell {
+	width: min(760px, 100%);
+	margin: 0 auto;
+	display: block;
 }
 
-.header h2 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  color: #003976;
-  font-family: "National", "Soho", "ui-sans-serif", "system-ui";
+.login-column {
+	background: #ffffff;
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: 0 16px 36px rgba(9, 18, 42, 0.28);
+	border: 1px solid rgba(213, 220, 232, 0.85);
 }
 
-.logo {
-  width: 200px;
-  margin-bottom: 20px;
+.login-top {
+	padding: 56px 56px 36px;
+	text-align: center;
 }
 
-.logo-rock {
-  width: 100px;
-  margin-bottom: 10px;
+.login-bottom {
+	padding: 28px 56px 34px;
+	background: #f6f7fa;
+	border-top: 1px solid #e0e5ef;
+	display: grid;
+	gap: 14px;
+	font-size: 1rem;
+	line-height: 1.6;
+	color: #1f355f;
 }
 
-.subtitle {
-  margin-top: 4px;
-  color: #555;
-  font-size: 14px;
+.login-bottom a {
+	color: #0b67c2;
+	text-decoration: none;
 }
 
-
-
-.signin {
-  background-color: #003976;
-  color: white;
-  border: none;
-  padding: 14px 30px;
-  font-size: 18px;
-  border-radius: 4px;
-  cursor: pointer;
+.login-bottom a:hover {
+	text-decoration: underline;
 }
 
-.signin:hover {
-  background-color: #004a99;
+.login-ksu-logo {
+	width: min(320px, 78%);
+	height: auto;
+	margin-bottom: 20px;
+}
+
+.login-title {
+	margin: 0;
+	font-size: clamp(2rem, 3.8vw, 2.85rem);
+	font-weight: 500;
+	color: #111827;
+}
+
+.login-signin-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 30px;
+	background: #086fc6;
+	color: #ffffff;
+	text-decoration: none;
+	border: none;
+	padding: 12px 36px;
+	min-width: 170px;
+	font-size: 1.95rem;
+	font-weight: 700;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.16s ease;
+}
+
+.login-signin-btn:hover {
+	background: #065ea9;
+}
+
+.login-help-links {
+	margin-top: 24px;
+	font-size: 1.06rem;
+	color: #334155;
+}
+
+.login-help-links a {
+	color: #0b67c2;
+	text-decoration: none;
+}
+
+.login-help-links a:hover {
+	text-decoration: underline;
+}
+
+.login-footer {
+	width: min(760px, 100%);
+	margin: 0 auto;
+	text-align: right;
+}
+
+.login-footer a {
+	color: #dbeafe;
+	text-decoration: none;
+	font-size: 0.95rem;
+}
+
+.login-footer a:hover {
+	text-decoration: underline;
+}
+
+.login-preview-overlay {
+	align-items: center;
+	justify-content: center;
+}
+
+.preview-shell {
+	width: min(1020px, 100%);
+	background: #ffffff;
+	border-radius: 10px;
+	border: 1px solid #d9deeb;
+	box-shadow: 0 16px 36px rgba(9, 18, 42, 0.25);
+	padding: 34px;
+	display: grid;
+	gap: 24px;
+}
+
+.preview-header h1 {
+	margin: 0;
+	font-size: 2rem;
+	color: #1f2937;
+}
+
+.preview-header p {
+	margin: 6px 0 0;
+	color: #475569;
+}
+
+.preview-user-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.preview-user-card {
+	border: 1px solid #d7dee9;
+	border-radius: 8px;
+	padding: 18px;
+	display: grid;
+	gap: 10px;
+	background: #fbfcfe;
+}
+
+.preview-user-card h2 {
+	margin: 0;
+	font-size: 1.1rem;
+	color: #0f172a;
+}
+
+.preview-user-card p {
+	margin: 0;
+	font-size: 0.95rem;
+	color: #475569;
+}
+
+.preview-role {
+	font-size: 0.8rem;
+	font-weight: 700;
+	color: #0b67c2;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.preview-user-card .login-signin-btn {
+	margin-top: 6px;
+	width: 100%;
+	min-width: 0;
+	padding: 10px 14px;
+	font-size: 0.95rem;
+}
+
+.preview-state {
+	padding: 22px;
+	background: #f8fafc;
+	border: 1px solid #dbe2ee;
+	border-radius: 8px;
+	color: #334155;
+}
+
+.preview-state.preview-error {
+	color: #991b1b;
+	background: #fef2f2;
+	border-color: #fecaca;
+}
+
+.preview-back {
+	justify-self: start;
+	color: #0b67c2;
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.preview-back:hover {
+	text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+	.login-overlay {
+		padding: 40px 18px 24px;
+	}
+
+	.preview-user-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+@media (max-width: 680px) {
+	.login-top {
+		padding: 34px 18px 24px;
+	}
+
+	.login-bottom {
+		padding: 20px 18px 24px;
+	}
+
+	.login-title {
+		font-size: 1.7rem;
+	}
+
+	.login-signin-btn {
+		font-size: 1.15rem;
+		width: 100%;
+	}
+
+	.preview-shell {
+		padding: 20px;
+	}
+
+	.preview-user-grid {
+		grid-template-columns: 1fr;
+	}
 }
 

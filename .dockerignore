@@ -1,0 +1,14 @@
+# Global
+.git
+.gitignore
+**/node_modules
+**/.svelte-kit
+**/build
+
+# Frontend env and local-only assets
+rocky-interface/.env
+rocky-interface/.env.*
+
+# Python cache
+**/__pycache__
+**/*.pyc

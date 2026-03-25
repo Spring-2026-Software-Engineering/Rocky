@@ -13,6 +13,8 @@ services:
     build:
       context: .
       dockerfile: rocky-interface/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-production}
     ports:
       - "3000:4173"
     networks:

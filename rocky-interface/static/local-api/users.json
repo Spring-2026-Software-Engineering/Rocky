@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "local-001",
+    "name": "Offline Student",
+    "email": "student.local@kent.edu",
+    "role": "student"
+  },
+  {
+    "_id": "local-002",
+    "name": "Offline Instructor",
+    "email": "instructor.local@kent.edu",
+    "role": "instructor"
+  },
+  {
+    "_id": "local-003",
+    "name": "Offline Admin",
+    "email": "admin.local@kent.edu",
+    "role": "admin"
+  }
+]

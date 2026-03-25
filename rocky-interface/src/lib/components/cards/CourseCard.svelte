@@ -6,19 +6,20 @@
     code: string;
     name: string;
     instructor: string;
+    semester: string;
     color: string;
   };
   export let mode: 'card' | 'list' = 'card';
+
+  $: courseHexColor = course.color?.trim() || '#334155';
 </script>
 
 {#if mode === 'card'}
   <div class="course-card">
-    <div class="card-banner" style="background-color: {course.color};">
-      <span class="course-code">{course.code}</span>
-    </div>
+    <div class="card-banner" style={`background-color: ${courseHexColor};`}></div>
     <div class="card-body">
       <p class="course-name">{course.name}</p>
-      <p class="instructor">{course.instructor}</p>
+      <p class="course-meta">{course.code} · {course.semester}</p>
     </div>
     <div class="card-footer">
       <button class="go-btn">Go to Course →</button>
@@ -26,13 +27,13 @@
   </div>
 {:else}
   <div class="list-row">
-    <div class="list-color-bar" style="background-color: {course.color};"></div>
-    <div class="list-course-icon" style="background-color: {course.color};">
+    <div class="list-color-bar" style={`background-color: ${courseHexColor};`}></div>
+    <div class="list-course-icon" style={`background-color: ${courseHexColor};`}>
       {course.code.slice(0, 2)}
     </div>
     <div class="list-info">
       <p class="list-course-name">{course.name}</p>
-      <p class="list-course-meta">{course.code} · {course.instructor}</p>
+      <p class="list-course-meta">{course.code} · {course.semester}</p>
     </div>
     <button class="list-go-btn">Go →</button>
   </div>

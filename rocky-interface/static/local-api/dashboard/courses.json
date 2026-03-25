@@ -1,0 +1,66 @@
+[
+  {
+    "id": 1,
+    "code": "SE 3010",
+    "name": "Software Engineering I",
+    "instructor": "Dr. Alicia Moreno",
+    "semester": "Fall 2026",
+    "color": "#1a4a8a"
+  },
+  {
+    "id": 2,
+    "code": "CS 2410",
+    "name": "Data Structures & Algorithms",
+    "instructor": "Prof. Marcus Chen",
+    "semester": "Fall 2026",
+    "color": "#7b2d8b"
+  },
+  {
+    "id": 3,
+    "code": "CS 3560",
+    "name": "Database Systems",
+    "instructor": "Dr. Priya Narayanan",
+    "semester": "Fall 2025",
+    "color": "#2d6a4f"
+  },
+  {
+    "id": 4,
+    "code": "CS 3200",
+    "name": "Operating Systems",
+    "instructor": "Prof. Evan Brooks",
+    "semester": "Fall 2025",
+    "color": "#c05621"
+  },
+  {
+    "id": 5,
+    "code": "MATH 2280",
+    "name": "Discrete Mathematics",
+    "instructor": "Dr. Hannah Reed",
+    "semester": "Fall 2026",
+    "color": "#155e75"
+  },
+  {
+    "id": 6,
+    "code": "CS 3620",
+    "name": "Computer Networks",
+    "instructor": "Prof. Samuel Ortiz",
+    "semester": "Fall 2026",
+    "color": "#7f1d1d"
+  },
+  {
+    "id": 7,
+    "code": "CS 3810",
+    "name": "Human-Computer Interaction",
+    "instructor": "Dr. Lily Park",
+    "semester": "Spring 2026",
+    "color": "#3b0764"
+  },
+  {
+    "id": 8,
+    "code": "CS 4990",
+    "name": "Senior Capstone Project",
+    "instructor": "Prof. Jordan Patel",
+    "semester": "Spring 2026",
+    "color": "#14532d"
+  }
+]

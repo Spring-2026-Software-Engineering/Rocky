@@ -7,13 +7,13 @@
 	import { page } from '$app/state';
 	let isRootRoute = $derived(page.url.pathname === '/');
 
-	let { children } = $props();
+	let { children, data } = $props();
 </script>
 
 
 <main>
 	{#if isRootRoute}
-		<Topbar />
+		<Topbar user={data.currentUser} />
 		<div class="app-shell">
 			<Sidebar />
 			<section class="app-content">
