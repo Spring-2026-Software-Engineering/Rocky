@@ -18,6 +18,7 @@
 .brand-logo {
 	height: 34px;
 	width: auto;
+	filter: var(--brand-logo-filter);
 }
 
 .brand-text {

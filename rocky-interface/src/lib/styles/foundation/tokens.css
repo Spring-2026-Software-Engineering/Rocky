@@ -93,6 +93,9 @@
 	--size-topbar-height: 60px;
 	--size-sidebar-width: 240px;
 	--size-widget-panel-width: 300px;
+
+	/* --------- THEME-AWARE ICON FILTERS --------- */
+	--brand-logo-filter: none;
 }
 
 :root[data-theme='light'] {
@@ -104,6 +107,9 @@
 }
 
 :root[data-theme='dark'] {
+	--color-primary-dark: #0c2c4f;
+	--color-primary-light: #233859;
+	--color-highlight-gold: #b48522;
 	--color-bg-primary: #171b22;
 	--color-bg-secondary: #222833;
 	--color-bg-tertiary: #0f131a;
@@ -112,6 +118,7 @@
 	--color-gray-200: #2f3744;
 	--color-gray-300: #465062;
 	--color-gray-400: #647286;
+	--brand-logo-filter: invert(1) brightness(2);
 }
 
 @media (prefers-color-scheme: light) {
@@ -121,11 +128,15 @@
 		--color-bg-tertiary: #f3f5f9;
 		--color-text-primary: var(--color-gray-900);
 		--color-text-secondary: var(--color-gray-600);
+		--brand-logo-filter: none;
 	}
 }
 
 @media (prefers-color-scheme: dark) {
 	:root[data-theme='system'] {
+		--color-primary-dark: #0c2c4f;
+		--color-primary-light: #233859;
+		--color-highlight-gold: #b48522;
 		--color-bg-primary: #171b22;
 		--color-bg-secondary: #222833;
 		--color-bg-tertiary: #0f131a;
@@ -134,6 +145,7 @@
 		--color-gray-200: #2f3744;
 		--color-gray-300: #465062;
 		--color-gray-400: #647286;
+		--brand-logo-filter: invert(1) brightness(2);
 	}
 }
 
