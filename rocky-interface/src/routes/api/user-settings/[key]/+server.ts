@@ -8,7 +8,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	}
 
 	const settingKey = params.key;
-	if (!isUserSettingKey(settingKey)) {
+	if (!settingKey || !isUserSettingKey(settingKey)) {
 		throw error(400, `Unknown setting key: ${settingKey}`);
 	}
 

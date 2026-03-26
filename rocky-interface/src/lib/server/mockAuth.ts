@@ -13,7 +13,7 @@ export const SESSION_COOKIE_OPTIONS = {
 };
 
 async function loadMockUsers(): Promise<User[]> {
-	const filePath = join(process.cwd(), 'static', 'local-api', 'users.json');
+	const filePath = join(process.cwd(), 'static', 'local-api', 'account', 'users.json');
 	const raw = await readFile(filePath, 'utf-8');
 	const parsed = JSON.parse(raw) as ApiUser[];
 	return normalizeUsers(parsed);

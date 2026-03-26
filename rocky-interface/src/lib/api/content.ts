@@ -1,12 +1,12 @@
 import {
 	API_BASE_URL,
-	LOCAL_API_ACCOUNT_PROFILE_URL,
 	LOCAL_API_ANALYTICS_ACTIVITY_URL,
 	LOCAL_API_ANALYTICS_KPIS_URL,
 	LOCAL_API_ANALYTICS_WIDGETS_URL,
-	LOCAL_API_DASHBOARD_COURSES_URL,
+	LOCAL_API_COURSES_URL,
 	LOCAL_API_DEFAULT_WIDGETS_URL,
 	LOCAL_API_HELP_FAQ_URL,
+	LOCAL_API_USERS_URL,
 	USE_LOCAL_API
 } from '$lib/config/env';
 import {
@@ -17,9 +17,16 @@ import {
 	type AnalyticsWidget,
 	type KpiMetric
 } from '$lib/types/analytics';
-import { normalizeAccountProfile, type AccountProfile, type ApiAccountProfile } from '$lib/types/account';
-import { normalizeCourses, type ApiCourse, type Course } from '$lib/types/course';
+import {
+	normalizeCourseDetails,
+	normalizeCourses,
+	type ApiCourse,
+	type Course,
+	type CourseAccountRecord,
+	type CourseDetail
+} from '$lib/types/course';
 import { normalizeFaqItems, type ApiFaqItem, type FaqItem } from '$lib/types/help';
+import { normalizeUsers, type ApiUser } from '$lib/types/user';
 import { toPanelWidgets, type PanelWidget } from '$lib/types/widget';
 
 function resolveLocalUrl(url: string): string {
@@ -46,10 +53,44 @@ function resolveUrl(localUrl: string, apiPath: string): string {
 	return USE_LOCAL_API ? resolveLocalUrl(localUrl) : `${API_BASE_URL}${apiPath}`;
 }
 
-export async function fetchDashboardCourses(): Promise<Course[]> {
-	const url = resolveUrl(LOCAL_API_DASHBOARD_COURSES_URL, '/dashboard/courses');
+export async function fetchCourses(): Promise<Course[]> {
+	const url = resolveUrl(LOCAL_API_COURSES_URL, '/courses');
 	const rawCourses = await fetchJson<ApiCourse[]>(url);
 	return normalizeCourses(rawCourses);
+}
+
+async function fetchCourseAccountsByEmail(): Promise<Record<string, CourseAccountRecord>> {
+	const usersUrl = resolveUrl(LOCAL_API_USERS_URL, '/users');
+	const rawUsers = await fetchJson<ApiUser[]>(usersUrl);
+	const users = normalizeUsers(rawUsers);
+
+	const accountMap: Record<string, CourseAccountRecord> = {};
+	for (const user of users) {
+		if (!user.email || user.email === 'N/A') {
+			continue;
+		}
+
+		accountMap[user.email.toLowerCase()] = {
+			id: user.email.toLowerCase(),
+			name: user.name,
+			email: user.email,
+			role: user.role
+		};
+	}
+
+	return accountMap;
+}
+
+export async function fetchCourseDetails(): Promise<CourseDetail[]> {
+	const coursesUrl = resolveUrl(LOCAL_API_COURSES_URL, '/courses');
+	const [rawCourses, accountsByEmail] = await Promise.all([fetchJson<ApiCourse[]>(coursesUrl), fetchCourseAccountsByEmail()]);
+	const rawDetails = rawCourses.map((course) => ({
+		id: course.id,
+		overview: course.overview,
+		announcements: course.announcements,
+		members: course.members
+	}));
+	return normalizeCourseDetails(rawDetails, accountsByEmail);
 }
 
 export async function fetchAnalyticsKpis(): Promise<KpiMetric[]> {
@@ -74,28 +115,6 @@ export async function fetchAnalyticsWidgets(): Promise<AnalyticsWidget[]> {
 	const url = resolveUrl(LOCAL_API_ANALYTICS_WIDGETS_URL, '/analytics/widgets');
 	const rawWidgets = await fetchJson<Array<Partial<AnalyticsWidget>>>(url);
 	return rawWidgets.map(toAnalyticsWidget);
-}
-
-export async function fetchAccountProfile(): Promise<AccountProfile> {
-	const url = resolveUrl(LOCAL_API_ACCOUNT_PROFILE_URL, '/account/profile');
-	const rawProfile = await fetchJson<ApiAccountProfile>(url);
-	return normalizeAccountProfile(rawProfile);
-}
-
-export async function saveAccountProfile(profile: AccountProfile): Promise<void> {
-	if (USE_LOCAL_API) {
-		throw new Error('Save is disabled while PUBLIC_USE_LOCAL_API=true.');
-	}
-
-	const response = await fetch(`${API_BASE_URL}/account/profile`, {
-		method: 'PUT',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(profile)
-	});
-
-	if (!response.ok) {
-		throw new Error(`Failed to save account profile (${response.status}).`);
-	}
 }
 
 export async function fetchFaqItems(): Promise<FaqItem[]> {

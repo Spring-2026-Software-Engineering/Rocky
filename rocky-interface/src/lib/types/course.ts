@@ -5,6 +5,9 @@ export type ApiCourse = Partial<{
 	instructor: string;
 	semester: string;
 	color: string;
+	overview: string;
+	announcements: string[];
+	members: ApiCourseMember[];
 }>;
 
 export type Course = {
@@ -14,6 +17,42 @@ export type Course = {
 	instructor: string;
 	semester: string;
 	color: string;
+};
+
+export type ApiCourseMember = Partial<{
+	id: string;
+	name: string;
+	email: string;
+	role: string;
+	accountEmail: string;
+}>;
+
+export type CourseAccountRecord = {
+	id: string;
+	name: string;
+	email: string;
+	role: string;
+};
+
+export type CourseMember = {
+	id: string;
+	name: string;
+	email: string;
+	role: 'instructor' | 'student';
+};
+
+export type ApiCourseDetail = Partial<{
+	id: number;
+	overview: string;
+	announcements: string[];
+	members: ApiCourseMember[];
+}>;
+
+export type CourseDetail = {
+	id: number;
+	overview: string;
+	announcements: string[];
+	members: CourseMember[];
 };
 
 function normalizeSemester(rawSemester?: string): string {
@@ -41,4 +80,44 @@ export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 
 export function normalizeCourses(rawCourses: ApiCourse[]): Course[] {
 	return rawCourses.map((course, index) => normalizeCourse(course, index));
+}
+
+function normalizeMemberRole(rawRole?: string): 'instructor' | 'student' {
+	return rawRole?.trim().toLowerCase() === 'instructor' ? 'instructor' : 'student';
+}
+
+function toCourseMemberRole(role: string): 'instructor' | 'student' {
+	return normalizeMemberRole(role);
+}
+
+function normalizeCourseMember(raw: ApiCourseMember, index = 0, accountsByEmail?: Record<string, CourseAccountRecord>): CourseMember {
+	const referenceEmail = raw.accountEmail?.trim().toLowerCase() || raw.email?.trim().toLowerCase() || '';
+	const matchedAccount = referenceEmail ? accountsByEmail?.[referenceEmail] : undefined;
+	const email = matchedAccount?.email || raw.email?.trim() || raw.accountEmail?.trim() || 'N/A';
+	const name = matchedAccount?.name || raw.name?.trim() || 'Unknown User';
+	const role = matchedAccount?.role || raw.role || 'student';
+
+	return {
+		id: email.toLowerCase() !== 'n/a' ? email.toLowerCase() : raw.id?.trim() || `member-${index + 1}`,
+		name,
+		email,
+		role: toCourseMemberRole(role)
+	};
+}
+
+export function normalizeCourseDetail(raw: ApiCourseDetail, index = 0, accountsByEmail?: Record<string, CourseAccountRecord>): CourseDetail {
+	return {
+		id: typeof raw.id === 'number' && Number.isFinite(raw.id) ? raw.id : index + 1,
+		overview: raw.overview?.trim() || 'No course overview is available yet.',
+		announcements: Array.isArray(raw.announcements)
+			? raw.announcements.map((item) => item?.trim() || '').filter((item) => item.length > 0)
+			: [],
+		members: Array.isArray(raw.members)
+			? raw.members.map((member, memberIndex) => normalizeCourseMember(member, memberIndex, accountsByEmail))
+			: []
+	};
+}
+
+export function normalizeCourseDetails(rawDetails: ApiCourseDetail[], accountsByEmail?: Record<string, CourseAccountRecord>): CourseDetail[] {
+	return rawDetails.map((detail, index) => normalizeCourseDetail(detail, index, accountsByEmail));
 }

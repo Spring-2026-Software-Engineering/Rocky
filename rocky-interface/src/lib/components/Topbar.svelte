@@ -16,4 +16,5 @@
 				<div class="brand-sub">administration</div>
 			{/if}
 		</div>
+		<img src="/ksu_horizontal_white.png" alt="Kent State University" class="ksu-logo" />
 </header>

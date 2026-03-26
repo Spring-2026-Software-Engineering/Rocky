@@ -5,11 +5,13 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			currentUser: import('$lib/types/user').User | null;
-				themePreference: import('$lib/settings/userSettings').ThemePreference;
+			themePreference: import('$lib/settings/userSettings').ThemePreference;
+			initialFrame: import('$lib/types/frame').FrameName;
 		}
 		interface PageData {
 			currentUser: import('$lib/types/user').User | null;
-				themePreference: import('$lib/settings/userSettings').ThemePreference;
+			themePreference: import('$lib/settings/userSettings').ThemePreference;
+			initialFrame: import('$lib/types/frame').FrameName;
 		}
 		// interface PageState {}
 		// interface Platform {}

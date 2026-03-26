@@ -19,7 +19,7 @@
 	});
 </script>
 
-<ViewShell title="Users" description="View and manage system users and their roles.">
+<ViewShell title="Users">
 		{#if isLoading}
 			<div class="empty-state">
 				<p>Loading users...</p>

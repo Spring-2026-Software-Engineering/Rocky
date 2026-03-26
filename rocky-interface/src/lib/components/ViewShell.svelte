@@ -1,6 +1,5 @@
 <script lang="ts">
 	export let title: string | null = null;
-	export let description: string | null = null;
 
 	$: hasActionsSlot = Boolean($$slots.actions);
 	$: hasDefaultSlot = Boolean($$slots.default);
@@ -11,9 +10,6 @@
 	<div class="view-title">
 		{#if title}
 			<h1>{title}</h1>
-		{/if}
-		{#if description}
-			<p>{description}</p>
 		{/if}
 	</div>
 

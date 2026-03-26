@@ -12,6 +12,8 @@ export type FrameComponent = typeof DashboardView | typeof UsersView | typeof Co
 export type { FrameName };
 const FRAME_CACHE_KEY = 'rocky_current_frame';
 const FRAME_CACHE_TTL_MS = 60 * 60 * 1000;
+const FRAME_COOKIE_NAME = 'rocky_current_frame';
+const FRAME_COOKIE_MAX_AGE_SECONDS = 60 * 60;
 
 export const frameMap: Record<FrameName, FrameComponent> = {
     dashboard: DashboardView,
@@ -32,6 +34,18 @@ function loadInitialFrame(): FrameName {
     }
 
     try {
+        const cookieMatch = document.cookie
+            .split('; ')
+            .find((entry) => entry.startsWith(`${FRAME_COOKIE_NAME}=`));
+
+        if (cookieMatch) {
+            const [, rawFrame] = cookieMatch.split('=');
+            const frameFromCookie = decodeURIComponent(rawFrame || '').trim();
+            if (isFrameName(frameFromCookie)) {
+                return frameFromCookie;
+            }
+        }
+
         const rawValue = localStorage.getItem(FRAME_CACHE_KEY);
         if (!rawValue) {
             return 'dashboard';
@@ -59,5 +73,6 @@ if (browser) {
     currentFrame.subscribe((frame) => {
         const expiresAt = Date.now() + FRAME_CACHE_TTL_MS;
         localStorage.setItem(FRAME_CACHE_KEY, JSON.stringify({ frame, expiresAt }));
+        document.cookie = `${FRAME_COOKIE_NAME}=${encodeURIComponent(frame)}; Path=/; Max-Age=${FRAME_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
     });
 }

@@ -1,14 +1,11 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import ViewShell from '$lib/components/ViewShell.svelte';
-	import { getThemePreference, setThemePreference, type ThemePreference } from '$lib/stores/themeStore';
+	import { setThemePreference } from '$lib/stores/themeStore';
+	import type { ThemePreference } from '$lib/settings/userSettings';
 
-	let selectedTheme = $state<ThemePreference>('system');
-
-	onMount(async () => {
-		selectedTheme = await getThemePreference();
-	});
+	let selectedTheme = $state<ThemePreference>((page.data.themePreference || 'system') as ThemePreference);
 
 	async function handleThemeChange(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement).value as ThemePreference;
@@ -17,7 +14,7 @@
 		try {
 			await setThemePreference(selectedTheme);
 		} catch {
-			selectedTheme = await getThemePreference();
+			selectedTheme = (page.data.themePreference || 'system') as ThemePreference;
 		}
 	}
 
@@ -26,7 +23,7 @@
 	}
 </script>
 
-<ViewShell title="Account Settings" description="Manage your account information and preferences.">
+<ViewShell title="Account Settings">
 	<div slot="actions">
 		<button class="view-btn" onclick={logout}>Log Out</button>
 	</div>

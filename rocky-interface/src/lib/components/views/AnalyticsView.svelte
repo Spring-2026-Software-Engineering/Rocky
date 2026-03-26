@@ -22,11 +22,10 @@
 	});
 </script>
 
-<ViewShell title="Analytics" description="Live system insights and quick-read widgets styled to match the dashboard shell.">
+<ViewShell title="Analytics">
 		<section class="section">
 			<div class="section-header">
 				<h2>Overview</h2>
-				<span class="tag">Live</span>
 			</div>
 
 			{#if isLoading}

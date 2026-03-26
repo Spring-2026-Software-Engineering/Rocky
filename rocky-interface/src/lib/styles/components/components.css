@@ -38,6 +38,12 @@
 	font-size: var(--font-size-xs);
 }
 
+.ksu-logo {
+	height: 40px;
+	width: auto;
+	margin-left: auto;
+}
+
 /* ========== SIDEBAR ========== */
 .sidebar {
 	width: var(--size-sidebar-width);
@@ -76,6 +82,104 @@
 
 .spacer {
 	flex: 1;
+}
+
+.course-tab-group {
+	position: relative;
+}
+
+.course-popout {
+	position: fixed;
+	left: calc(var(--size-sidebar-width) + var(--space-sm));
+	top: calc(var(--size-topbar-height) + var(--space-md));
+	bottom: var(--space-md);
+	width: 320px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	background: var(--color-bg-primary);
+	border-top: 1px solid var(--color-gray-300);
+	border-right: 1px solid var(--color-gray-300);
+	border-bottom: 1px solid var(--color-gray-300);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	z-index: 30;
+}
+
+.course-popout-header {
+	padding: var(--space-md) var(--space-lg);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	border-bottom: 1px solid var(--color-gray-200);
+	background: var(--color-bg-secondary);
+}
+
+.course-popout-state {
+	margin: 0;
+	padding: var(--space-lg);
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+}
+
+.course-popout-list {
+	flex: 1;
+	overflow-y: auto;
+	scrollbar-width: none;
+}
+
+.course-popout-list::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+}
+
+.course-popout-item {
+	appearance: none;
+	width: 100%;
+	border: 0;
+	background: transparent;
+	display: flex;
+	align-items: center;
+	gap: var(--space-md);
+	padding: var(--space-md) var(--space-lg);
+	cursor: pointer;
+	text-align: left;
+	transition: background var(--transition-fast);
+}
+
+.course-popout-item:hover {
+	background: var(--color-bg-secondary);
+}
+
+.course-popout-item.active {
+	background: var(--color-accent-light);
+}
+
+.course-dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 999px;
+	flex-shrink: 0;
+}
+
+.course-item-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.course-item-name {
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	color: var(--color-text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.course-item-meta {
+	font-size: var(--font-size-xs);
+	color: var(--color-text-secondary);
 }
 
 /* ========== WIDGET PANEL ========== */

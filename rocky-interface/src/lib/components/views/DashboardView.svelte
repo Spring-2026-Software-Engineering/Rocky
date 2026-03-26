@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import { fetchDashboardCourses } from '$lib/api/content';
+	import { fetchCourses } from '$lib/api/content';
 	import CourseCard from '$lib/components/cards/CourseCard.svelte';
 	import ViewShell from '$lib/components/ViewShell.svelte';
+	import { currentFrame } from '$lib/stores/frameStore';
+	import { selectedCourseId } from '$lib/stores/courseStore';
 	import type { Course } from '$lib/types/course';
 
 	let viewMode: 'card' | 'list' = 'card';
@@ -11,9 +14,27 @@
 	let isLoading = true;
 	let error: string | null = null;
 
+	function scrollToTopOfApp() {
+		if (!browser) {
+			return;
+		}
+
+		window.scrollTo({ top: 0, behavior: 'auto' });
+
+		const appContent = document.querySelector('.app-content');
+		if (appContent instanceof HTMLElement) {
+			appContent.scrollTo({ top: 0, behavior: 'auto' });
+		}
+
+		const viewContent = document.querySelector('.view-content');
+		if (viewContent instanceof HTMLElement) {
+			viewContent.scrollTo({ top: 0, behavior: 'auto' });
+		}
+	}
+
 	onMount(async () => {
 		try {
-			courses = await fetchDashboardCourses();
+			courses = await fetchCourses();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'An error occurred while loading courses.';
 		} finally {
@@ -25,9 +46,19 @@
 		viewMode = mode;
 		showViewMenu = false;
 	}
+
+	function handleOpenCourse(event: CustomEvent<{ courseId: number }>) {
+		selectedCourseId.set(event.detail.courseId);
+		currentFrame.set('courses');
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				scrollToTopOfApp();
+			});
+		});
+	}
 </script>
 
-<ViewShell title="Dashboard" description="View and manage all your courses in one place.">
+<ViewShell title="Dashboard">
 	<div slot="actions" class="view-switcher">
 		<button class="view-btn" on:click={() => (showViewMenu = !showViewMenu)}>
 			View
@@ -78,13 +109,13 @@
 	{:else if viewMode === 'card'}
 			<div class="grid grid-3">
 				{#each courses as course}
-					<CourseCard {course} mode="card" />
+					<CourseCard {course} mode="card" on:open={handleOpenCourse} />
 				{/each}
 			</div>
 		{:else}
 			<div class="grid grid-1">
 				{#each courses as course}
-					<CourseCard {course} mode="list" />
+					<CourseCard {course} mode="list" on:open={handleOpenCourse} />
 				{/each}
 			</div>
 	{/if}

@@ -4,6 +4,8 @@ export type ApiUser = Partial<{
 	email: string;
 	role: string;
 	flash_id: string;
+	assignedCourseIds: number[];
+	course_ids: number[];
 }>;
 
 export type User = {
@@ -11,6 +13,7 @@ export type User = {
 	name: string;
 	email: string;
 	role: string;
+	assignedCourseIds: number[];
 };
 
 export type DbUser = {
@@ -18,7 +21,17 @@ export type DbUser = {
 	name: string;
 	email: string;
 	role: string;
+	assignedCourseIds: number[];
 };
+
+function normalizeAssignedCourseIds(raw: ApiUser): number[] {
+	const values = raw.assignedCourseIds ?? raw.course_ids ?? [];
+	if (!Array.isArray(values)) {
+		return [];
+	}
+
+	return values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+}
 
 export type CreateUserInput = {
 	name: string;
@@ -42,7 +55,8 @@ export function normalizeUser(raw: ApiUser): User {
 		id,
 		name: raw.name?.trim() || 'N/A',
 		email,
-		role: raw.role?.trim() || 'N/A'
+		role: raw.role?.trim() || 'N/A',
+		assignedCourseIds: normalizeAssignedCourseIds(raw)
 	};
 }
 
@@ -55,7 +69,8 @@ export function normalizeDbUser(raw: ApiUser): DbUser {
 		id: raw._id?.trim() || '',
 		name: raw.name?.trim() || 'N/A',
 		email: raw.email?.trim() || 'N/A',
-		role: raw.role?.trim() || 'N/A'
+		role: raw.role?.trim() || 'N/A',
+		assignedCourseIds: normalizeAssignedCourseIds(raw)
 	};
 }
 

@@ -50,11 +50,10 @@
 	}
 </script>
 
-<ViewShell title="Help Center" description="Find answers, browse guides, and connect with support resources.">
+<ViewShell title="Help Center">
 	<section class="section">
 		<div class="section-header">
 			<h2>Other Resources</h2>
-			<span class="tag">Support</span>
 		</div>
 
 		<div class="section-content">

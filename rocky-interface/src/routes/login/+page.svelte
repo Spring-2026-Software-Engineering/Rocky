@@ -7,7 +7,7 @@
     <div class="login-shell">
       <section class="login-column">
         <div class="login-top">
-          <img src="/ksu_horizontal.png" alt="Kent State University" class="login-ksu-logo" />
+          <img src="/ksu_horizontal_blue.png" alt="Kent State University" class="login-ksu-logo" />
           <h1 class="login-title">Sign in to Rocky</h1>
           <a class="login-signin-btn" href="/login/preview">Sign In</a>
           <p class="login-help-links">
