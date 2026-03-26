@@ -1,51 +1,11 @@
 {
   "id:local-002": {
-    "themePreference": "light",
-    "widgetIdsByFrame": {
-      "dashboard": [
-        "dashboard-analytics",
-        "dashboard-system-info",
-        "dashboard-notifications"
-      ],
-      "users": [
-        "dashboard-analytics",
-        "dashboard-system-info",
-        "dashboard-notifications"
-      ],
-      "courses": [
-        "dashboard-analytics",
-        "dashboard-system-info",
-        "dashboard-notifications"
-      ],
-      "account": [
-        "dashboard-analytics",
-        "dashboard-system-info",
-        "dashboard-notifications"
-      ],
-      "analytics": [
-        "analytics-temperature-trend",
-        "analytics-request-mix",
-        "analytics-flagged-queue",
-        "analytics-cpu-utilization"
-      ],
-      "help": [
-        "help-system-status",
-        "help-quick-contact",
-        "help-maintenance-info",
-        "help-support-tickets"
-      ]
-    }
+    "themePreference": "light"
   },
   "id:local-001": {
-    "themePreference": "dark",
-    "widgetIdsByFrame": {}
+    "themePreference": "dark"
   },
   "id:local-003": {
-<<<<<<< HEAD
     "themePreference": "light"
-=======
-    "themePreference": "light",
-    "widgetIdsByFrame": {}
->>>>>>> parent of 6ae0e5b (updated rocky logo and dark mode theme)
   }
 }

@@ -51,6 +51,11 @@ async function readSettingsMap(): Promise<UserSettingsMap> {
 			return {};
 		}
 
+		if (err instanceof SyntaxError) {
+			// If local settings JSON is malformed, fail safe instead of taking down page requests.
+			return {};
+		}
+
 		throw err;
 	}
 }

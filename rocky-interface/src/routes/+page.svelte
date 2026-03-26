@@ -6,6 +6,7 @@
 	import '$lib/styles/foundation/global.css';
 
 	let currentUser = $derived(page.data.currentUser);
+	let ActiveView = $derived(frameMap[$currentFrame as FrameName]);
 
 	$effect(() => {
 		if (!currentUser) {
@@ -18,7 +19,7 @@
 	<div class="page-layout">
 		<div class="main-content">
 			<div class="view-wrapper">
-				<svelte:component this={frameMap[$currentFrame as FrameName]} />
+				<ActiveView />
 			</div>
 		</div>
 		<WidgetPanel />

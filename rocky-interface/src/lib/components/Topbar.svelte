@@ -2,16 +2,18 @@
 	import type { User } from '$lib/types/user';
 	import '$lib/styles/components/topbar.css';
 
-	export let user: User | null = null;
+	let { user = null }: { user: User | null } = $props();
 
-	$: roleLabel = user ? user.role : 'Administrator';
-	$: nameLabel = user ? user.name : 'Rocky';
+	let roleValue = $derived(user?.role?.trim().toLowerCase() ?? '');
+	let showAdministration = $derived(roleValue === 'admin' || roleValue === 'administrator');
 </script>
 
 <header class="topbar">
 		<img src="/rocky.svg" alt="Rocky" class="brand-logo" />
 		<div class="brand-text">
-			<div class="brand-name">{nameLabel}</div>
-			<div class="brand-sub">{roleLabel}</div>
+			<div class="brand-name">Rocky</div>
+			{#if showAdministration}
+				<div class="brand-sub">administration</div>
+			{/if}
 		</div>
 </header>
