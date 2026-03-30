@@ -1,0 +1,73 @@
+{
+  "users": [
+    {
+      "name": "Valid Student",
+      "email": "valid.student@kent.edu",
+      "flash_id": "vs100",
+      "role": "student"
+    },
+    {
+      "name": "Valid Admin",
+      "email": "valid.admin@kent.edu",
+      "flash_id": "va200",
+      "role": "admin"
+    },
+    {
+      "name": "Bad Missing Email",
+      "flash_id": "bad300",
+      "role": "student"
+    },
+    {
+      "name": "Bad Role",
+      "email": "bad.role@kent.edu",
+      "flash_id": "bad400",
+      "role": "owner"
+    }
+  ],
+  "courses": [
+    {
+      "name": "Software Engineering",
+      "instructor_ids": ["valid.admin@kent.edu"],
+      "student_ids": ["valid.student@kent.edu"],
+      "semester": {
+        "year": 2026,
+        "term": "spring"
+      }
+    },
+    {
+      "name": "Invalid Course Term",
+      "instructor_ids": ["valid.admin@kent.edu"],
+      "student_ids": ["valid.student@kent.edu"],
+      "semester": {
+        "year": 2026,
+        "term": "autumn"
+      }
+    },
+    {
+      "name": "Invalid Student Ids",
+      "instructor_ids": ["valid.admin@kent.edu"],
+      "student_ids": [101],
+      "semester": {
+        "year": 2026,
+        "term": "fall"
+      }
+    }
+  ],
+  "api_keys": [
+    {
+      "u_id": "valid.student@kent.edu",
+      "c_id": "Software Engineering",
+      "expire": null
+    },
+    {
+      "u_id": "",
+      "c_id": "Software Engineering",
+      "expire": null
+    },
+    {
+      "u_id": "valid.admin@kent.edu",
+      "c_id": "Software Engineering",
+      "expire": "not-an-iso-date"
+    }
+  ]
+}
