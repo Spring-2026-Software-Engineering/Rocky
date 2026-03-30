@@ -8,10 +8,26 @@
     "color": "#1a4a8a",
     "members": [
       {
-        "accountEmail": "amoreno@kent.edu"
+        "accountEmail": "amoreno@kent.edu",
+        "role": "instructor"
       },
       {
-        "accountEmail": "student.local@kent.edu"
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
+      },
+      {
+        "accountEmail": "mila.ross@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-se3010-a",
+        "name": "Team Alpha",
+        "memberEmails": [
+          "student.local@kent.edu",
+          "mila.ross@kent.edu"
+        ]
       }
     ]
   },
@@ -24,10 +40,21 @@
     "color": "#7b2d8b",
     "members": [
       {
-        "accountEmail": "mchen@kent.edu"
+        "accountEmail": "mchen@kent.edu",
+        "role": "instructor"
       },
       {
-        "accountEmail": "mila.ross@kent.edu"
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs2410-a",
+        "name": "Algorithm Ninjas",
+        "memberEmails": [
+          "student.local@kent.edu"
+        ]
       }
     ]
   },
@@ -40,10 +67,28 @@
     "color": "#2d6a4f",
     "members": [
       {
-        "accountEmail": "pnarayanan@kent.edu"
+        "accountEmail": "pnarayanan@kent.edu",
+        "role": "instructor"
       },
       {
-        "accountEmail": "student.local@kent.edu"
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs3560-db",
+        "name": "Query Builders",
+        "memberEmails": [
+          "student.local@kent.edu"
+        ]
+      },
+      {
+        "id": "group-cs3560-labs",
+        "name": "Lab Partners",
+        "memberEmails": [
+          "mila.ross@kent.edu"
+        ]
       }
     ]
   },
@@ -56,7 +101,21 @@
     "color": "#c05621",
     "members": [
       {
-        "accountEmail": "ebrooks@kent.edu"
+        "accountEmail": "ebrooks@kent.edu",
+        "role": "instructor"
+      },
+      {
+        "accountEmail": "instructor.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs3200-a",
+        "name": "Process Managers",
+        "memberEmails": [
+          "instructor.local@kent.edu"
+        ]
       }
     ]
   },
@@ -69,9 +128,15 @@
     "color": "#155e75",
     "members": [
       {
-        "accountEmail": "hreed@kent.edu"
+        "accountEmail": "hreed@kent.edu",
+        "role": "instructor"
+      },
+      {
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
       }
-    ]
+    ],
+    "groups": []
   },
   {
     "id": 6,
@@ -82,10 +147,21 @@
     "color": "#7f1d1d",
     "members": [
       {
-        "accountEmail": "sortiz@kent.edu"
+        "accountEmail": "sortiz@kent.edu",
+        "role": "instructor"
       },
       {
-        "accountEmail": "instructor.local@kent.edu"
+        "accountEmail": "instructor.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs3620-net",
+        "name": "Packet Crew",
+        "memberEmails": [
+          "instructor.local@kent.edu"
+        ]
       }
     ]
   },
@@ -98,10 +174,21 @@
     "color": "#3b0764",
     "members": [
       {
-        "accountEmail": "lpark@kent.edu"
+        "accountEmail": "lpark@kent.edu",
+        "role": "instructor"
       },
       {
-        "accountEmail": "student.local@kent.edu"
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs3810-ux",
+        "name": "UX Research Crew",
+        "memberEmails": [
+          "student.local@kent.edu"
+        ]
       }
     ]
   },
@@ -114,7 +201,134 @@
     "color": "#14532d",
     "members": [
       {
-        "accountEmail": "jpatel@kent.edu"
+        "accountEmail": "jpatel@kent.edu",
+        "role": "instructor"
+      },
+      {
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs4990-cap",
+        "name": "Capstone Team",
+        "memberEmails": [
+          "student.local@kent.edu"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "code": "CS 4100",
+    "name": "Compiler Design",
+    "instructor": "Dr. Alicia Moreno",
+    "semester": "Spring 2027",
+    "color": "#0f766e",
+    "members": [
+      {
+        "accountEmail": "amoreno@kent.edu",
+        "role": "instructor"
+      },
+      {
+        "accountEmail": "mila.ross@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs4100-ir",
+        "name": "IR Builders",
+        "memberEmails": [
+          "mila.ross@kent.edu"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "code": "CS 4300",
+    "name": "Artificial Intelligence",
+    "instructor": "Prof. Marcus Chen",
+    "semester": "Spring 2027",
+    "color": "#7c2d12",
+    "members": [
+      {
+        "accountEmail": "mchen@kent.edu",
+        "role": "instructor"
+      },
+      {
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
+      },
+      {
+        "accountEmail": "mila.ross@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs4300-ml",
+        "name": "Model Trainers",
+        "memberEmails": [
+          "student.local@kent.edu",
+          "mila.ross@kent.edu"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "code": "CS 4420",
+    "name": "Computer Security",
+    "instructor": "Prof. Evan Brooks",
+    "semester": "Spring 2027",
+    "color": "#4c1d95",
+    "members": [
+      {
+        "accountEmail": "ebrooks@kent.edu",
+        "role": "instructor"
+      },
+      {
+        "accountEmail": "instructor.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs4420-red",
+        "name": "Red Team",
+        "memberEmails": [
+          "instructor.local@kent.edu"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "code": "CS 4550",
+    "name": "Cloud Computing",
+    "instructor": "Dr. Priya Narayanan",
+    "semester": "Summer 2027",
+    "color": "#1d4ed8",
+    "members": [
+      {
+        "accountEmail": "pnarayanan@kent.edu",
+        "role": "instructor"
+      },
+      {
+        "accountEmail": "student.local@kent.edu",
+        "role": "student"
+      }
+    ],
+    "groups": [
+      {
+        "id": "group-cs4550-cloud",
+        "name": "Cloud Ops",
+        "memberEmails": [
+          "student.local@kent.edu"
+        ]
       }
     ]
   }

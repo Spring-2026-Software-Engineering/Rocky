@@ -6,7 +6,7 @@
 	let users: DbUser[] = [];
 	let name: string = '';
 	let email: string = '';
-	let role: string = 'student';
+	let role: string = 'client';
 	let message: string | null = null;
 
 	async function loadUsers() {
@@ -25,7 +25,7 @@
 
 		name = '';
 		email = '';
-		role = 'student';
+		role = 'client';
 		await loadUsers();
 	}
 
@@ -56,7 +56,7 @@
 <h3>Add User</h3>
 <input placeholder="name" bind:value={name} />
 <input placeholder="email" bind:value={email} />
-<input placeholder="role (student/instructor/admin)" bind:value={role} />
+<input placeholder="role (admin/client)" bind:value={role} />
 <button on:click={addUser} disabled={USE_LOCAL_API}>Add User</button>
 
 <h3>Users</h3>

@@ -7,6 +7,7 @@
 	import type { Course } from '$lib/types/course';
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
 	import { selectedCourseId } from '$lib/stores/courseStore';
+	import { openCourseComposer } from '$lib/stores/courseComposerStore';
 	import { toFrameLabel, type FrameName } from '$lib/types/frame';
 
 	const frames = Object.keys(frameMap) as FrameName[];
@@ -148,6 +149,10 @@
 			});
 		});
 	}
+
+	function openCreateCourseComposer() {
+		openCourseComposer();
+	}
 </script>
 
 <nav class="sidebar">
@@ -159,7 +164,10 @@
 		<button class="nav-link" class:active={activeFrame === 'courses'} onclick={toggleCourseMenu}>{toFrameLabel('courses')}</button>
 		{#if courseMenuOpen}
 			<div class="course-popout" role="menu" aria-label="Course list">
-				<div class="course-popout-header">Courses</div>
+				<div class="course-popout-header">
+					<span>Courses</span>
+					<button type="button" class="list-go-btn course-popout-create-btn" onclick={openCreateCourseComposer}>Create</button>
+				</div>
 				{#if courseMenuLoading}
 					<p class="course-popout-state">Loading courses...</p>
 				{:else if courseMenuError}

@@ -23,10 +23,7 @@ export function initAuthFromStorage(): void {
 				id: parsed.id,
 				name: parsed.name,
 				email: parsed.email,
-				role: parsed.role,
-				assignedCourseIds: Array.isArray(parsed.assignedCourseIds)
-					? parsed.assignedCourseIds.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-					: []
+				role: parsed.role
 			});
 		}
 	} catch {

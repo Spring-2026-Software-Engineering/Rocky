@@ -107,11 +107,19 @@
 }
 
 .course-popout-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--space-sm);
 	padding: var(--space-md) var(--space-lg);
 	font-size: var(--font-size-sm);
 	font-weight: var(--font-weight-semibold);
 	border-bottom: 1px solid var(--color-gray-200);
 	background: var(--color-bg-secondary);
+}
+
+.course-popout-create-btn {
+	padding: 4px var(--space-sm);
 }
 
 .course-popout-state {
@@ -517,6 +525,16 @@
 	background: var(--color-accent-light);
 	color: var(--color-accent);
 	font-weight: var(--font-weight-semibold);
+}
+
+.dashboard-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-sm);
+}
+
+.view-switcher {
+	position: relative;
 }
 
 /* ========== KPI/ANALYTICS CARDS ========== */

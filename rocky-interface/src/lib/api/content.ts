@@ -19,11 +19,14 @@ import {
 } from '$lib/types/analytics';
 import {
 	normalizeCourseDetails,
+	normalizeCourseGroups,
 	normalizeCourses,
 	type ApiCourse,
+	type ApiCourseGroup,
 	type Course,
 	type CourseAccountRecord,
-	type CourseDetail
+	type CourseDetail,
+	type CourseGroup
 } from '$lib/types/course';
 import { normalizeFaqItems, type ApiFaqItem, type FaqItem } from '$lib/types/help';
 import { normalizeUsers, type ApiUser } from '$lib/types/user';
@@ -93,6 +96,19 @@ export async function fetchCourseDetails(): Promise<CourseDetail[]> {
 	return normalizeCourseDetails(rawDetails, accountsByEmail);
 }
 
+export async function fetchCourseGroups(): Promise<CourseGroup[]> {
+	const coursesUrl = resolveUrl(LOCAL_API_COURSES_URL, '/courses');
+	const rawCourses = await fetchJson<ApiCourse[]>(coursesUrl);
+	const rawGroups: ApiCourseGroup[] = rawCourses.flatMap((course) => {
+		const groups = Array.isArray(course.groups) ? course.groups : [];
+		return groups.map((group) => ({
+			...group,
+			courseId: typeof group.courseId === 'number' ? group.courseId : course.id
+		}));
+	});
+	return normalizeCourseGroups(rawGroups);
+}
+
 export async function fetchAnalyticsKpis(): Promise<KpiMetric[]> {
 	const url = resolveUrl(LOCAL_API_ANALYTICS_KPIS_URL, '/analytics/kpis');
 	const rawKpis = await fetchJson<Array<Partial<KpiMetric>>>(url);
@@ -121,4 +137,21 @@ export async function fetchFaqItems(): Promise<FaqItem[]> {
 	const url = resolveUrl(LOCAL_API_HELP_FAQ_URL, '/help/faq');
 	const rawItems = await fetchJson<ApiFaqItem[]>(url);
 	return normalizeFaqItems(rawItems);
+}
+
+/**
+ * Derives assigned course IDs for a user based on courses where they appear as a member.
+ * Courses are the authoritative source of truth for user-course relationships.
+ * @param userEmail - The user's email address (normalized to lowercase for matching)
+ * @param courseDetails - The list of course details with member information to search through
+ * @returns Array of course IDs where the user is a member
+ */
+export function getUserAssignedCourseIds(userEmail: string, courseDetails: CourseDetail[]): number[] {
+	const normalizedEmail = userEmail.toLowerCase();
+	return courseDetails
+		.filter((course) => {
+			return course.members.some((member) => member.email.toLowerCase() === normalizedEmail);
+		})
+		.map((course) => course.id)
+		.filter((id): id is number => typeof id === 'number');
 }

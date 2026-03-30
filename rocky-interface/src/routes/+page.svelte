@@ -4,6 +4,7 @@
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
 	import type { FrameName } from '$lib/types/frame';
 	import WidgetPanel from '$lib/components/WidgetPanel.svelte';
+	import CourseComposerPopover from '$lib/components/CourseComposerPopover.svelte';
 	import '$lib/styles/foundation/global.css';
 
 	let currentUser = $derived(page.data.currentUser);
@@ -19,6 +20,7 @@
 
 {#if currentUser}
 	<div class="page-layout">
+		<CourseComposerPopover />
 		<div class="main-content">
 			<div class="view-wrapper">
 				<ActiveView />
