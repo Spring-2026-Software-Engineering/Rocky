@@ -1,6 +1,7 @@
 # Global
 .git
 .gitignore
+**/.venv
 **/node_modules
 **/.svelte-kit
 **/build
@@ -12,3 +13,7 @@ rocky-interface/.env.*
 # Python cache
 **/__pycache__
 **/*.pyc
+
+# Test and local tooling folders not needed in production images.
+run-test
+burndown

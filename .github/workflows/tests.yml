@@ -24,6 +24,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r rocky-backend/requirements.txt
 
+      - name: Seed backend from local-api fixtures
+        run: python rocky-backend/seed_from_local_api.py
+
       - name: Run backend tests
         env:
           PYTHONPATH: rocky-backend

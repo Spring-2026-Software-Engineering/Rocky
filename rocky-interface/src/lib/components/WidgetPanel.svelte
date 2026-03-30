@@ -1,36 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fetchAnalyticsWidgets, fetchDefaultWidgets } from '$lib/api/content';
+	import { fetchDefaultWidgets } from '$lib/api/content';
 	import WidgetCard from './cards/WidgetCard.svelte';
-	import { currentFrame } from '$lib/stores/frameStore';
-	import type { AnalyticsWidget } from '$lib/types/analytics';
 	import type { PanelWidget } from '$lib/types/widget';
 
-	let defaultWidgets: PanelWidget[] = [];
-	let analyticsWidgets: AnalyticsWidget[] = [];
+	let widgets: PanelWidget[] = [];
 	let error: string | null = null;
 
 	onMount(async () => {
 		try {
-			const [loadedDefaultWidgets, loadedAnalyticsWidgets] = await Promise.all([
-				fetchDefaultWidgets(),
-				fetchAnalyticsWidgets()
-			]);
-
-			defaultWidgets = loadedDefaultWidgets;
-			analyticsWidgets = loadedAnalyticsWidgets;
+			widgets = await fetchDefaultWidgets();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'An error occurred while loading widgets.';
 		}
 	});
-
-	$: widgets = $currentFrame === 'analytics' ? analyticsWidgets : defaultWidgets;
-	$: panelTitle = $currentFrame === 'analytics' ? 'Analytics Widgets' : 'Widgets';
 </script>
 
 <div class="widget-panel">
 
-	<h2 class="widget-panel-title">{panelTitle}</h2>
+	<h2 class="widget-panel-title">Widgets</h2>
 
 	{#if error}
 		<p class="widget-note"><strong>Error:</strong> {error}</p>

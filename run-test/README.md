@@ -15,7 +15,7 @@ This folder centralizes isolated automated tests for both backend and frontend.
 Path: run-test/backend
 
 - seed_data.json: mixed valid and invalid records.
-- seed_backend.py: reusable seed function for in-memory database seeding.
+- rocky-backend/seed_from_local_api.py: single seeding module used by runtime and tests.
 - test_backend_validation.py:
   - verifies accepted data is inserted;
   - verifies invalid data is rejected;

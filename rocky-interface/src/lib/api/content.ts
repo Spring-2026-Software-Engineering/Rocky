@@ -2,7 +2,6 @@ import {
 	API_BASE_URL,
 	LOCAL_API_ANALYTICS_ACTIVITY_URL,
 	LOCAL_API_ANALYTICS_KPIS_URL,
-	LOCAL_API_ANALYTICS_WIDGETS_URL,
 	LOCAL_API_COURSES_URL,
 	LOCAL_API_DEFAULT_WIDGETS_URL,
 	LOCAL_API_HELP_FAQ_URL,
@@ -11,10 +10,8 @@ import {
 } from '$lib/config/env';
 import {
 	toActivityRow,
-	toAnalyticsWidget,
 	toKpiMetric,
 	type ActivityRow,
-	type AnalyticsWidget,
 	type KpiMetric
 } from '$lib/types/analytics';
 import {
@@ -125,12 +122,6 @@ export async function fetchDefaultWidgets(): Promise<PanelWidget[]> {
 	const url = resolveUrl(LOCAL_API_DEFAULT_WIDGETS_URL, '/widgets/default');
 	const rawWidgets = await fetchJson<Array<Partial<PanelWidget>>>(url);
 	return toPanelWidgets(rawWidgets);
-}
-
-export async function fetchAnalyticsWidgets(): Promise<AnalyticsWidget[]> {
-	const url = resolveUrl(LOCAL_API_ANALYTICS_WIDGETS_URL, '/analytics/widgets');
-	const rawWidgets = await fetchJson<Array<Partial<AnalyticsWidget>>>(url);
-	return rawWidgets.map(toAnalyticsWidget);
 }
 
 export async function fetchFaqItems(): Promise<FaqItem[]> {

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rocky Backend Collections</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --panel: #ffffff;
+        --text: #132038;
+        --muted: #4a5a78;
+        --border: #d6dfef;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(180deg, #eef3fc 0%, var(--bg) 50%, #f9fbff 100%);
+        color: var(--text);
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 2rem auto;
+        padding: 0 1rem 2rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.8rem;
+      }
+
+      p {
+        color: var(--muted);
+      }
+
+      .collection {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.35rem 0.6rem 0.6rem;
+        margin-top: 1rem;
+      }
+
+      .collection summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.45rem 0.35rem;
+        border-radius: 8px;
+      }
+
+      .collection summary:hover {
+        background: #f7f9fe;
+      }
+
+      .collection summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .summary-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 1.2rem;
+        font-weight: 600;
+      }
+
+      .summary-label::before {
+        content: "▸";
+        font-size: 0.85rem;
+        color: var(--muted);
+        transform: translateY(1px);
+        transition: transform 0.15s ease;
+      }
+
+      .collection[open] .summary-label::before {
+        transform: rotate(90deg) translateY(-1px);
+      }
+
+      .collection-content {
+        padding: 0 0.35rem 0.25rem;
+      }
+
+      .meta {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      pre {
+        margin: 0.75rem 0 0;
+        background: #f7f9fe;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.75rem;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Rocky Backend Collection Snapshot</h1>
+      <p>Generated at {{ generated_at }} (UTC)</p>
+
+      {% for name, docs in collections.items() %}
+      <details class="collection">
+        <summary>
+          <span class="summary-label">{{ name }}</span>
+          <span class="meta">Document count: {{ docs | length }}</span>
+        </summary>
+        <div class="collection-content">
+          <pre>{{ docs | tojson(indent=2) }}</pre>
+        </div>
+      </details>
+      {% endfor %}
+    </main>
+  </body>
+</html>

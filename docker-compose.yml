@@ -5,6 +5,10 @@ services:
     build:
       context: .
       dockerfile: rocky-backend/Dockerfile
+    environment:
+      ROCKY_ENABLE_DB_INSPECTOR: "false"
+    volumes:
+      - backend-data:/app/rocky-backend/.mongita
     networks:
       - rocky-network
 
@@ -24,3 +28,6 @@ services:
 networks:
   rocky-network:
     driver: bridge
+
+volumes:
+  backend-data:

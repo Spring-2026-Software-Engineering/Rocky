@@ -1,9 +1,3 @@
-import type { PanelWidget } from '$lib/types/widget';
-
-export type AnalyticsWidget = PanelWidget & {
-	html: string;
-};
-
 export type KpiMetric = {
 	label: string;
 	value: string;
@@ -16,13 +10,6 @@ export type ActivityRow = {
 	flagged: number;
 	successRate: string;
 };
-
-export function toAnalyticsWidget(widget: Partial<AnalyticsWidget>): AnalyticsWidget {
-	return {
-		title: widget.title?.trim() || 'Untitled Analytics Widget',
-		html: widget.html?.trim() || '<p class="widget-note">No data</p>'
-	};
-}
 
 export function toKpiMetric(metric: Partial<KpiMetric>): KpiMetric {
 	return {

@@ -5,6 +5,12 @@ import { loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, '.', '');
 
+	if (mode === 'production') {
+		return {
+			plugins: [sveltekit()]
+		};
+	}
+
 	const host = env.VITE_DEV_HOST?.trim();
 	if (!host) {
 		throw new Error('Missing required env var: VITE_DEV_HOST');
