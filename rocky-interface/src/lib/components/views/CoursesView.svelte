@@ -1,19 +1,29 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { currentUser } from '$lib/stores/authStore';
+	import { page } from '$app/stores';
+	import {
+		addCourseMembers,
+		addGroupMember as addCourseGroupMember,
+		createCourseGroup as createCourseGroupRequest,
+		fetchCourseApiHistory,
+		removeCourseMember,
+		removeGroupMember as removeCourseGroupMember,
+		updateCourseMetadata
+	} from '$lib/api/courses';
 	import { fetchCourseDetails, fetchCourseGroups, fetchCourses } from '$lib/api/content';
 	import { fetchUsersForViews } from '$lib/api/users';
 	import { selectedCourseId } from '$lib/stores/courseStore';
-	import { createdCourseDraft } from '$lib/stores/courseComposerStore';
 	import ViewShell from '$lib/components/ViewShell.svelte';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
 	import type { Course, CourseDetail, CourseGroup } from '$lib/types/course';
 	import type { User } from '$lib/types/user';
+	import type { CourseApiHistoryEntry } from '$lib/api/courses';
 
 	type CourseTab = 'home' | 'edit-course' | 'edit-people' | 'groups';
 
 	let allCourses: Course[] = [];
 	let allUsers: User[] = [];
+	let baseVisibleCourses: Course[] = [];
 	let visibleCourses: Course[] = [];
 	let detailsByCourseId: Record<number, CourseDetail> = {};
 	let groupsByCourseId: Record<number, CourseGroup[]> = {};
@@ -29,18 +39,22 @@
 	let newGroupName = '';
 	let pendingGroupMemberEmailByGroupId: Record<string, string> = {};
 	let importCsvInput: HTMLInputElement | null = null;
+	let previewApiKey: string | null = null;
+	let courseApiHistory: CourseApiHistoryEntry[] = [];
+	let courseApiHistoryLoading = false;
+	let courseApiHistoryError: string | null = null;
+	let loadedCourseApiHistoryForId: number | null = null;
 
-	onMount(async () => {
+	async function loadWorkspace() {
 		try {
-			const [courses, details, groups, users] = await Promise.all([
-				fetchCourses(),
-				fetchCourseDetails(),
-				fetchCourseGroups(),
-				fetchUsersForViews()
-			]);
+			const requestList = [fetchCourses(), fetchCourseDetails(), fetchCourseGroups()] as const;
+			const [courses, details, groups] = await Promise.all(requestList);
+			const needsUsers = $page.data.currentUser?.role?.toLowerCase() === 'admin';
+			const usersPromise = needsUsers ? fetchUsersForViews() : Promise.resolve([] as User[]);
+			const users = await usersPromise;
+
 			allCourses = courses;
 			allUsers = users;
-			visibleCourses = courses;
 			detailsByCourseId = Object.fromEntries(details.map((detail) => [detail.id, detail]));
 			groupsByCourseId = groups.reduce<Record<number, CourseGroup[]>>((acc, group) => {
 				const existing = acc[group.courseId] || [];
@@ -48,32 +62,48 @@
 				return acc;
 			}, {});
 
-			if ($selectedCourseId === null && visibleCourses.length > 0) {
-				selectedCourseId.set(visibleCourses[0].id);
+			if ($selectedCourseId === null && courses.length > 0) {
+				selectedCourseId.set(courses[0].id);
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'An error occurred while loading course data.';
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	onMount(async () => {
+		await loadWorkspace();
 	});
 
-	$: visibleCourses = $createdCourseDraft
-		? [$createdCourseDraft, ...allCourses.filter((course) => course.id !== $createdCourseDraft?.id)]
-		: allCourses;
+	$: visibleCourses = baseVisibleCourses;
 	$: selectedCourse = visibleCourses.find((course) => course.id === $selectedCourseId) ?? null;
 	$: selectedDetail = selectedCourse ? detailsByCourseId[selectedCourse.id] : null;
 	$: selectedGroups = selectedCourse ? groupsByCourseId[selectedCourse.id] || [] : [];
 	$: nonAdminUsers = allUsers.filter((user) => user.role !== 'admin');
 	$: accountUsers = allUsers.filter((user) => user.email && user.email.trim() && user.email !== 'N/A');
-	$: currentUserEmail = $currentUser?.email?.trim().toLowerCase() || '';
-	$: currentUserRole = $currentUser?.role?.trim().toLowerCase() || '';
-	$: instructorEmailForCourse = selectedDetail?.members.find((member) => member.role === 'instructor')?.email?.toLowerCase() || '';
+	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
+	$: currentUserRole = $page.data.currentUser?.role?.trim().toLowerCase() || '';
 	$: isCurrentUserAdmin = currentUserRole === 'admin';
+	$: baseVisibleCourses = isCurrentUserAdmin
+		? allCourses
+		: allCourses.filter((course) => {
+				const members = detailsByCourseId[course.id]?.members || [];
+				return members.some((member) => member.email.toLowerCase() === currentUserEmail);
+		  });
+	$: instructorEmailForCourse = selectedDetail?.members.find((member) => member.role === 'instructor')?.email?.toLowerCase() || '';
 	$: isCurrentUserCourseInstructor = currentUserEmail !== '' && currentUserEmail === instructorEmailForCourse;
+	$: isCurrentUserClient = currentUserRole === 'client';
+	$: canEditCourse = isCurrentUserAdmin;
+	$: canEditPeopleAndGroups = isCurrentUserAdmin || isCurrentUserCourseInstructor;
 	$: studentGroup = currentUserEmail
 		? selectedGroups.find((group) => group.memberEmails.includes(currentUserEmail)) || null
 		: null;
+	$: studentMembers = (selectedDetail?.members || []).filter((member) => member.role === 'student');
+	$: groupedStudentEmailSet = new Set(
+		selectedGroups.flatMap((group) => group.memberEmails.map((email) => email.trim().toLowerCase()))
+	);
+	$: ungroupedStudentMembers = studentMembers.filter((member) => !groupedStudentEmailSet.has(member.email.trim().toLowerCase()));
 	$: studentGroupMembers = (() => {
 		if (!studentGroup || !selectedDetail) {
 			return [];
@@ -85,11 +115,29 @@
 			.filter((member): member is NonNullable<typeof member> => Boolean(member))
 			.filter((member) => member.role === 'student');
 	})();
-	$: canShowStudentGroupPanel = !isCurrentUserAdmin && !isCurrentUserCourseInstructor && Boolean(studentGroup);
+	$: memberByEmail = new Map((selectedDetail?.members || []).map((member) => [member.email.trim().toLowerCase(), member]));
+	$: groupMembershipRows = selectedGroups.map((group) => ({
+		group,
+		members: group.memberEmails
+			.map((email) => memberByEmail.get(email.trim().toLowerCase()))
+			.filter((member): member is NonNullable<typeof member> => Boolean(member))
+			.filter((member) => member.role === 'student')
+	}));
+	$: canViewManagerApiData = isCurrentUserAdmin || isCurrentUserCourseInstructor;
+	$: canViewCourseApiHistory = isCurrentUserAdmin;
+	$: canViewPersonalApiData = isCurrentUserClient && !isCurrentUserCourseInstructor && !studentGroup;
+	$: showCourseTabBar = canEditCourse || canEditPeopleAndGroups;
 	$: selectableGroupMembers = (selectedDetail?.members || []).filter((member) => member.role !== 'instructor');
-	$: availableTabs = ['home', 'edit-course', 'edit-people', 'groups'] as CourseTab[];
+	$: availableTabs = [
+		'home',
+		...(canEditCourse ? (['edit-course'] as CourseTab[]) : []),
+		...(canEditPeopleAndGroups ? (['edit-people', 'groups'] as CourseTab[]) : [])
+	] as CourseTab[];
 	$: if (!availableTabs.includes(activeTab)) {
 		activeTab = 'home';
+	}
+	$: if (!selectedCourse && visibleCourses.length > 0) {
+		selectedCourseId.set(visibleCourses[0].id);
 	}
 	$: if (selectedCourse) {
 		const matchingUserByName = nonAdminUsers.find((user) => user.name === selectedCourse.instructor);
@@ -101,22 +149,40 @@
 			instructorEmail: (courseInstructorMember?.email || matchingUserByName?.email || '').toLowerCase()
 		};
 	}
-
-	function sendPseudoRequest(action: string, payload: unknown) {
-		console.info(`[pseudo-api] ${action}`, payload);
+	$: if (selectedCourse && canViewCourseApiHistory && loadedCourseApiHistoryForId !== selectedCourse.id) {
+		void loadCourseApiHistory(selectedCourse.id);
 	}
 
-	function removeMember(memberId: string) {
+	async function refreshAfterWrite() {
+		isLoading = true;
+		loadedCourseApiHistoryForId = null;
+		await loadWorkspace();
+	}
+
+	async function loadCourseApiHistory(courseId: number) {
+		courseApiHistoryLoading = true;
+		courseApiHistoryError = null;
+		loadedCourseApiHistoryForId = courseId;
+
+		try {
+			courseApiHistory = await fetchCourseApiHistory(courseId);
+		} catch (err) {
+			courseApiHistoryError = err instanceof Error ? err.message : 'Unable to load API history.';
+			courseApiHistory = [];
+		} finally {
+			courseApiHistoryLoading = false;
+		}
+	}
+
+	async function removeMember(memberId: string) {
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
-		sendPseudoRequest('remove-course-member', {
-			courseId: selectedCourse.id,
-			memberId
-		});
+		await removeCourseMember(selectedCourse.id, memberId);
+		await refreshAfterWrite();
 	}
 
-	function addMemberByEmailPrompt() {
+	async function addMemberByEmailPrompt() {
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
@@ -127,14 +193,8 @@
 			return;
 		}
 
-		sendPseudoRequest('add-course-member', {
-			courseId: selectedCourse.id,
-			member: {
-				id: email,
-				email,
-				role: 'student'
-			}
-		});
+		await addCourseMembers(selectedCourse.id, [{ email, role: 'student' }]);
+		await refreshAfterWrite();
 	}
 
 	async function importPeopleFromCanvasCsv(event: Event) {
@@ -156,12 +216,11 @@
 			return;
 		}
 
-		sendPseudoRequest('bulk-import-course-members', {
-			courseId: selectedCourse.id,
-			source: 'canvas-csv',
-			fileName: file.name,
-			emails: parsedEmails
-		});
+		await addCourseMembers(
+			selectedCourse.id,
+			parsedEmails.map((email) => ({ email, role: 'student' }))
+		);
+		await refreshAfterWrite();
 
 		target.value = '';
 	}
@@ -170,28 +229,23 @@
 		importCsvInput?.click();
 	}
 
-	function saveCourseEdits() {
+	async function saveCourseEdits() {
 		if (!selectedCourse) {
 			return;
 		}
 
 		const normalizedInstructorEmail = editCourseForm.instructorEmail.trim().toLowerCase();
-		const selectedInstructor = accountUsers.find((user) => user.email.toLowerCase() === normalizedInstructorEmail);
-		const instructorDisplayName = selectedInstructor?.name || 'None';
-
-		sendPseudoRequest('update-course-metadata', {
-			courseId: selectedCourse.id,
-			updates: {
-				name: editCourseForm.name.trim() || selectedCourse.name,
-				code: editCourseForm.code.trim() || selectedCourse.code,
-				semester: editCourseForm.semester.trim() || selectedCourse.semester,
-				instructor: instructorDisplayName,
-				instructorEmail: normalizedInstructorEmail || null
-			}
+		const currentInstructorEmail = selectedDetail?.members.find((member) => member.role === 'instructor')?.email?.toLowerCase() || '';
+		await updateCourseMetadata(selectedCourse.id, {
+			name: editCourseForm.name.trim() || selectedCourse.name,
+			code: editCourseForm.code.trim() || selectedCourse.code,
+			semester: editCourseForm.semester.trim() || selectedCourse.semester,
+			instructorEmail: normalizedInstructorEmail || currentInstructorEmail
 		});
+		await refreshAfterWrite();
 	}
 
-	function createGroup() {
+	async function createGroup() {
 		if (!selectedCourse) {
 			return;
 		}
@@ -201,14 +255,12 @@
 			return;
 		}
 
-		sendPseudoRequest('create-course-group', {
-			courseId: selectedCourse.id,
-			groupName: trimmedName
-		});
+		await createCourseGroupRequest(selectedCourse.id, trimmedName);
+		await refreshAfterWrite();
 		newGroupName = '';
 	}
 
-	function addGroupMember(groupId: string) {
+	async function addGroupMember(groupId: string) {
 		if (!selectedCourse) {
 			return;
 		}
@@ -218,27 +270,43 @@
 			return;
 		}
 
-		sendPseudoRequest('add-group-member', {
-			courseId: selectedCourse.id,
-			groupId,
-			email
-		});
+		await addCourseGroupMember(selectedCourse.id, groupId, email);
+		await refreshAfterWrite();
 		pendingGroupMemberEmailByGroupId = {
 			...pendingGroupMemberEmailByGroupId,
 			[groupId]: ''
 		};
 	}
 
-	function removeGroupMember(groupId: string, email: string) {
+	async function removeGroupMember(groupId: string, email: string) {
 		if (!selectedCourse) {
 			return;
 		}
 
-		sendPseudoRequest('remove-group-member', {
-			courseId: selectedCourse.id,
-			groupId,
-			email
-		});
+		await removeCourseGroupMember(selectedCourse.id, groupId, email);
+		await refreshAfterWrite();
+	}
+
+	async function regenerateApiKey() {
+		if (!selectedCourse) {
+			return;
+		}
+
+		console.info('[pseudo-api] generate-course-api-key', { courseId: selectedCourse.id });
+		previewApiKey = 'working on implmentation';
+	}
+
+	function clearPreviewApiKey() {
+		previewApiKey = null;
+	}
+
+	async function deleteApiKey() {
+		if (!selectedCourse) {
+			return;
+		}
+
+		console.info('[pseudo-api] delete-course-api-key', { courseId: selectedCourse.id });
+		previewApiKey = null;
 	}
 
 	function getAvailableMembersForGroup(group: CourseGroup) {
@@ -277,45 +345,95 @@
 				</div>
 			</div>
 
-			<div class="course-tab-bar">
-				{#each availableTabs as tab}
-					<button type="button" class="view-btn" class:course-tab-active={activeTab === tab} onclick={() => (activeTab = tab)}>
-						{tab === 'home' ? 'Home' : tab === 'edit-course' ? 'Edit Course' : tab === 'edit-people' ? 'Edit People' : 'Groups'}
-					</button>
-				{/each}
-			</div>
+			{#if showCourseTabBar}
+				<div class="course-tab-bar">
+					{#each availableTabs as tab}
+						<button type="button" class="view-btn" class:course-tab-active={activeTab === tab} onclick={() => (activeTab = tab)}>
+							{tab === 'home' ? 'Home' : tab === 'edit-course' ? 'Edit Course' : tab === 'edit-people' ? 'Edit People' : 'Groups'}
+						</button>
+					{/each}
+				</div>
+			{/if}
 
 			{#if activeTab === 'home'}
 				<div class="section-content home-panel-stack">
-					<div class="course-panel">
-						<h3>Course API Key</h3>
-						<div class="course-row-split">
-							<div>
-								<p><strong>Key:</strong> ****</p>
-							</div>
-							<div class="course-inline-actions">
-								<button type="button" class="list-go-btn" onclick={() => sendPseudoRequest('regenerate-course-api-key', { courseId: selectedCourse.id })}>Regenerate</button>
-								<button type="button" class="list-go-btn" onclick={() => sendPseudoRequest('delete-course-api-key', { courseId: selectedCourse.id })}>Delete</button>
+					{#if !isCurrentUserCourseInstructor}
+						<div class="course-panel">
+							<h3>Course API Key</h3>
+							<div class="course-row-split">
+								<div>
+									<p><strong>Preview Key:</strong> {previewApiKey || 'working on implmentation'}</p>
+								</div>
+								<div class="course-inline-actions">
+									<button type="button" class="list-go-btn" onclick={regenerateApiKey}>Generate API Key</button>
+									<button type="button" class="list-go-btn" onclick={clearPreviewApiKey}>Clear Preview</button>
+								</div>
 							</div>
 						</div>
-					</div>
-					{#if canShowStudentGroupPanel && studentGroup}
+					{/if}
+					{#if isCurrentUserClient && studentGroup}
 						<div class="course-panel">
-							<h3>Your Group</h3>
+							<h3>Group API Data</h3>
 							<p><strong>{studentGroup.name}</strong></p>
 							<ul class="course-inline-list">
 								{#each studentGroupMembers as member}
-									<li>{member.name} ({member.email})</li>
+									<li>{member.name} ({member.email}) - API data pending implementation.</li>
 								{/each}
 							</ul>
 						</div>
 					{/if}
-					<div class="course-panel">
-						<h3>Personal API Data</h3>
-						<p><strong>Status:</strong> Awaiting backend response fields.</p>
-					</div>
+					{#if canViewManagerApiData}
+						<div class="course-panel">
+							<h3>Student API Data</h3>
+							{#if ungroupedStudentMembers.length}
+								<ul class="course-inline-list">
+									{#each ungroupedStudentMembers as member}
+										<li>{member.name} ({member.email}) - API data pending implementation.</li>
+									{/each}
+								</ul>
+							{:else}
+								<p>No ungrouped students found for this course.</p>
+							{/if}
+						</div>
+						<div class="course-panel">
+							<h3>Group API Data</h3>
+							{#if groupMembershipRows.length}
+								{#each groupMembershipRows as row}
+									<p><strong>{row.group.name}:</strong> {row.members.length ? row.members.map((member) => member.name).join(', ') : 'No student members'} - API data pending implementation.</p>
+								{/each}
+							{:else}
+								<p>No groups found for this course.</p>
+							{/if}
+						</div>
+					{/if}
+					{#if canViewCourseApiHistory}
+						<div class="course-panel">
+							<h3>API History</h3>
+							{#if courseApiHistoryLoading}
+								<p>Loading API history...</p>
+							{:else if courseApiHistoryError}
+								<p><strong>Error:</strong> {courseApiHistoryError}</p>
+							{:else if courseApiHistory.length === 0}
+								<p>No API history has been recorded for this course yet.</p>
+							{:else}
+								<ul class="course-inline-list">
+									{#each courseApiHistory as entry}
+										<li>
+											<strong>{entry.userEmail}</strong> · {entry.eventType} · {entry.groupName ? `Group: ${entry.groupName}` : 'Ungrouped'} · {entry.created || 'pending timestamp'}
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</div>
+					{/if}
+					{#if canViewPersonalApiData}
+						<div class="course-panel">
+							<h3>Personal API Data</h3>
+							<p><strong>Status:</strong> Awaiting backend response fields.</p>
+						</div>
+					{/if}
 				</div>
-			{:else if activeTab === 'edit-course'}
+			{:else if activeTab === 'edit-course' && canEditCourse}
 				<div class="section-content">
 					<CourseEditorCard
 						title="Edit Course"
@@ -326,7 +444,7 @@
 						on:submit={saveCourseEdits}
 					/>
 				</div>
-			{:else if activeTab === 'edit-people'}
+			{:else if activeTab === 'edit-people' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
 						<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Person</button>
@@ -405,8 +523,9 @@
 												{#if group.memberEmails.length}
 													<ul class="course-inline-list">
 														{#each group.memberEmails as email}
+															{@const member = memberByEmail.get(email.trim().toLowerCase())}
 															<li>
-																{email}
+																{member?.name || email} ({email})
 																<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, email)}>Remove</button>
 															</li>
 														{/each}

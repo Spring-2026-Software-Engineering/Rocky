@@ -1,19 +1,18 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { getUserByEmail, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '$lib/server/mockAuth';
-import { getSettingsForUser } from '$lib/server/userSettingsStore';
-import type { FrameName } from '$lib/types/frame';
+import { getSettingsForUser } from './lib/server/userSettingsStore';
+import { framesForRole, type AppRole, type FrameName } from '$lib/types/frame';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const FRAME_COOKIE_NAME = 'rocky_current_frame';
-const ALLOWED_FRAMES: FrameName[] = ['dashboard', 'users', 'courses', 'analytics', 'account', 'help'];
-
-function readInitialFrameFromCookie(rawValue: string | undefined): FrameName {
+function readInitialFrameFromCookie(rawValue: string | undefined, role: AppRole): FrameName {
+	const allowedFrames = framesForRole(role);
 	if (!rawValue) {
 		return 'dashboard';
 	}
 
 	const value = rawValue.trim().toLowerCase();
-	if (ALLOWED_FRAMES.includes(value as FrameName)) {
+	if (allowedFrames.includes(value as FrameName)) {
 		return value as FrameName;
 	}
 
@@ -39,7 +38,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.currentUser = currentUser;
 	event.locals.themePreference = 'system';
-	event.locals.initialFrame = readInitialFrameFromCookie(event.cookies.get(FRAME_COOKIE_NAME));
+	event.locals.initialFrame = readInitialFrameFromCookie(event.cookies.get(FRAME_COOKIE_NAME), currentUser?.role ?? 'client');
 
 	if (currentUser) {
 		const settings = await getSettingsForUser(currentUser);

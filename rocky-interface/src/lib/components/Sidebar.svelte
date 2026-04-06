@@ -8,13 +8,19 @@
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import { openCourseComposer } from '$lib/stores/courseComposerStore';
-	import { toFrameLabel, type FrameName } from '$lib/types/frame';
+	import { framesForRole, toFrameLabel, type AppRole, type FrameName } from '$lib/types/frame';
 
 	const frames = Object.keys(frameMap) as FrameName[];
-	const primaryFrames = frames.filter((frame) => frame !== 'help');
-	const coursesFrameIndex = primaryFrames.indexOf('courses');
-	const framesBeforeCourses = coursesFrameIndex >= 0 ? primaryFrames.slice(0, coursesFrameIndex) : primaryFrames.filter((frame) => frame !== 'courses');
-	const framesAfterCourses = coursesFrameIndex >= 0 ? primaryFrames.slice(coursesFrameIndex + 1) : [];
+	const currentUserRole = $derived((page.data.currentUser?.role ?? '').toString().trim().toLowerCase());
+	const userRole = $derived((page.data.currentUser?.role as AppRole | undefined) ?? 'client');
+	const allowedFrames = $derived(framesForRole(userRole));
+	const primaryFrames = $derived(allowedFrames.filter((frame) => frame !== 'help'));
+	const coursesFrameIndex = $derived(primaryFrames.indexOf('courses'));
+	const framesBeforeCourses = $derived(
+		coursesFrameIndex >= 0 ? primaryFrames.slice(0, coursesFrameIndex) : primaryFrames.filter((frame) => frame !== 'courses')
+	);
+	const framesAfterCourses = $derived(coursesFrameIndex >= 0 ? primaryFrames.slice(coursesFrameIndex + 1) : []);
+	const canCreateCourse = $derived(currentUserRole === 'admin');
 	let activeFrame = $derived((browser ? $currentFrame : page.data.initialFrame) as FrameName);
 	const SESSION_VALIDATE_TTL_MS = 10_000;
 	let lastSessionValidationAt = 0;
@@ -87,6 +93,10 @@
 	}
 
 	async function handleFrameChange(frame: FrameName) {
+		if (!allowedFrames.includes(frame)) {
+			return;
+		}
+
 		if ($currentFrame === frame) {
 			return;
 		}
@@ -151,6 +161,9 @@
 	}
 
 	function openCreateCourseComposer() {
+		if (!canCreateCourse) {
+			return;
+		}
 		openCourseComposer();
 	}
 </script>
@@ -166,7 +179,9 @@
 			<div class="course-popout" role="menu" aria-label="Course list">
 				<div class="course-popout-header">
 					<span>Courses</span>
-					<button type="button" class="list-go-btn course-popout-create-btn" onclick={openCreateCourseComposer}>Create</button>
+					{#if canCreateCourse}
+						<button type="button" class="list-go-btn course-popout-create-btn" onclick={openCreateCourseComposer}>Create</button>
+					{/if}
 				</div>
 				{#if courseMenuLoading}
 					<p class="course-popout-state">Loading courses...</p>
@@ -197,5 +212,7 @@
 
 	<div class="spacer"></div>
 
-	<button class="nav-link" class:active={activeFrame === 'help'} onclick={() => handleFrameChange('help')}>{toFrameLabel('help')}</button>
+	{#if allowedFrames.includes('help')}
+		<button class="nav-link" class:active={activeFrame === 'help'} onclick={() => handleFrameChange('help')}>{toFrameLabel('help')}</button>
+	{/if}
 </nav>

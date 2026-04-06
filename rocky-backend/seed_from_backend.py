@@ -1,0 +1,271 @@
+from __future__ import annotations
+
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = ROOT / "rocky-backend"
+SEED_DATA_DIR = BACKEND_DIR / "seed-data"
+FIXTURE_PATH = ROOT / "run-test" / "backend" / "seed_data.json"
+USERS_FILE = BACKEND_DIR / "seed-data" / "account" / "users.json"
+COURSES_FILE = BACKEND_DIR / "seed-data" / "courses" / "courses.json"
+WIDGETS_FILE = BACKEND_DIR / "seed-data" / "widgets" / "widgets.json"
+API_HISTORY_FILE = BACKEND_DIR / "seed-data" / "api_history.json"
+ALLOWED_THEME_PREFERENCES = {"light", "dark", "system"}
+
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+if str(SEED_DATA_DIR) not in sys.path:
+	sys.path.insert(0, str(SEED_DATA_DIR))
+
+from backend.storage import build_in_memory_collections
+import main
+
+
+def _load_json(path: Path):
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _parse_semester(raw: str) -> tuple[int, str]:
+    value = (raw or "").strip()
+    if not value:
+        return datetime.now(timezone.utc).year, "spring"
+
+    parts = value.split()
+    if len(parts) != 2:
+        return datetime.now(timezone.utc).year, "spring"
+
+    term = parts[0].strip().lower()
+    try:
+        year = int(parts[1].strip())
+    except ValueError:
+        year = datetime.now(timezone.utc).year
+
+    if term not in {"spring", "summer", "fall", "winter"}:
+        term = "spring"
+
+    return year, term
+
+
+def _normalize_widget_list(raw_widgets, fallback_widgets):
+    if not isinstance(raw_widgets, list):
+        return [item.get("id") for item in fallback_widgets if isinstance(item, dict) and item.get("id")]
+
+    widgets = []
+    available_by_id = {
+        (item.get("id") or "").strip().lower(): item
+        for item in fallback_widgets
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    available_signatures = {
+        (
+            (item.get("title") or "").strip().lower() if isinstance(item, dict) else "",
+            (item.get("html") or "").strip() if isinstance(item, dict) and isinstance(item.get("html"), str) else "",
+            tuple(
+                line.strip()
+                for line in (item.get("lines") if isinstance(item, dict) and isinstance(item.get("lines"), list) else [])
+                if isinstance(line, str) and line.strip()
+            ),
+        ): item
+        for item in fallback_widgets
+        if isinstance(item, dict)
+    }
+    for item in raw_widgets:
+        widget_id = ""
+        if isinstance(item, str):
+            widget_id = item.strip().lower()
+        elif isinstance(item, dict):
+            widget_id = (item.get("widgetId") or item.get("id") or "").strip().lower() if isinstance(item.get("widgetId") or item.get("id"), str) else ""
+        else:
+            continue
+        canonical_widget = available_by_id.get(widget_id)
+        if canonical_widget is None:
+            signature = (
+                (item.get("title") or "").strip().lower() if isinstance(item.get("title"), str) else "",
+                (item.get("html") or "").strip() if isinstance(item.get("html"), str) else "",
+                tuple(
+                    line.strip()
+                    for line in (item.get("lines") if isinstance(item.get("lines"), list) else [])
+                    if isinstance(line, str) and line.strip()
+                ),
+            )
+            canonical_widget = available_signatures.get(signature)
+        if canonical_widget is not None:
+            widgets.append((canonical_widget.get("id") or "").strip().lower())
+
+    return widgets or [item.get("id") for item in fallback_widgets if isinstance(item, dict) and item.get("id")]
+
+
+def _normalize_user_settings(raw_settings, fallback_widgets):
+    theme = "system"
+    if isinstance(raw_settings, dict):
+        candidate_theme = (raw_settings.get("themePreference") or "").strip().lower()
+        if candidate_theme in ALLOWED_THEME_PREFERENCES:
+            theme = candidate_theme
+
+    widgets = fallback_widgets
+    if isinstance(raw_settings, dict):
+        widgets = _normalize_widget_list(raw_settings.get("widgets"), fallback_widgets)
+
+    return {"themePreference": theme, "widgets": widgets}
+
+
+def seed_from_backend() -> dict[str, int]:
+    raw_users = _load_json(USERS_FILE)
+    raw_courses = _load_json(COURSES_FILE)
+    raw_widgets = _load_json(WIDGETS_FILE)
+    raw_api_history = _load_json(API_HISTORY_FILE)
+
+    main.users.delete_many({})
+    main.courses.delete_many({})
+    main.api_keys.delete_many({})
+    main.api_history.delete_many({})
+
+    users_inserted = 0
+    courses_inserted = 0
+    api_keys_inserted = 0
+    api_history_inserted = 0
+
+    for raw in raw_users:
+        email = (raw.get("email") or "").strip().lower()
+        if not email:
+            continue
+
+        role = (raw.get("role") or "client").strip().lower()
+        if role not in {"admin", "client", "student", "instructor"}:
+            role = "client"
+
+        settings_payload = _normalize_user_settings(raw.get("settings"), raw_widgets)
+
+        user_doc = {
+            "name": (raw.get("name") or "Unknown User").strip(),
+            "email": email,
+            "flash_id": f"seed-{email.split('@')[0]}",
+            "role": role,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "settings": settings_payload,
+            "settings_updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        main.users.insert_one(user_doc)
+        users_inserted += 1
+
+    for index, raw in enumerate(raw_courses, start=1):
+        semester_raw = (raw.get("semester") or "Spring 2026").strip()
+        year, term = _parse_semester(semester_raw)
+
+        members = raw.get("members") if isinstance(raw.get("members"), list) else []
+        instructor_ids: list[str] = []
+        student_ids: list[str] = []
+        normalized_members = []
+
+        for member in members:
+            account_email = (member.get("accountEmail") or member.get("email") or "").strip().lower()
+            if not account_email:
+                continue
+
+            role = (member.get("role") or "student").strip().lower()
+            if role != "instructor":
+                role = "student"
+
+            normalized_members.append(
+                {
+                    "accountEmail": account_email,
+                    "email": account_email,
+                    "role": role,
+                }
+            )
+
+            if role == "instructor":
+                instructor_ids.append(account_email)
+            else:
+                student_ids.append(account_email)
+
+        course_doc = {
+            # Fields consumed by frontend
+            "id": raw.get("id") if isinstance(raw.get("id"), int) else index,
+            "code": (raw.get("code") or f"TBD {1000 + index}").strip(),
+            "name": (raw.get("name") or "Untitled Course").strip(),
+            "instructor": (raw.get("instructor") or "Unknown Instructor").strip(),
+            "semester": semester_raw,
+            "color": (raw.get("color") or "#1a4a8a").strip(),
+            "overview": (raw.get("overview") or "").strip(),
+            "announcements": raw.get("announcements") if isinstance(raw.get("announcements"), list) else [],
+            "members": normalized_members,
+            "groups": raw.get("groups") if isinstance(raw.get("groups"), list) else [],
+            # Fields expected by backend create/update shape
+            "instructor_ids": instructor_ids,
+            "student_ids": student_ids,
+            "semester_obj": {"year": year, "term": term},
+        }
+
+        main.courses.insert_one(course_doc)
+        courses_inserted += 1
+
+        if instructor_ids:
+            key_doc = {
+                "u_id": instructor_ids[0],
+                "c_id": course_doc["code"],
+                "expire": None,
+                "created": datetime.now(timezone.utc).isoformat(),
+            }
+            main.api_keys.insert_one(key_doc)
+            api_keys_inserted += 1
+
+    for raw in raw_api_history:
+        history_doc = {
+            "u_id": (raw.get("u_id") or "").strip().lower(),
+            "c_id": (raw.get("c_id") or "").strip(),
+            "course_id": raw.get("course_id"),
+            "event_type": (raw.get("event_type") or "request").strip(),
+            "group_id": (raw.get("group_id") or None),
+            "group_name": (raw.get("group_name") or None),
+            "is_group_member": bool(raw.get("is_group_member")),
+            "meta": raw.get("meta") if isinstance(raw.get("meta"), dict) else {},
+            "created": (raw.get("created") or datetime.now(timezone.utc).isoformat()).strip(),
+        }
+        if not history_doc["u_id"] or not history_doc["c_id"]:
+            continue
+        main.api_history.insert_one(history_doc)
+        api_history_inserted += 1
+
+    static_summary = main.seed_static_content()
+
+    return {
+        "users_inserted": users_inserted,
+        "courses_inserted": courses_inserted,
+        "api_keys_inserted": api_keys_inserted,
+        "api_history_inserted": api_history_inserted,
+        **static_summary,
+    }
+
+
+def use_in_memory_db() -> None:
+    """Route backend collections to an isolated in-memory database for tests."""
+    test_collections = build_in_memory_collections()
+    main.collections = test_collections
+    main.users = test_collections.users
+    main.courses = test_collections.courses
+    main.api_keys = test_collections.api_keys
+    main.api_history = test_collections.api_history
+    main.analytics_kpis = test_collections.analytics_kpis
+    main.analytics_activity = test_collections.analytics_activity
+    main.widgets_default = test_collections.widgets_default
+    main.help_faq = test_collections.help_faq
+
+
+def load_seed_fixture(path: Path = FIXTURE_PATH) -> dict:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def seed_backend_from_fixture(path: Path = FIXTURE_PATH) -> dict[str, int]:
+    payload = load_seed_fixture(path)
+    return main.seed_database(payload)
+
+
+if __name__ == "__main__":
+    summary = seed_from_backend()
+    print(f"[seed] Seeded backend from backend fixture data: {summary}")

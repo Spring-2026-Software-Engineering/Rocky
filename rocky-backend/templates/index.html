@@ -97,6 +97,42 @@
         color: var(--muted);
       }
 
+      .tree {
+        margin: 0.75rem 0 0;
+        padding-left: 1.2rem;
+        list-style: none;
+      }
+
+      .tree li {
+        position: relative;
+        margin: 0.35rem 0;
+        padding-left: 1rem;
+      }
+
+      .tree li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.85rem;
+        width: 0.55rem;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .tree-label {
+        font-weight: 600;
+      }
+
+      .tree-value {
+        color: var(--muted);
+      }
+
+      .tree-children {
+        margin-top: 0.35rem;
+        padding-left: 1rem;
+        border-left: 1px solid var(--border);
+      }
+
       pre {
         margin: 0.75rem 0 0;
         background: #f7f9fe;
@@ -107,21 +143,66 @@
         white-space: pre-wrap;
         word-break: break-word;
       }
+
+      .tree-root {
+        margin-top: 0.75rem;
+      }
     </style>
   </head>
   <body>
+    {% macro render_node(value, label=None) %}
+      {% if value is mapping %}
+        <li>
+          {% if label is not none %}<span class="tree-label">{{ label }}:</span>{% endif %}
+          <span class="tree-value">object</span>
+          <div class="tree-children">
+            <ul class="tree">
+              {% for key, child in value.items() %}
+                {{ render_node(child, key) }}
+              {% endfor %}
+            </ul>
+          </div>
+        </li>
+      {% elif value is sequence and value is not string %}
+        <li>
+          {% if label is not none %}<span class="tree-label">{{ label }}:</span>{% endif %}
+          <span class="tree-value">class[{{ value | length }}]</span>
+          <div class="tree-children">
+            <ul class="tree">
+              {% for child in value %}
+                {{ render_node(child, loop.index0) }}
+              {% endfor %}
+            </ul>
+          </div>
+        </li>
+      {% else %}
+        <li>
+          {% if label is not none %}<span class="tree-label">{{ label }}:</span>{% endif %}
+          <span class="tree-value">{{ value }}</span>
+        </li>
+      {% endif %}
+    {% endmacro %}
+
     <main>
       <h1>Rocky Backend Collection Snapshot</h1>
       <p>Generated at {{ generated_at }} (UTC)</p>
 
-      {% for name, docs in collections.items() %}
+      {% for name, collection in collections.items() %}
+      {% set docs = collection.docs %}
       <details class="collection">
         <summary>
           <span class="summary-label">{{ name }}</span>
           <span class="meta">Document count: {{ docs | length }}</span>
         </summary>
         <div class="collection-content">
-          <pre>{{ docs | tojson(indent=2) }}</pre>
+          {% if collection.description %}
+          <p class="meta">{{ collection.description }}</p>
+          {% endif %}
+          <div class="tree-root">
+            <ul class="tree">
+              {{ render_node(docs, name) }}
+            </ul>
+          </div>
         </div>
       </details>
       {% endfor %}

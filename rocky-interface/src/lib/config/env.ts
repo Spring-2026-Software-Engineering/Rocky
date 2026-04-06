@@ -2,7 +2,6 @@ import { env } from '$env/dynamic/public';
 
 const PUBLIC_APP_ENV = (env.PUBLIC_APP_ENV ?? 'production').toString();
 const PUBLIC_API_BASE_URL = (env.PUBLIC_API_BASE_URL ?? 'http://localhost:5001').toString();
-const PUBLIC_USE_LOCAL_API = (env.PUBLIC_USE_LOCAL_API ?? 'false').toString();
 const PUBLIC_ENABLE_DBTEST = (env.PUBLIC_ENABLE_DBTEST ?? 'false').toString();
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
@@ -49,12 +48,4 @@ function parseApiBaseUrl(value: string): string {
 
 export const APP_ENV = parseAppEnv(requirePublicEnv('PUBLIC_APP_ENV', PUBLIC_APP_ENV));
 export const API_BASE_URL = parseApiBaseUrl(requirePublicEnv('PUBLIC_API_BASE_URL', PUBLIC_API_BASE_URL));
-export const USE_LOCAL_API = parseBooleanEnv('PUBLIC_USE_LOCAL_API', requirePublicEnv('PUBLIC_USE_LOCAL_API', PUBLIC_USE_LOCAL_API));
 export const ENABLE_DBTEST = parseBooleanEnv('PUBLIC_ENABLE_DBTEST', requirePublicEnv('PUBLIC_ENABLE_DBTEST', PUBLIC_ENABLE_DBTEST));
-
-export const LOCAL_API_USERS_URL = '/local-api/account/users.json';
-export const LOCAL_API_COURSES_URL = '/local-api/courses/courses.json';
-export const LOCAL_API_ANALYTICS_KPIS_URL = '/local-api/analytics/kpis.json';
-export const LOCAL_API_ANALYTICS_ACTIVITY_URL = '/local-api/analytics/activity.json';
-export const LOCAL_API_DEFAULT_WIDGETS_URL = '/local-api/widgets/default.json';
-export const LOCAL_API_HELP_FAQ_URL = '/local-api/help/faq.json';

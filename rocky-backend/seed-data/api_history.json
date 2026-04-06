@@ -1,0 +1,83 @@
+[
+  {
+    "u_id": "student.local@kent.edu",
+    "c_id": "SE 3010",
+    "course_id": 1,
+    "event_type": "generate-key",
+    "group_id": "group-se3010-a",
+    "group_name": "Team Alpha",
+    "is_group_member": true,
+    "meta": {
+      "path": "/courses/1/api-key/regenerate",
+      "actor": "student.local@kent.edu"
+    },
+    "created": "2026-04-01T12:05:00Z"
+  },
+  {
+    "u_id": "student.alt2@kent.edu",
+    "c_id": "CS 2410",
+    "course_id": 2,
+    "event_type": "generate-key",
+    "group_id": "group-cs2410-a",
+    "group_name": "Algorithm Ninjas",
+    "is_group_member": true,
+    "meta": {
+      "path": "/courses/2/api-key/regenerate",
+      "actor": "student.alt2@kent.edu"
+    },
+    "created": "2026-04-01T12:20:00Z"
+  },
+  {
+    "u_id": "instructor.local@kent.edu",
+    "c_id": "CS 3560",
+    "course_id": 3,
+    "event_type": "request",
+    "group_id": null,
+    "group_name": null,
+    "is_group_member": false,
+    "meta": {
+      "path": "/courses/3/api-history"
+    },
+    "created": "2026-04-01T12:25:00Z"
+  },
+  {
+    "u_id": "admin.local@kent.edu",
+    "c_id": "CS 3810",
+    "course_id": 5,
+    "event_type": "request",
+    "group_id": null,
+    "group_name": null,
+    "is_group_member": false,
+    "meta": {
+      "path": "/courses/5/api-history"
+    },
+    "created": "2026-04-01T12:30:00Z"
+  },
+  {
+    "u_id": "student.alt3@kent.edu",
+    "c_id": "CS 4990",
+    "course_id": 6,
+    "event_type": "generate-key",
+    "group_id": "group-cs4990-cap",
+    "group_name": "Capstone Team",
+    "is_group_member": true,
+    "meta": {
+      "path": "/courses/6/api-key/regenerate",
+      "actor": "student.alt3@kent.edu"
+    },
+    "created": "2026-04-01T12:40:00Z"
+  },
+  {
+    "u_id": "student.alt1@kent.edu",
+    "c_id": "CS 3200",
+    "course_id": 4,
+    "event_type": "request",
+    "group_id": "group-cs3200-a",
+    "group_name": "Process Managers",
+    "is_group_member": true,
+    "meta": {
+      "path": "/courses/4/api-history"
+    },
+    "created": "2026-04-01T12:45:00Z"
+  }
+]

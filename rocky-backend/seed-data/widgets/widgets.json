@@ -1,5 +1,6 @@
 [
   {
+    "id": "analytics",
     "title": "Analytics",
     "lines": [
       "Total System Usage: 98%",
@@ -8,6 +9,7 @@
     ]
   },
   {
+    "id": "system-info",
     "title": "System Info",
     "lines": [
       "Limit Usage: 88%",
@@ -15,6 +17,7 @@
     ]
   },
   {
+    "id": "notifications",
     "title": "Notifications",
     "lines": [
       "No new notifications"

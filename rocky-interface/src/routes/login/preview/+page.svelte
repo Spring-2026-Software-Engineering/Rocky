@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { fetchUsersForViews } from '$lib/api/users';
+	import { normalizeUsers, type ApiUser, type User } from '$lib/types/user';
 	import '$lib/styles/routes/login.css';
-	import type { User } from '$lib/types/user';
 
 	let users: User[] = [];
 	let isLoading = true;
@@ -11,7 +9,17 @@
 
 	onMount(async () => {
 		try {
-			users = await fetchUsersForViews();
+			const response = await fetch('/api/backend/auth/preview-users', {
+				method: 'GET',
+				headers: {
+					Accept: 'application/json'
+				}
+			});
+			if (!response.ok) {
+				throw new Error(`Failed to load preview users (${response.status}).`);
+			}
+			const payload = (await response.json()) as ApiUser[];
+			users = normalizeUsers(payload);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Unable to load users.';
 		} finally {
@@ -42,7 +50,7 @@
 		<section class="preview-shell">
 			<header class="preview-header">
 				<h1>Login Preview</h1>
-				<p>Select a local-api user to test the app without OAuth.</p>
+				<p>Select a seeded user to test the app without OAuth.</p>
 			</header>
 
 			{#if isLoading}
@@ -50,7 +58,7 @@
 			{:else if error}
 				<div class="preview-state preview-error">{error}</div>
 			{:else if users.length === 0}
-				<div class="preview-state">No users available in local-api.</div>
+				<div class="preview-state">No preview users are currently available.</div>
 			{:else}
 				<div class="preview-user-grid">
 					{#each users as user}

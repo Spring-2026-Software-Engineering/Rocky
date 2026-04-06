@@ -2,7 +2,7 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
-	import type { FrameName } from '$lib/types/frame';
+	import { canAccessFrame, type AppRole, type FrameName } from '$lib/types/frame';
 	import WidgetPanel from '$lib/components/WidgetPanel.svelte';
 	import CourseComposerPopover from '$lib/components/CourseComposerPopover.svelte';
 	import '$lib/styles/foundation/global.css';
@@ -14,6 +14,17 @@
 	$effect(() => {
 		if (browser && !currentUser) {
 			window.location.href = '/login';
+		}
+	});
+
+	$effect(() => {
+		if (!browser || !currentUser) {
+			return;
+		}
+
+		const role = (currentUser.role as AppRole | undefined) ?? 'client';
+		if (!canAccessFrame($currentFrame, role)) {
+			currentFrame.set(page.data.initialFrame);
 		}
 	});
 </script>

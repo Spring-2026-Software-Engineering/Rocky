@@ -9,12 +9,18 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from run_env import (
+    allowed_hosts,
+    backend_url,
+    frontend_bind,
+    load_project_env,
+)
+
 
 REPO_ROOT = Path(__file__).resolve().parent
 BACKEND_DIR = REPO_ROOT / "rocky-backend"
 FRONTEND_DIR = REPO_ROOT / "rocky-interface"
-SEED_SCRIPT = BACKEND_DIR / "seed_from_local_api.py"
-BACKEND_URL = "http://127.0.0.1:5001"
+SEED_SCRIPT = BACKEND_DIR / "seed_from_backend.py"
 
 
 def log(message: str) -> None:
@@ -23,7 +29,7 @@ def log(message: str) -> None:
 
 def _python_can_run_backend(python_exe: Path | str) -> bool:
     probe = (
-        "import flask, mongita; "
+        "import flask, mongita, pymongo; "
         "assert hasattr(flask, 'Flask'); "
         "print('ok')"
     )
@@ -73,11 +79,24 @@ def get_npm_executable() -> str:
     return "npm"
 
 
-def wait_for_backend(timeout_seconds: int = 15) -> bool:
+def _build_frontend_env(api_base_url: str | None = None) -> dict[str, str]:
+    env = os.environ.copy()
+
+    # Validate shared launch config up-front to fail fast with actionable messages.
+    frontend_bind()
+    allowed_hosts()
+
+    if api_base_url is not None:
+        env["PUBLIC_API_BASE_URL"] = api_base_url
+
+    return env
+
+
+def wait_for_backend(backend_url: str, timeout_seconds: int = 15) -> bool:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
-            with urlopen(f"{BACKEND_URL}/users", timeout=2):
+            with urlopen(f"{backend_url}/health", timeout=2):
                 return True
         except URLError:
             time.sleep(0.5)
@@ -86,45 +105,47 @@ def wait_for_backend(timeout_seconds: int = 15) -> bool:
 
 def run_backend_only() -> int:
     python_exe = get_python_executable(require_backend_deps=True)
+    resolved_backend_url = backend_url()
     log(f"Using Python interpreter: {python_exe}")
-    log(f"Starting backend only on {BACKEND_URL}")
-    return subprocess.call([python_exe, "main.py"], cwd=str(BACKEND_DIR))
+    log(f"Starting backend only on {resolved_backend_url}")
+    return subprocess.call([python_exe, "main.py"], cwd=str(BACKEND_DIR), env=os.environ.copy())
 
 
 def run_frontend_only() -> int:
     npm_exe = get_npm_executable()
-    log("Starting frontend only in local-api mode (from rocky-interface/.env).")
+    frontend_host, frontend_port = frontend_bind()
+    log("Starting frontend only (backend API should be running separately).")
+    env = _build_frontend_env()
     return subprocess.call(
-        [npm_exe, "run", "dev", "--", "--host", "127.0.0.1", "--port", "5000"],
+        [npm_exe, "run", "dev", "--", "--host", frontend_host, "--port", frontend_port],
         cwd=str(FRONTEND_DIR),
+        env=env,
     )
 
 
 def run_both() -> int:
     python_exe = get_python_executable(require_backend_deps=True)
     npm_exe = get_npm_executable()
+    resolved_backend_url = backend_url()
+    frontend_host, frontend_port = frontend_bind()
     log(f"Using Python interpreter: {python_exe}")
 
-    log("Seeding backend with fixture data from rocky-interface/static/local-api...")
+    log("Seeding backend with fixture data from rocky-backend/seed-data...")
     subprocess.run([python_exe, str(SEED_SCRIPT)], check=True, cwd=str(REPO_ROOT))
 
-    log(f"Launching backend API on {BACKEND_URL}")
-    backend_process = subprocess.Popen([python_exe, "main.py"], cwd=str(BACKEND_DIR))
+    log(f"Launching backend API on {resolved_backend_url}")
+    backend_process = subprocess.Popen([python_exe, "main.py"], cwd=str(BACKEND_DIR), env=os.environ.copy())
 
     try:
-        if not wait_for_backend():
-            raise RuntimeError(f"Backend did not become ready on {BACKEND_URL}")
+        if not wait_for_backend(resolved_backend_url):
+            raise RuntimeError(f"Backend did not become ready on {resolved_backend_url}")
 
         log("Backend is ready. Starting frontend against backend API...")
 
-        env = os.environ.copy()
-        env["PUBLIC_APP_ENV"] = "development"
-        env["PUBLIC_API_BASE_URL"] = BACKEND_URL
-        env["PUBLIC_USE_LOCAL_API"] = "false"
-        env["PUBLIC_ENABLE_DBTEST"] = "true"
+        env = _build_frontend_env(api_base_url=resolved_backend_url)
 
         return subprocess.call(
-            [npm_exe, "run", "dev", "--", "--host", "127.0.0.1", "--port", "5000"],
+            [npm_exe, "run", "dev", "--", "--host", frontend_host, "--port", frontend_port],
             cwd=str(FRONTEND_DIR),
             env=env,
         )
@@ -139,6 +160,8 @@ def run_both() -> int:
 
 
 def main() -> int:
+    load_project_env(REPO_ROOT, BACKEND_DIR, FRONTEND_DIR)
+
     parser = argparse.ArgumentParser(description="Cross-platform Rocky dev runner")
     parser.add_argument(
         "--mode",
