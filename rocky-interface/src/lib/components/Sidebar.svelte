@@ -142,7 +142,7 @@
 	});
 
 	async function toggleCourseMenu() {
-		if (!courseMenuOpen && visibleCourses.length === 0 && !courseMenuError) {
+		if (!courseMenuOpen) {
 			await loadCourseMenuData();
 		}
 
