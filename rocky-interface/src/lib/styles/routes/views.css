@@ -189,6 +189,7 @@ select.text-input option {
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-lg);
+	min-height: 100%;
 }
 
 .course-header {
