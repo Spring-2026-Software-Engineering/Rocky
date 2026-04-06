@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+ import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { fetchCourses } from '$lib/api/content';
 	import CourseCard from '$lib/components/cards/CourseCard.svelte';
@@ -14,6 +15,9 @@
 	let courses: Course[] = [];
 	let isLoading = true;
 	let error: string | null = null;
+
+	$: currentUserRole = ($page.data.currentUser?.role || '').toString().trim().toLowerCase();
+	$: canCreateCourse = currentUserRole === 'admin';
 
 	function scrollToTopOfApp() {
 		if (!browser) {
@@ -59,13 +63,18 @@
 	}
 
 	function handleCreateCourse() {
+		if (!canCreateCourse) {
+			return;
+		}
 		openCourseComposer();
 	}
 </script>
 
 <ViewShell title="Dashboard">
 	<div slot="actions" class="dashboard-actions">
-		<button class="view-btn" on:click={handleCreateCourse}>Create Course</button>
+		{#if canCreateCourse}
+			<button class="view-btn" on:click={handleCreateCourse}>Create Course</button>
+		{/if}
 		<div class="view-switcher">
 			<button class="view-btn" on:click={() => (showViewMenu = !showViewMenu)}>
 				View

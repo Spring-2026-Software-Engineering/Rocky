@@ -1,0 +1,143 @@
+# Rocky
+
+## Prerequisites
+
+- Python 3.11 or newer
+- Node.js 20 or newer
+- npm
+
+## First-time setup
+
+### 1. Create a Python virtual environment
+
+From the repository root in PowerShell:
+
+```powershell
+py -3 -m venv .venv
+```
+
+If you need a different Python executable, use the full path with `&`.
+
+### 2. Activate the virtual environment
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+If PowerShell blocks activation, run once:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### 3. Install backend dependencies
+
+```powershell
+pip install -r rocky-backend\requirements.txt
+```
+
+### 4. Install frontend dependencies
+
+```powershell
+Push-Location rocky-interface
+npm install
+Pop-Location
+```
+
+### 5. Create environment files
+
+Copy the examples and edit them for your environment:
+
+- [rocky-backend/.env.example](rocky-backend/.env.example) -> `rocky-backend/.env`
+- [rocky-interface/.env.example](rocky-interface/.env.example) -> `rocky-interface/.env`
+
+For production, set `ROCKY_DB_BACKEND=mongodb` and provide `ROCKY_MONGODB_URI`.
+
+### Minimum required variables
+
+Development minimum:
+
+- [rocky-backend/.env](rocky-backend/.env): `ROCKY_APP_ENV=development`, `ROCKY_DB_BACKEND=mongita`, `ROCKY_API_HOST`, `ROCKY_API_PORT`
+- [rocky-interface/.env](rocky-interface/.env): `PUBLIC_APP_ENV=development`, `PUBLIC_API_BASE_URL`, `ROCKY_WEB_HOST`, `ROCKY_WEB_PORT`, `ROCKY_ALLOWED_HOSTS`
+
+Production minimum:
+
+- [rocky-backend/.env](rocky-backend/.env): `ROCKY_APP_ENV=production`, `ROCKY_DB_BACKEND=mongodb`, `ROCKY_MONGODB_URI`, `ROCKY_ENABLE_DB_INSPECTOR=false`, `ROCKY_ENABLE_PREVIEW_LOGIN=false`, `ROCKY_API_HOST`, `ROCKY_API_PORT`
+- [rocky-interface/.env](rocky-interface/.env): `PUBLIC_APP_ENV=production`, `PUBLIC_API_BASE_URL`, `ROCKY_WEB_HOST`, `ROCKY_WEB_PORT`, `ROCKY_ALLOWED_HOSTS`
+
+Both launchers load `.env` and `.env.local` from the repo root, backend, and frontend directories.
+
+## Running locally
+
+### Development
+
+Run both backend and frontend together:
+
+```powershell
+python run-dev.py --mode both
+```
+
+Other modes:
+
+- `python run-dev.py --mode backend`
+- `python run-dev.py --mode frontend`
+
+### Production preview
+
+Build the frontend, start the backend in production mode, and launch the frontend preview server:
+
+```powershell
+python run-production.py
+```
+
+Backend-only production mode:
+
+```powershell
+python run-production.py --mode backend
+```
+
+## Backend
+
+Backend runs on `http://127.0.0.1:5001` by default.
+
+Useful endpoints:
+
+- `GET /health`
+- `GET /users`
+- `GET /courses`
+- `GET /analytics/kpis`
+- `GET /widgets/default`
+- `GET /help/faq`
+
+Admin-only endpoints require the admin headers passed by the Svelte proxy layer.
+
+## Seed data
+
+Backend-owned fixtures live in:
+
+- `rocky-backend/seed-data/account/users.json`
+- `rocky-backend/seed-data/courses/courses.json`
+- `rocky-backend/seed-data/analytics/kpis.json`
+- `rocky-backend/seed-data/analytics/activity.json`
+- `rocky-backend/seed-data/widgets/widgets.json`
+- `rocky-backend/seed-data/help/faq.json`
+
+Seed the backend database with:
+
+```powershell
+python rocky-backend\seed_from_backend.py
+```
+
+## Tests
+
+Backend unit tests:
+
+```powershell
+python -m unittest discover -s run-test/backend -p "test_*.py" -v
+```
+
+Frontend browser tests depend on a running browser and Chromium/WebDriver setup:
+
+```powershell
+python -m unittest discover -s run-test/frontend -p "test_*.py" -v
+```

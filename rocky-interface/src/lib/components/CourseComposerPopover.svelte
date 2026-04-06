@@ -1,16 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { createCourse } from '$lib/api/courses';
 	import { currentFrame } from '$lib/stores/frameStore';
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import { fetchUsersForViews } from '$lib/api/users';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
-	import {
-		closeCourseComposer,
-		courseComposerState,
-		createdCourseDraft
-	} from '$lib/stores/courseComposerStore';
+	import { closeCourseComposer, courseComposerState } from '$lib/stores/courseComposerStore';
 	import type { User } from '$lib/types/user';
-	import type { Course } from '$lib/types/course';
 
 	let users: User[] = [];
 	let form = {
@@ -22,7 +19,9 @@
 
 	onMount(async () => {
 		try {
-			users = await fetchUsersForViews();
+			if ($page.data.currentUser?.role?.toLowerCase() === 'admin') {
+				users = await fetchUsersForViews();
+			}
 		} catch (error) {
 			console.error('Unable to load users for course composer', error);
 		}
@@ -38,30 +37,16 @@
 		};
 	}
 
-	function createCourseFromForm() {
+	async function createCourseFromForm() {
 		const normalizedInstructorEmail = form.instructorEmail.trim().toLowerCase();
-		const selectedInstructor = accountUsers.find((user) => user.email.toLowerCase() === normalizedInstructorEmail);
-		const instructorDisplayName = selectedInstructor?.name || 'None';
-		const created: Course = {
-			id: Date.now(),
+		const created = await createCourse({
 			name: form.name.trim() || 'Untitled Course',
 			code: form.code.trim() || 'TBD 0000',
 			semester: form.semester.trim() || '',
-			instructor: instructorDisplayName,
-			color: '#1a4a8a'
-		};
-
-		console.info('[pseudo-api] create-course', {
-			course: {
-				name: created.name,
-				code: created.code,
-				semester: created.semester,
-				instructor: created.instructor,
-				instructorEmail: normalizedInstructorEmail || null
-			}
+			instructorEmail: normalizedInstructorEmail,
+			instructorName: accountUsers.find((user) => user.email.toLowerCase() === normalizedInstructorEmail)?.name
 		});
 
-		createdCourseDraft.set(created);
 		selectedCourseId.set(created.id);
 		currentFrame.set('courses');
 		closeCourseComposer();

@@ -15,10 +15,9 @@ Notes:
 
 ## What Mode both does
 
-1. Seeds backend database with fixture data from rocky-interface/static/local-api.
-2. Starts backend server on port 5001.
-3. Starts frontend dev server on port 5000 with:
-   - PUBLIC_USE_LOCAL_API=false
-   - PUBLIC_API_BASE_URL=http://127.0.0.1:5001
+1. Seeds backend database and static content from rocky-backend/seed-data.
+2. Starts backend server using `ROCKY_API_HOST` and `ROCKY_API_PORT`.
+3. Starts frontend dev server using `ROCKY_WEB_HOST`, `ROCKY_WEB_PORT`, and `ROCKY_ALLOWED_HOSTS`.
+4. Sets `PUBLIC_API_BASE_URL` for the frontend process to the backend URL derived from `ROCKY_API_HOST` and `ROCKY_API_PORT`.
 
-This makes frontend talk to backend APIs instead of local-api files.
+This makes frontend talk to backend APIs as the single source of truth.

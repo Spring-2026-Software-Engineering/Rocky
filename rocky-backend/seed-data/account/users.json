@@ -1,0 +1,90 @@
+[
+  {
+    "_id": "local-admin",
+    "name": "Offline Admin",
+    "email": "admin.local@kent.edu",
+    "role": "admin",
+    "settings": {
+      "themePreference": "dark",
+      "widgets": [
+        "analytics",
+        "system-info"
+      ]
+    }
+  },
+  {
+    "_id": "local-instructor-1",
+    "name": "Dr. Avery Cole",
+    "email": "instructor.local@kent.edu",
+    "role": "instructor",
+    "settings": {
+      "themePreference": "light",
+      "widgets": [
+        "notifications"
+      ]
+    }
+  },
+  {
+    "_id": "local-instructor-2",
+    "name": "Prof. Jordan Ellis",
+    "email": "instructor.alt@kent.edu",
+    "role": "instructor",
+    "settings": {
+      "themePreference": "system",
+      "widgets": [
+        "analytics",
+        "notifications"
+      ]
+    }
+  },
+  {
+    "_id": "local-001",
+    "name": "Mila Ross",
+    "email": "student.local@kent.edu",
+    "role": "client",
+    "settings": {
+      "themePreference": "system",
+      "widgets": [
+        "system-info"
+      ]
+    }
+  },
+  {
+    "_id": "local-002",
+    "name": "Noah Kim",
+    "email": "student.alt1@kent.edu",
+    "role": "client",
+    "settings": {
+      "themePreference": "light",
+      "widgets": [
+        "analytics",
+        "notifications"
+      ]
+    }
+  },
+  {
+    "_id": "local-003",
+    "name": "Lina Chen",
+    "email": "student.alt2@kent.edu",
+    "role": "client",
+    "settings": {
+      "themePreference": "dark",
+      "widgets": [
+        "analytics",
+        "system-info"
+      ]
+    }
+  },
+  {
+    "_id": "local-004",
+    "name": "Sofia Patel",
+    "email": "student.alt3@kent.edu",
+    "role": "client",
+    "settings": {
+      "themePreference": "system",
+      "widgets": [
+        "notifications"
+      ]
+    }
+  }
+]

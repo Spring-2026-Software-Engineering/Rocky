@@ -105,11 +105,26 @@ function toCourseMemberRole(role: string): 'instructor' | 'student' {
 	return normalizeMemberRole(role);
 }
 
+function deriveNameFromEmail(email: string): string {
+	const normalized = email.trim().toLowerCase();
+	if (!normalized || normalized === 'n/a' || !normalized.includes('@')) {
+		return 'Unknown User';
+	}
+
+	const localPart = normalized.split('@')[0] || '';
+	const words = localPart
+		.split(/[._-]+/)
+		.filter((piece) => piece.length > 0)
+		.map((piece) => `${piece.charAt(0).toUpperCase()}${piece.slice(1)}`);
+
+	return words.length > 0 ? words.join(' ') : 'Unknown User';
+}
+
 function normalizeCourseMember(raw: ApiCourseMember, index = 0, accountsByEmail?: Record<string, CourseAccountRecord>): CourseMember {
 	const referenceEmail = raw.accountEmail?.trim().toLowerCase() || raw.email?.trim().toLowerCase() || '';
 	const matchedAccount = referenceEmail ? accountsByEmail?.[referenceEmail] : undefined;
 	const email = matchedAccount?.email || raw.email?.trim() || raw.accountEmail?.trim() || 'N/A';
-	const name = matchedAccount?.name || raw.name?.trim() || 'Unknown User';
+	const name = matchedAccount?.name || raw.name?.trim() || deriveNameFromEmail(email);
 	const role = raw.role || 'student';
 
 	return {

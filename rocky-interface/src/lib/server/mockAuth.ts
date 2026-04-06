@@ -1,5 +1,4 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { API_BASE_URL, APP_ENV } from '$lib/config/env';
 import { normalizeUsers, type ApiUser, type User } from '$lib/types/user';
 
 export const SESSION_COOKIE_NAME = 'rocky_session';
@@ -8,14 +7,24 @@ export const SESSION_COOKIE_OPTIONS = {
 	path: '/',
 	httpOnly: true,
 	sameSite: 'lax' as const,
-	secure: false,
+	secure: APP_ENV === 'production',
 	maxAge: 60 * 60 * 8
 };
 
 async function loadMockUsers(): Promise<User[]> {
-	const filePath = join(process.cwd(), 'static', 'local-api', 'account', 'users.json');
-	const raw = await readFile(filePath, 'utf-8');
-	const parsed = JSON.parse(raw) as ApiUser[];
+	const response = await fetch(`${API_BASE_URL}/auth/preview-users`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json'
+		},
+		cache: 'no-store'
+	});
+
+	if (!response.ok) {
+		return [];
+	}
+
+	const parsed = (await response.json()) as ApiUser[];
 	return normalizeUsers(parsed);
 }
 

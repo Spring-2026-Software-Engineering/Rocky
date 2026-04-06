@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { createUser, fetchUsersForDbTest, removeUser } from '$lib/api/users';
-	import { USE_LOCAL_API } from '$lib/config/env';
 	import type { DbUser } from '$lib/types/user';
 
 	let users: DbUser[] = [];
@@ -43,10 +42,6 @@
 
 <h1>Database Test Page</h1>
 
-{#if USE_LOCAL_API}
-	<p>Offline local-api mode is enabled. Create/Delete operations are disabled.</p>
-{/if}
-
 {#if message}
 	<p>{message}</p>
 {/if}
@@ -57,14 +52,14 @@
 <input placeholder="name" bind:value={name} />
 <input placeholder="email" bind:value={email} />
 <input placeholder="role (admin/client)" bind:value={role} />
-<button on:click={addUser} disabled={USE_LOCAL_API}>Add User</button>
+<button on:click={addUser}>Add User</button>
 
 <h3>Users</h3>
 <ul>
 	{#each users as user}
 		<li>
 			{user.name} ({user.email})
-			<button on:click={() => deleteUser(user.id)} disabled={USE_LOCAL_API}>Delete</button>
+			<button on:click={() => deleteUser(user.id)}>Delete</button>
 		</li>
 	{/each}
 </ul>

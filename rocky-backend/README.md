@@ -1,83 +1,105 @@
-# Create and run Virtual environment
+# Rocky Backend (Backend Developer Guide)
 
-```cmd
-REM Create
-cd .\rocky-backend
+This README is for developers working in the Flask backend under `rocky-backend`.
+
+## What this project owns
+
+- API endpoints and authorization enforcement.
+- Role-based access to users/courses/analytics data.
+- Database reads/writes (Mongita for local fallback, MongoDB for production).
+- Seeded fixture ingestion under `seed-data`.
+
+## Prerequisites
+
+- Python 3.11+
+- pip
+
+## Environment setup
+
+Windows PowerShell:
+
+```powershell
 py -3 -m venv .venv
-REM Activate
-.venv\Scripts\activate
-```
-
-> If activation is blocked, run this first in PowerShell:
-> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
-
-# Install Dependencies
-
-```cmd
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-# Running Flask
+If activation is blocked:
 
-```cmd
-python main.py  flask --app main run --debug
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
 
-OR
+## Environment variables
 
+Copy `.env.example` to `.env`, then set values for your target environment.
+
+Core variables:
+
+- `ROCKY_APP_ENV`: `development` | `testing` | `production`
+- `ROCKY_DB_BACKEND`: `mongita` | `mongodb`
+- `ROCKY_MONGODB_URI`: required in production
+- `ROCKY_DB_NAME`: database name
+- `ROCKY_API_HOST` and `ROCKY_API_PORT`: backend bind settings
+
+Security-related toggles:
+
+- `ROCKY_ENABLE_DB_INSPECTOR`: should be `false` in production
+- `ROCKY_ENABLE_PREVIEW_LOGIN`: should be `false` in production
+
+Production baseline:
+
+- `ROCKY_APP_ENV=production`
+- `ROCKY_DB_BACKEND=mongodb`
+- `ROCKY_MONGODB_URI` set to valid credentials
+- `ROCKY_ENABLE_DB_INSPECTOR=false`
+- `ROCKY_ENABLE_PREVIEW_LOGIN=false`
+
+## Run backend
+
+```powershell
 python main.py
-
 ```
 
-# Adding a New Collection
+Default URL: `http://127.0.0.1:5001`
 
-To add a new collection (e.g. `assignments`), open `main.py` and follow these steps:
+The canonical widget catalog lives in `seed-data/widgets/widgets.json` and is exposed through the widget endpoint.
 
-### 1. Register the collection (after the existing ones)
-```python
-assignments = db["assignments"]
+Health check: `GET /health`
+
+## Seed data and seeding flow
+
+Seed fixtures are backend-owned in `seed-data`:
+
+- `seed-data/account/users.json`
+- `seed-data/courses/courses.json`
+- `seed-data/analytics/kpis.json`
+- `seed-data/analytics/activity.json`
+- `seed-data/widgets/widgets.json`
+- `seed-data/help/faq.json`
+
+Seeding code lives in:
+
+- `seed-data/seed_data.py` (shared seeding logic)
+- `seed_from_backend.py` (shared seeding script entrypoint)
+
+Run seeding:
+
+```powershell
+python seed_from_backend.py
 ```
 
-### 2. Add routes
+## Tests
 
-```python
-@app.route("/assignments", methods=["POST"])
-def create_assignment():
-    data = request.json
-    data["created_at"] = datetime.now(timezone.utc).isoformat()
-    assignments.insert_one(data)
-    return jsonify({"message": "Assignment created"})
+From repository root:
 
-@app.route("/assignments", methods=["GET"])
-def get_assignments():
-    result = list(assignments.find())
-    for a in result:
-        a["_id"] = str(a["_id"])
-    return jsonify(result)
-
-@app.route("/assignments/<assignment_id>", methods=["GET"])
-def get_assignment(assignment_id):
-    assignment = assignments.find_one({"_id": ObjectId(assignment_id)})
-    if not assignment:
-        return jsonify({"error": "Assignment not found"}), 404
-    assignment["_id"] = str(assignment["_id"])
-    return jsonify(assignment)
-
-@app.route("/assignments/<assignment_id>", methods=["PUT"])
-def update_assignment(assignment_id):
-    data = request.json
-    assignments.update_one({"_id": ObjectId(assignment_id)}, {"$set": data})
-    return jsonify({"message": "Assignment updated"})
-
-@app.route("/assignments/<assignment_id>", methods=["DELETE"])
-def delete_assignment(assignment_id):
-    assignments.delete_one({"_id": ObjectId(assignment_id)})
-    return jsonify({"message": "Assignment deleted"})
+```powershell
+python -m unittest discover -s run-test/backend -p "test_*.py" -v
 ```
 
-### 3. Test with Postman / Thunder Client
-- **POST** `http://127.0.0.1:5000/assignments` with `Content-Type: application/json` and a JSON body
-- **GET** `http://127.0.0.1:5000/assignments` to retrieve all
-- **DELETE** `http://127.0.0.1:5000/assignments/<id>` to remove one
+## Development guardrails
 
-> Data is stored on disk in `mongita/rocky_db/<collection_name>/` — stopping Flask does not erase data.
-
+- Keep authorization checks in backend routes, not only frontend.
+- Treat frontend-provided role/email headers as session-context data from trusted proxy routes.
+- Add validation in `backend/validation.py` for any new mutable endpoint payloads.
+- Keep private data access in backend code paths only.
