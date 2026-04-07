@@ -29,7 +29,7 @@ class BackendValidationTests(BackendTestCase):
         self._log("Posting invalid user payload. Expecting HTTP 400.")
         response = self.client.post(
             "/users",
-            json={"name": "X", "email": "not-an-email", "flash_id": "x1", "role": "student"},
+            json={"first_name": "X", "last_name": "User", "email": "not-an-email", "id": "x1", "is_admin": False},
             headers=self.admin_headers,
         )
         self.assertEqual(response.status_code, 400)
@@ -39,32 +39,65 @@ class BackendValidationTests(BackendTestCase):
         response = self.client.post(
             "/users",
             json={
-                "name": "Good User",
+                "first_name": "Good",
+                "last_name": "User",
                 "email": "good.user@kent.edu",
-                "flash_id": "good100",
-                "role": "student",
+                "id": "KSUID000000100",
+                "is_admin": False,
             },
             headers=self.admin_headers,
         )
         self.assertEqual(response.status_code, 200)
 
     def test_create_user_accepts_local_api_shape(self):
-        self._log("Posting backend-style user payload without flash_id. Expecting HTTP 200.")
+        self._log("Posting backend-style user payload without id. Expecting HTTP 200.")
         response = self.client.post(
             "/users",
             json={
-                "_id": "acct-local-100",
-                "name": "Local Api User",
+                "first_name": "Local",
+                "last_name": "Api User",
                 "email": "local.api.user@kent.edu",
-                "role": "client",
+                "is_admin": False,
             },
             headers=self.admin_headers,
         )
         self.assertEqual(response.status_code, 200)
         saved = main.users.find_one({"email": "local.api.user@kent.edu"})
         self.assertIsNotNone(saved)
-        self.assertEqual(saved.get("external_id"), "acct-local-100")
-        self.assertTrue(saved.get("flash_id", "").startswith("seed-"))
+        self.assertTrue(saved.get("id", "").startswith("seed-"))
+
+    def test_update_user_only_accepts_is_active_boolean(self):
+        self._log("Updating user status through /users/<id>. Expecting boolean-only is_active support.")
+
+        seeded_admin = main.users.find_one({"email": "admin.local@kent.edu"})
+        self.assertIsNotNone(seeded_admin)
+        user_id = seeded_admin.get("id")
+        self.assertTrue(isinstance(user_id, str) and user_id)
+
+        invalid_payload_response = self.client.put(
+            f"/users/{user_id}",
+            json={"first_name": "Nope"},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(invalid_payload_response.status_code, 400)
+
+        invalid_type_response = self.client.put(
+            f"/users/{user_id}",
+            json={"is_active": "false"},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(invalid_type_response.status_code, 400)
+
+        valid_response = self.client.put(
+            f"/users/{user_id}",
+            json={"is_active": False},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(valid_response.status_code, 200)
+
+        updated = main.users.find_one({"id": user_id})
+        self.assertIsNotNone(updated)
+        self.assertEqual(updated.get("is_active"), False)
 
     def test_create_course_rejects_bad_payload(self):
         self._log("Posting invalid course term payload. Expecting HTTP 400.")
@@ -72,8 +105,8 @@ class BackendValidationTests(BackendTestCase):
             "/courses",
             json={
                 "name": "Broken",
-                "instructor_ids": ["good.user@kent.edu"],
-                "student_ids": ["good.user@kent.edu"],
+                "instructor_ids": ["KSUID000000100"],
+                "student_ids": ["KSUID000000100"],
                 "semester": {"year": 2026, "term": "autumn"},
             },
             headers=self.admin_headers,
@@ -93,14 +126,14 @@ class BackendValidationTests(BackendTestCase):
                 "color": "#1d4ed8",
                 "announcements": ["Welcome to Cloud Computing"],
                 "members": [
-                    {"accountEmail": "pnarayanan@kent.edu", "role": "instructor"},
-                    {"accountEmail": "student.local@kent.edu", "role": "student"},
+                    {"id": "KSUID000000002", "role": "instructor"},
+                    {"id": "KSUID000000003", "role": "student"},
                 ],
                 "groups": [
                     {
                         "id": "group-cs4550-cloud",
                         "name": "Cloud Ops",
-                        "memberEmails": ["student.local@kent.edu"],
+                        "memberIds": ["KSUID000000003"],
                     }
                 ],
             },

@@ -34,10 +34,10 @@
 		name: '',
 		code: '',
 		semester: '',
-		instructorEmail: ''
+		instructorId: ''
 	};
 	let newGroupName = '';
-	let pendingGroupMemberEmailByGroupId: Record<string, string> = {};
+	let pendingGroupMemberIdByGroupId: Record<string, string> = {};
 	let importCsvInput: HTMLInputElement | null = null;
 	let previewApiKey: string | null = null;
 	let courseApiHistory: CourseApiHistoryEntry[] = [];
@@ -49,7 +49,7 @@
 		try {
 			const requestList = [fetchCourses(), fetchCourseDetails(), fetchCourseGroups()] as const;
 			const [courses, details, groups] = await Promise.all(requestList);
-			const needsUsers = $page.data.currentUser?.role?.toLowerCase() === 'admin';
+			const needsUsers = Boolean($page.data.currentUser?.isAdmin);
 			const usersPromise = needsUsers ? fetchUsersForViews() : Promise.resolve([] as User[]);
 			const users = await usersPromise;
 
@@ -80,46 +80,45 @@
 	$: selectedCourse = visibleCourses.find((course) => course.id === $selectedCourseId) ?? null;
 	$: selectedDetail = selectedCourse ? detailsByCourseId[selectedCourse.id] : null;
 	$: selectedGroups = selectedCourse ? groupsByCourseId[selectedCourse.id] || [] : [];
-	$: nonAdminUsers = allUsers.filter((user) => user.role !== 'admin');
+	$: nonAdminUsers = allUsers.filter((user) => !user.isAdmin);
 	$: accountUsers = allUsers.filter((user) => user.email && user.email.trim() && user.email !== 'N/A');
-	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
-	$: currentUserRole = $page.data.currentUser?.role?.trim().toLowerCase() || '';
-	$: isCurrentUserAdmin = currentUserRole === 'admin';
+	$: currentUserId = $page.data.currentUser?.id?.trim() || '';
+	$: isCurrentUserAdmin = Boolean($page.data.currentUser?.isAdmin);
 	$: baseVisibleCourses = isCurrentUserAdmin
 		? allCourses
 		: allCourses.filter((course) => {
 				const members = detailsByCourseId[course.id]?.members || [];
-				return members.some((member) => member.email.toLowerCase() === currentUserEmail);
+				return members.some((member) => member.id === currentUserId);
 		  });
-	$: instructorEmailForCourse = selectedDetail?.members.find((member) => member.role === 'instructor')?.email?.toLowerCase() || '';
-	$: isCurrentUserCourseInstructor = currentUserEmail !== '' && currentUserEmail === instructorEmailForCourse;
-	$: isCurrentUserClient = currentUserRole === 'client';
+	$: instructorIdForCourse = selectedDetail?.members.find((member) => member.role === 'instructor')?.id || '';
+	$: isCurrentUserCourseInstructor = currentUserId !== '' && currentUserId === instructorIdForCourse;
+	$: isCurrentUserClient = !isCurrentUserAdmin;
 	$: canEditCourse = isCurrentUserAdmin;
 	$: canEditPeopleAndGroups = isCurrentUserAdmin || isCurrentUserCourseInstructor;
-	$: studentGroup = currentUserEmail
-		? selectedGroups.find((group) => group.memberEmails.includes(currentUserEmail)) || null
+	$: studentGroup = currentUserId
+		? selectedGroups.find((group) => group.memberIds.includes(currentUserId)) || null
 		: null;
 	$: studentMembers = (selectedDetail?.members || []).filter((member) => member.role === 'student');
-	$: groupedStudentEmailSet = new Set(
-		selectedGroups.flatMap((group) => group.memberEmails.map((email) => email.trim().toLowerCase()))
+	$: groupedStudentIdSet = new Set(
+		selectedGroups.flatMap((group) => group.memberIds.map((id) => id.trim()))
 	);
-	$: ungroupedStudentMembers = studentMembers.filter((member) => !groupedStudentEmailSet.has(member.email.trim().toLowerCase()));
+	$: ungroupedStudentMembers = studentMembers.filter((member) => !groupedStudentIdSet.has(member.id));
 	$: studentGroupMembers = (() => {
 		if (!studentGroup || !selectedDetail) {
 			return [];
 		}
 
-		const memberByEmail = new Map(selectedDetail.members.map((member) => [member.email.trim().toLowerCase(), member]));
-		return studentGroup.memberEmails
-			.map((email) => memberByEmail.get(email))
+		const memberById = new Map(selectedDetail.members.map((member) => [member.id, member]));
+		return studentGroup.memberIds
+			.map((id) => memberById.get(id))
 			.filter((member): member is NonNullable<typeof member> => Boolean(member))
 			.filter((member) => member.role === 'student');
 	})();
-	$: memberByEmail = new Map((selectedDetail?.members || []).map((member) => [member.email.trim().toLowerCase(), member]));
+	$: memberById = new Map((selectedDetail?.members || []).map((member) => [member.id, member]));
 	$: groupMembershipRows = selectedGroups.map((group) => ({
 		group,
-		members: group.memberEmails
-			.map((email) => memberByEmail.get(email.trim().toLowerCase()))
+		members: group.memberIds
+			.map((id) => memberById.get(id.trim()))
 			.filter((member): member is NonNullable<typeof member> => Boolean(member))
 			.filter((member) => member.role === 'student')
 	}));
@@ -140,13 +139,13 @@
 		selectedCourseId.set(visibleCourses[0].id);
 	}
 	$: if (selectedCourse) {
-		const matchingUserByName = nonAdminUsers.find((user) => user.name === selectedCourse.instructor);
+		const matchingUserByName = nonAdminUsers.find((user) => user.displayName === selectedCourse.instructor);
 		const courseInstructorMember = selectedDetail?.members.find((member) => member.role === 'instructor');
 		editCourseForm = {
 			name: selectedCourse.name,
 			code: selectedCourse.code,
 			semester: selectedCourse.semester,
-			instructorEmail: (courseInstructorMember?.email || matchingUserByName?.email || '').toLowerCase()
+			instructorId: courseInstructorMember?.id || matchingUserByName?.id || ''
 		};
 	}
 	$: if (selectedCourse && canViewCourseApiHistory && loadedCourseApiHistoryForId !== selectedCourse.id) {
@@ -182,18 +181,18 @@
 		await refreshAfterWrite();
 	}
 
-	async function addMemberByEmailPrompt() {
+	async function addMemberByIdPrompt() {
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
 
-		const emailInput = window.prompt('Enter email to add to this course:');
-		const email = emailInput?.trim().toLowerCase() || '';
-		if (!email) {
+		const idInput = window.prompt('Enter user id to add to this course:');
+		const id = idInput?.trim() || '';
+		if (!id) {
 			return;
 		}
 
-		await addCourseMembers(selectedCourse.id, [{ email, role: 'student' }]);
+		await addCourseMembers(selectedCourse.id, [{ id, role: 'student' }]);
 		await refreshAfterWrite();
 	}
 
@@ -209,16 +208,16 @@
 		}
 
 		const csvText = await file.text();
-		const emailMatches = csvText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
-		const parsedEmails = [...new Set(emailMatches.map((value) => value.trim().toLowerCase()))];
-		if (parsedEmails.length === 0) {
+		const idMatches = csvText.match(/(?:KSUID|WLID)\d{9}/gi) || [];
+		const parsedIds = [...new Set(idMatches.map((value) => value.trim()))];
+		if (parsedIds.length === 0) {
 			target.value = '';
 			return;
 		}
 
 		await addCourseMembers(
 			selectedCourse.id,
-			parsedEmails.map((email) => ({ email, role: 'student' }))
+			parsedIds.map((id) => ({ id, role: 'student' }))
 		);
 		await refreshAfterWrite();
 
@@ -234,13 +233,13 @@
 			return;
 		}
 
-		const normalizedInstructorEmail = editCourseForm.instructorEmail.trim().toLowerCase();
-		const currentInstructorEmail = selectedDetail?.members.find((member) => member.role === 'instructor')?.email?.toLowerCase() || '';
+		const normalizedInstructorId = editCourseForm.instructorId.trim();
+		const currentInstructorId = selectedDetail?.members.find((member) => member.role === 'instructor')?.id || '';
 		await updateCourseMetadata(selectedCourse.id, {
 			name: editCourseForm.name.trim() || selectedCourse.name,
 			code: editCourseForm.code.trim() || selectedCourse.code,
 			semester: editCourseForm.semester.trim() || selectedCourse.semester,
-			instructorEmail: normalizedInstructorEmail || currentInstructorEmail
+			instructorId: normalizedInstructorId || currentInstructorId
 		});
 		await refreshAfterWrite();
 	}
@@ -265,25 +264,25 @@
 			return;
 		}
 
-		const email = (pendingGroupMemberEmailByGroupId[groupId] || '').trim().toLowerCase();
-		if (!email) {
+		const id = (pendingGroupMemberIdByGroupId[groupId] || '').trim();
+		if (!id) {
 			return;
 		}
 
-		await addCourseGroupMember(selectedCourse.id, groupId, email);
+		await addCourseGroupMember(selectedCourse.id, groupId, id);
 		await refreshAfterWrite();
-		pendingGroupMemberEmailByGroupId = {
-			...pendingGroupMemberEmailByGroupId,
+		pendingGroupMemberIdByGroupId = {
+			...pendingGroupMemberIdByGroupId,
 			[groupId]: ''
 		};
 	}
 
-	async function removeGroupMember(groupId: string, email: string) {
+	async function removeGroupMember(groupId: string, id: string) {
 		if (!selectedCourse) {
 			return;
 		}
 
-		await removeCourseGroupMember(selectedCourse.id, groupId, email);
+		await removeCourseGroupMember(selectedCourse.id, groupId, id);
 		await refreshAfterWrite();
 	}
 
@@ -310,7 +309,7 @@
 	}
 
 	function getAvailableMembersForGroup(group: CourseGroup) {
-		return selectableGroupMembers.filter((member) => !group.memberEmails.includes(member.email.toLowerCase()));
+		return selectableGroupMembers.filter((member) => !group.memberIds.includes(member.id));
 	}
 </script>
 
@@ -419,7 +418,7 @@
 								<ul class="course-inline-list">
 									{#each courseApiHistory as entry}
 										<li>
-											<strong>{entry.userEmail}</strong> · {entry.eventType} · {entry.groupName ? `Group: ${entry.groupName}` : 'Ungrouped'} · {entry.created || 'pending timestamp'}
+											<strong>{entry.userId}</strong> · {entry.eventType} · {entry.groupName ? `Group: ${entry.groupName}` : 'Ungrouped'} · {entry.created || 'pending timestamp'}
 										</li>
 									{/each}
 								</ul>
@@ -447,7 +446,7 @@
 			{:else if activeTab === 'edit-people' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
-						<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Person</button>
+						<button type="button" class="view-btn" onclick={addMemberByIdPrompt}>Add Person</button>
 						<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
 						<input
 							class="course-hidden-input"
@@ -520,13 +519,13 @@
 										<tr>
 											<td>{group.name}</td>
 											<td>
-												{#if group.memberEmails.length}
+												{#if group.memberIds.length}
 													<ul class="course-inline-list">
-														{#each group.memberEmails as email}
-															{@const member = memberByEmail.get(email.trim().toLowerCase())}
+														{#each group.memberIds as memberId}
+															{@const member = memberById.get(memberId.trim())}
 															<li>
-																{member?.name || email} ({email})
-																<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, email)}>Remove</button>
+																{member?.name || memberId} ({memberId})
+																<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, memberId)}>Remove</button>
 															</li>
 														{/each}
 													</ul>
@@ -538,18 +537,18 @@
 												<div class="course-group-add-row">
 													<select
 														class="text-input"
-														value={pendingGroupMemberEmailByGroupId[group.id] || ''}
+														value={pendingGroupMemberIdByGroupId[group.id] || ''}
 														onchange={(event) => {
 															const target = event.currentTarget as HTMLSelectElement;
-															pendingGroupMemberEmailByGroupId = {
-																...pendingGroupMemberEmailByGroupId,
+															pendingGroupMemberIdByGroupId = {
+																...pendingGroupMemberIdByGroupId,
 																[group.id]: target.value
 															};
 														}}
 													>
 														<option value="">Select course member</option>
 														{#each getAvailableMembersForGroup(group) as member}
-															<option value={member.email}>{member.name} ({member.email})</option>
+															<option value={member.id}>{member.name} ({member.id})</option>
 														{/each}
 													</select>
 													<button type="button" class="list-go-btn" onclick={() => addGroupMember(group.id)}>Add</button>

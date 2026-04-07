@@ -1,5 +1,4 @@
 export type FrameName = 'dashboard' | 'users' | 'courses' | 'analytics' | 'account' | 'help';
-export type AppRole = 'admin' | 'client';
 
 const frameLabels: Record<FrameName, string> = {
 	dashboard: 'Dashboard',
@@ -15,12 +14,12 @@ export const primaryFrames: FrameName[] = ['dashboard', 'users', 'courses', 'ana
 const adminFrames: FrameName[] = ['dashboard', 'users', 'courses', 'analytics', 'account', 'help'];
 const clientFrames: FrameName[] = ['dashboard', 'courses', 'account', 'help'];
 
-export function framesForRole(role: AppRole): FrameName[] {
-	return role === 'admin' ? adminFrames : clientFrames;
+export function framesForRole(isAdmin: boolean): FrameName[] {
+	return isAdmin ? adminFrames : clientFrames;
 }
 
-export function canAccessFrame(frame: FrameName, role: AppRole): boolean {
-	return framesForRole(role).includes(frame);
+export function canAccessFrame(frame: FrameName, isAdmin: boolean): boolean {
+	return framesForRole(isAdmin).includes(frame);
 }
 
 export function toFrameLabel(frame: FrameName): string {

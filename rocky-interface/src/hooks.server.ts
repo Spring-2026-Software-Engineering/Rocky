@@ -1,12 +1,25 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { getUserByEmail, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '$lib/server/mockAuth';
 import { getSettingsForUser } from './lib/server/userSettingsStore';
-import { framesForRole, type AppRole, type FrameName } from '$lib/types/frame';
+import { framesForRole, type FrameName } from '$lib/types/frame';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const FRAME_COOKIE_NAME = 'rocky_current_frame';
-function readInitialFrameFromCookie(rawValue: string | undefined, role: AppRole): FrameName {
-	const allowedFrames = framesForRole(role);
+
+function isPathAllowedForDeactivated(pathname: string): boolean {
+	if (pathname === '/deactivated' || pathname === '/logout') {
+		return true;
+	}
+
+	if (pathname.startsWith('/auth/') || pathname.startsWith('/api/')) {
+		return true;
+	}
+
+	return false;
+}
+
+function readInitialFrameFromCookie(rawValue: string | undefined, isAdmin: boolean): FrameName {
+	const allowedFrames = framesForRole(isAdmin);
 	if (!rawValue) {
 		return 'dashboard';
 	}
@@ -38,7 +51,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.currentUser = currentUser;
 	event.locals.themePreference = 'system';
-	event.locals.initialFrame = readInitialFrameFromCookie(event.cookies.get(FRAME_COOKIE_NAME), currentUser?.role ?? 'client');
+	event.locals.initialFrame = readInitialFrameFromCookie(event.cookies.get(FRAME_COOKIE_NAME), currentUser?.isAdmin ?? false);
 
 	if (currentUser) {
 		const settings = await getSettingsForUser(currentUser);
@@ -50,6 +63,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if ((isRootPath || isRootAction) && !currentUser) {
 		throw redirect(303, '/login');
+	}
+
+	if (currentUser && !currentUser.isActive && !isPathAllowedForDeactivated(event.url.pathname)) {
+		throw redirect(303, '/deactivated');
+	}
+
+	if (currentUser && currentUser.isActive && event.url.pathname === '/deactivated') {
+		throw redirect(303, '/');
 	}
 
 	if (event.url.pathname.startsWith('/login') && currentUser) {

@@ -120,6 +120,7 @@ def seed_from_backend() -> dict[str, int]:
     raw_api_history = _load_json(API_HISTORY_FILE)
 
     main.users.delete_many({})
+    main.whitelist_users.delete_many({})
     main.courses.delete_many({})
     main.api_keys.delete_many({})
     main.api_history.delete_many({})
@@ -134,23 +135,36 @@ def seed_from_backend() -> dict[str, int]:
         if not email:
             continue
 
-        role = (raw.get("role") or "client").strip().lower()
-        if role not in {"admin", "client", "student", "instructor"}:
-            role = "client"
+        raw_is_admin = raw.get("is_admin") if raw.get("is_admin") is not None else raw.get("isAdmin")
+        is_admin = bool(raw_is_admin)
+        raw_is_active = raw.get("is_active") if raw.get("is_active") is not None else raw.get("isActive")
+        is_active = True if raw_is_active is None else bool(raw_is_active)
 
         settings_payload = _normalize_user_settings(raw.get("settings"), raw_widgets)
 
         user_doc = {
-            "name": (raw.get("name") or "Unknown User").strip(),
+            "id": (raw.get("id") or f"seed-{email.split('@')[0]}").strip(),
+            "first_name": (raw.get("first_name") or "").strip(),
+            "last_name": (raw.get("last_name") or "").strip(),
             "email": email,
-            "flash_id": f"seed-{email.split('@')[0]}",
-            "role": role,
+            "is_admin": is_admin,
+            "is_active": is_active,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "settings": settings_payload,
-            "settings_updated_at": datetime.now(timezone.utc).isoformat(),
         }
+        if not user_doc["first_name"] and not user_doc["last_name"]:
+            fallback_name = (raw.get("name") or "Unknown User").strip()
+            parts = [part for part in fallback_name.split() if part]
+            user_doc["first_name"] = parts[0] if parts else "Unknown"
+            user_doc["last_name"] = " ".join(parts[1:]) if len(parts) > 1 else "User"
         main.users.insert_one(user_doc)
         users_inserted += 1
+
+    user_id_by_email = {
+        (user.get("email") or "").strip().lower(): (user.get("id") or "").strip()
+        for user in main.users.find()
+        if (user.get("email") or "").strip() and (user.get("id") or "").strip()
+    }
 
     for index, raw in enumerate(raw_courses, start=1):
         semester_raw = (raw.get("semester") or "Spring 2026").strip()
@@ -165,6 +179,9 @@ def seed_from_backend() -> dict[str, int]:
             account_email = (member.get("accountEmail") or member.get("email") or "").strip().lower()
             if not account_email:
                 continue
+            member_id = user_id_by_email.get(account_email, "")
+            if not member_id:
+                continue
 
             role = (member.get("role") or "student").strip().lower()
             if role != "instructor":
@@ -172,6 +189,7 @@ def seed_from_backend() -> dict[str, int]:
 
             normalized_members.append(
                 {
+                    "id": member_id,
                     "accountEmail": account_email,
                     "email": account_email,
                     "role": role,
@@ -179,9 +197,33 @@ def seed_from_backend() -> dict[str, int]:
             )
 
             if role == "instructor":
-                instructor_ids.append(account_email)
+                instructor_ids.append(member_id)
             else:
-                student_ids.append(account_email)
+                student_ids.append(member_id)
+
+        raw_groups = raw.get("groups") if isinstance(raw.get("groups"), list) else []
+        normalized_groups = []
+        for group in raw_groups:
+            if not isinstance(group, dict):
+                continue
+            member_ids = []
+            for group_member in group.get("memberIds", group.get("memberEmails", [])):
+                value = (group_member or "").strip().lower() if isinstance(group_member, str) else ""
+                if not value:
+                    continue
+                mapped_id = user_id_by_email.get(value)
+                if mapped_id:
+                    member_ids.append(mapped_id)
+                elif value.startswith("KSUID") or value.startswith("WLID"):
+                    member_ids.append(group_member)
+
+            normalized_groups.append(
+                {
+                    "id": (group.get("id") or "").strip(),
+                    "name": (group.get("name") or "").strip(),
+                    "memberIds": member_ids,
+                }
+            )
 
         course_doc = {
             # Fields consumed by frontend
@@ -194,7 +236,7 @@ def seed_from_backend() -> dict[str, int]:
             "overview": (raw.get("overview") or "").strip(),
             "announcements": raw.get("announcements") if isinstance(raw.get("announcements"), list) else [],
             "members": normalized_members,
-            "groups": raw.get("groups") if isinstance(raw.get("groups"), list) else [],
+            "groups": normalized_groups,
             # Fields expected by backend create/update shape
             "instructor_ids": instructor_ids,
             "student_ids": student_ids,
@@ -216,7 +258,7 @@ def seed_from_backend() -> dict[str, int]:
 
     for raw in raw_api_history:
         history_doc = {
-            "u_id": (raw.get("u_id") or "").strip().lower(),
+            "u_id": (raw.get("u_id") or "").strip(),
             "c_id": (raw.get("c_id") or "").strip(),
             "course_id": raw.get("course_id"),
             "event_type": (raw.get("event_type") or "request").strip(),
@@ -226,6 +268,9 @@ def seed_from_backend() -> dict[str, int]:
             "meta": raw.get("meta") if isinstance(raw.get("meta"), dict) else {},
             "created": (raw.get("created") or datetime.now(timezone.utc).isoformat()).strip(),
         }
+        if history_doc["u_id"] and "@" in history_doc["u_id"]:
+            history_doc["u_id"] = user_id_by_email.get(history_doc["u_id"].lower(), "")
+
         if not history_doc["u_id"] or not history_doc["c_id"]:
             continue
         main.api_history.insert_one(history_doc)
@@ -247,6 +292,7 @@ def use_in_memory_db() -> None:
     test_collections = build_in_memory_collections()
     main.collections = test_collections
     main.users = test_collections.users
+    main.whitelist_users = test_collections.whitelist_users
     main.courses = test_collections.courses
     main.api_keys = test_collections.api_keys
     main.api_history = test_collections.api_history

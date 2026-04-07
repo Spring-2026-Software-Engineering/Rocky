@@ -41,15 +41,15 @@ class BackendTestCase(unittest.TestCase):
         seed_backend.seed_from_backend()
         self.admin_headers = {
             "X-Rocky-User-Email": "admin.local@kent.edu",
-            "X-Rocky-User-Role": "admin",
+            "X-Rocky-User-Is-Admin": "true",
         }
         self.student_headers = {
             "X-Rocky-User-Email": "student.local@kent.edu",
-            "X-Rocky-User-Role": "client",
+            "X-Rocky-User-Is-Admin": "false",
         }
         self.instructor_headers = {
             "X-Rocky-User-Email": "instructor.local@kent.edu",
-            "X-Rocky-User-Role": "instructor",
+            "X-Rocky-User-Is-Admin": "false",
         }
 
     def _log(self, message: str):

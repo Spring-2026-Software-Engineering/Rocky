@@ -18,12 +18,16 @@ export function initAuthFromStorage(): void {
 
 	try {
 		const parsed = JSON.parse(raw) as Partial<User>;
-		if (parsed.id && parsed.name && parsed.email && parsed.role) {
+		if (parsed.id && parsed.displayName && parsed.email) {
+			const firstName = parsed.firstName || parsed.displayName.split(' ')[0] || '';
+			const lastName = parsed.lastName || parsed.displayName.split(' ').slice(1).join(' ');
 			currentUser.set({
 				id: parsed.id,
-				name: parsed.name,
+				firstName,
+				lastName,
+				displayName: parsed.displayName,
 				email: parsed.email,
-				role: parsed.role
+				isAdmin: Boolean(parsed.isAdmin)
 			});
 		}
 	} catch {

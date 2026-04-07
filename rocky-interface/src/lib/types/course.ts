@@ -53,7 +53,7 @@ export type ApiCourseGroup = Partial<{
 	id: string;
 	courseId: number;
 	name: string;
-	memberEmails: string[];
+	memberIds: string[];
 }>;
 
 export type CourseDetail = {
@@ -67,7 +67,7 @@ export type CourseGroup = {
 	id: string;
 	courseId: number;
 	name: string;
-	memberEmails: string[];
+	memberIds: string[];
 };
 
 function normalizeSemester(rawSemester?: string): string {
@@ -126,9 +126,10 @@ function normalizeCourseMember(raw: ApiCourseMember, index = 0, accountsByEmail?
 	const email = matchedAccount?.email || raw.email?.trim() || raw.accountEmail?.trim() || 'N/A';
 	const name = matchedAccount?.name || raw.name?.trim() || deriveNameFromEmail(email);
 	const role = raw.role || 'student';
+	const id = raw.id?.trim() || matchedAccount?.id || `member-${index + 1}`;
 
 	return {
-		id: email.toLowerCase() !== 'n/a' ? email.toLowerCase() : raw.id?.trim() || `member-${index + 1}`,
+		id,
 		name,
 		email,
 		role: toCourseMemberRole(role)
@@ -153,17 +154,17 @@ export function normalizeCourseDetails(rawDetails: ApiCourseDetail[], accountsBy
 }
 
 export function normalizeCourseGroup(raw: ApiCourseGroup, index = 0): CourseGroup {
-	const normalizedMemberEmails = Array.isArray(raw.memberEmails)
-		? raw.memberEmails
-				.map((email) => email?.trim().toLowerCase() || '')
-				.filter((email) => email.length > 0)
+	const normalizedMemberIds = Array.isArray(raw.memberIds)
+		? raw.memberIds
+				.map((id) => id?.trim() || '')
+				.filter((id) => id.length > 0)
 		: [];
 
 	return {
 		id: raw.id?.trim() || `group-${index + 1}`,
 		courseId: typeof raw.courseId === 'number' && Number.isFinite(raw.courseId) ? raw.courseId : 0,
 		name: raw.name?.trim() || `Group ${index + 1}`,
-		memberEmails: normalizedMemberEmails
+		memberIds: normalizedMemberIds
 	};
 }
 

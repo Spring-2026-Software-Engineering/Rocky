@@ -8,19 +8,18 @@
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import { openCourseComposer } from '$lib/stores/courseComposerStore';
-	import { framesForRole, toFrameLabel, type AppRole, type FrameName } from '$lib/types/frame';
+	import { framesForRole, toFrameLabel, type FrameName } from '$lib/types/frame';
 
 	const frames = Object.keys(frameMap) as FrameName[];
-	const currentUserRole = $derived((page.data.currentUser?.role ?? '').toString().trim().toLowerCase());
-	const userRole = $derived((page.data.currentUser?.role as AppRole | undefined) ?? 'client');
-	const allowedFrames = $derived(framesForRole(userRole));
+	const isAdmin = $derived(Boolean(page.data.currentUser?.isAdmin));
+	const allowedFrames = $derived(framesForRole(isAdmin));
 	const primaryFrames = $derived(allowedFrames.filter((frame) => frame !== 'help'));
 	const coursesFrameIndex = $derived(primaryFrames.indexOf('courses'));
 	const framesBeforeCourses = $derived(
 		coursesFrameIndex >= 0 ? primaryFrames.slice(0, coursesFrameIndex) : primaryFrames.filter((frame) => frame !== 'courses')
 	);
 	const framesAfterCourses = $derived(coursesFrameIndex >= 0 ? primaryFrames.slice(coursesFrameIndex + 1) : []);
-	const canCreateCourse = $derived(currentUserRole === 'admin');
+	const canCreateCourse = $derived(isAdmin);
 	let activeFrame = $derived((browser ? $currentFrame : page.data.initialFrame) as FrameName);
 	const SESSION_VALIDATE_TTL_MS = 10_000;
 	let lastSessionValidationAt = 0;

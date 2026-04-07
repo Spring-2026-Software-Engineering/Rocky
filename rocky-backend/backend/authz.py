@@ -5,28 +5,34 @@ from typing import Any
 from flask import request
 
 
-def get_requester() -> tuple[str | None, str | None]:
+def _parse_bool(value: str | None) -> bool:
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def get_requester() -> tuple[str | None, bool]:
     email = request.headers.get("X-Rocky-User-Email", "").strip().lower() or None
-    role = request.headers.get("X-Rocky-User-Role", "").strip().lower() or None
-    return email, role
+    is_admin = _parse_bool(request.headers.get("X-Rocky-User-Is-Admin"))
+    return email, is_admin
 
 
 def require_admin() -> tuple[bool, tuple[dict[str, Any], int] | None]:
-    _, role = get_requester()
-    if role != "admin":
-        return False, ({"error": "Admin role is required."}, 403)
+    _, is_admin = get_requester()
+    if not is_admin:
+        return False, ({"error": "Admin access is required."}, 403)
     return True, None
 
 
-def require_requester_identity() -> tuple[str, str] | tuple[None, tuple[dict[str, Any], int]]:
-    email, role = get_requester()
-    if not email or not role:
+def require_requester_identity() -> tuple[str, bool] | tuple[None, tuple[dict[str, Any], int]]:
+    email, is_admin = get_requester()
+    if not email:
         return None, ({"error": "Authentication headers are required."}, 401)
-    return email, role
+    return email, is_admin
 
 
-def authorize_scope(email: str, role: str, scope: str, user_id: str | None = None) -> tuple[bool, tuple[dict[str, Any], int] | None]:
-    if role == "admin":
+def authorize_scope(email: str, is_admin: bool, scope: str, user_id: str | None = None) -> tuple[bool, tuple[dict[str, Any], int] | None]:
+    if is_admin:
         return True, None
 
     allowed_scopes = {f"email:{email}"}
@@ -40,8 +46,8 @@ def authorize_scope(email: str, role: str, scope: str, user_id: str | None = Non
 
 
 def filter_courses_for_requester(courses: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    email, role = get_requester()
-    if role == "admin":
+    email, is_admin = get_requester()
+    if is_admin:
         return courses
 
     if not email:

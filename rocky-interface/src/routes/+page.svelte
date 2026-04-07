@@ -2,7 +2,7 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import { currentFrame, frameMap } from '$lib/stores/frameStore';
-	import { canAccessFrame, type AppRole, type FrameName } from '$lib/types/frame';
+	import { canAccessFrame, type FrameName } from '$lib/types/frame';
 	import WidgetPanel from '$lib/components/WidgetPanel.svelte';
 	import CourseComposerPopover from '$lib/components/CourseComposerPopover.svelte';
 	import '$lib/styles/foundation/global.css';
@@ -22,8 +22,8 @@
 			return;
 		}
 
-		const role = (currentUser.role as AppRole | undefined) ?? 'client';
-		if (!canAccessFrame($currentFrame, role)) {
+		const isAdmin = currentUser.isAdmin ?? false;
+		if (!canAccessFrame($currentFrame, isAdmin)) {
 			currentFrame.set(page.data.initialFrame);
 		}
 	});

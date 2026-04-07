@@ -6,7 +6,7 @@
 		name: string;
 		code: string;
 		semester: string;
-		instructorEmail: string;
+		instructorId: string;
 	};
 
 	export let title = 'Course';
@@ -39,10 +39,10 @@
 		</div>
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-instructor-select`}>Instructor</label>
-			<select id={`${idPrefix}-instructor-select`} class="text-input" bind:value={form.instructorEmail}>
+			<select id={`${idPrefix}-instructor-select`} class="text-input" bind:value={form.instructorId}>
 				<option value="">None</option>
 				{#each users as user}
-					<option value={user.email}>{user.name} ({user.email})</option>
+					<option value={user.id}>{user.displayName} ({user.id})</option>
 				{/each}
 			</select>
 		</div>

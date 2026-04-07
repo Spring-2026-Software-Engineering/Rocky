@@ -1,55 +1,65 @@
 export type ApiUser = Partial<{
-	_id: string;
-	name: string;
+	first_name: string;
+	last_name: string;
 	email: string;
-	role: string;
-	flash_id: string;
+	id: string;
+	is_admin: boolean;
+	is_active: boolean;
 }>;
 
 export type User = {
 	id: string;
-	name: string;
+	firstName: string;
+	lastName: string;
+	displayName: string;
 	email: string;
-	role: 'admin' | 'client';
+	isAdmin: boolean;
+	isActive: boolean;
 };
 
 export type DbUser = {
 	id: string;
-	name: string;
+	firstName: string;
+	lastName: string;
+	displayName: string;
 	email: string;
-	role: 'admin' | 'client';
+	isAdmin: boolean;
+	isActive: boolean;
 };
 
 
 
 export type CreateUserInput = {
-	name: string;
+	firstName: string;
+	lastName: string;
 	email: string;
-	role?: string;
-	flashId?: string;
+	isAdmin?: boolean;
+	id?: string;
 };
 
 export type CreateUserPayload = {
-	name: string;
+	first_name: string;
+	last_name: string;
 	email: string;
-	role: string;
-	flash_id: string;
+	id: string;
+	is_admin: boolean;
 };
-
-function normalizeUserRole(rawRole?: string): 'admin' | 'client' {
-	const role = rawRole?.trim().toLowerCase();
-	return role === 'admin' || role === 'administrator' ? 'admin' : 'client';
-}
 
 export function normalizeUser(raw: ApiUser): User {
 	const email = raw.email?.trim() || 'N/A';
-	const id = raw._id?.trim() || (email !== 'N/A' ? email.toLowerCase() : 'unknown');
+	const firstName = raw.first_name?.trim() || '';
+	const lastName = raw.last_name?.trim() || '';
+	const displayName = `${firstName} ${lastName}`.trim() || 'N/A';
+	const id = raw.id?.trim() || (email !== 'N/A' ? email.toLowerCase() : 'unknown');
 
 	return {
 		id,
-		name: raw.name?.trim() || 'N/A',
+		firstName,
+		lastName,
+		displayName,
 		email,
-		role: normalizeUserRole(raw.role)
+		isAdmin: Boolean(raw.is_admin),
+		isActive: raw.is_active === undefined ? true : Boolean(raw.is_active)
 	};
 }
 
@@ -58,11 +68,18 @@ export function normalizeUsers(rawUsers: ApiUser[]): User[] {
 }
 
 export function normalizeDbUser(raw: ApiUser): DbUser {
+	const firstName = raw.first_name?.trim() || '';
+	const lastName = raw.last_name?.trim() || '';
+	const displayName = `${firstName} ${lastName}`.trim() || 'N/A';
+
 	return {
-		id: raw._id?.trim() || '',
-		name: raw.name?.trim() || 'N/A',
+		id: raw.id?.trim() || '',
+		firstName,
+		lastName,
+		displayName,
 		email: raw.email?.trim() || 'N/A',
-		role: normalizeUserRole(raw.role)
+		isAdmin: Boolean(raw.is_admin),
+		isActive: raw.is_active === undefined ? true : Boolean(raw.is_active)
 	};
 }
 
@@ -72,9 +89,10 @@ export function normalizeDbUsers(rawUsers: ApiUser[]): DbUser[] {
 
 export function toCreateUserPayload(input: CreateUserInput): CreateUserPayload {
 	return {
-		name: input.name.trim(),
+		first_name: input.firstName.trim(),
+		last_name: input.lastName.trim(),
 		email: input.email.trim(),
-		role: normalizeUserRole(input.role),
-		flash_id: input.flashId?.trim() || 'test123'
+		id: input.id?.trim() || 'test123',
+		is_admin: Boolean(input.isAdmin)
 	};
 }

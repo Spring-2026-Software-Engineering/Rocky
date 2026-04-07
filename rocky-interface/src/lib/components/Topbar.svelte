@@ -4,8 +4,7 @@
 
 	let { user = null }: { user: User | null } = $props();
 
-	let roleValue = $derived(user?.role?.trim().toLowerCase() ?? '');
-	let showAdministration = $derived(roleValue === 'admin' || roleValue === 'administrator');
+	let showAdministration = $derived(Boolean(user?.isAdmin));
 </script>
 
 <header class="topbar">

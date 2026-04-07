@@ -89,15 +89,15 @@ export async function fetchFaqItems(): Promise<FaqItem[]> {
 /**
  * Derives assigned course IDs for a user based on courses where they appear as a member.
  * Courses are the authoritative source of truth for user-course relationships.
- * @param userEmail - The user's email address (normalized to lowercase for matching)
+ * @param userId - The user id used for relational matching in course members
  * @param courseDetails - The list of course details with member information to search through
  * @returns Array of course IDs where the user is a member
  */
-export function getUserAssignedCourseIds(userEmail: string, courseDetails: CourseDetail[]): number[] {
-	const normalizedEmail = userEmail.toLowerCase();
+export function getUserAssignedCourseIds(userId: string, courseDetails: CourseDetail[]): number[] {
+	const normalizedId = userId.trim();
 	return courseDetails
 		.filter((course) => {
-			return course.members.some((member) => member.email.toLowerCase() === normalizedEmail);
+			return course.members.some((member) => member.id === normalizedId);
 		})
 		.map((course) => course.id)
 		.filter((id): id is number => typeof id === 'number');

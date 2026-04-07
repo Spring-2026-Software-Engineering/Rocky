@@ -90,6 +90,22 @@
 	background: #065ea9;
 }
 
+.login-signin-btn:disabled {
+	opacity: 0.75;
+	cursor: wait;
+}
+
+.login-error {
+	margin: 14px auto 0;
+	max-width: 520px;
+	padding: 10px 12px;
+	border-radius: 6px;
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #991b1b;
+	font-size: 0.95rem;
+}
+
 .login-help-links {
 	margin-top: 24px;
 	font-size: 1.06rem;

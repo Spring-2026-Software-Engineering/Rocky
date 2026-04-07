@@ -16,8 +16,7 @@
 	let isLoading = true;
 	let error: string | null = null;
 
-	$: currentUserRole = ($page.data.currentUser?.role || '').toString().trim().toLowerCase();
-	$: canCreateCourse = currentUserRole === 'admin';
+	$: canCreateCourse = Boolean($page.data.currentUser?.isAdmin);
 
 	function scrollToTopOfApp() {
 		if (!browser) {

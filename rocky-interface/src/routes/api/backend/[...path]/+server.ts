@@ -17,7 +17,7 @@ async function forward(request: Request, locals: App.Locals, path: string): Prom
 
 	if (locals.currentUser) {
 		headers.set('X-Rocky-User-Email', locals.currentUser.email);
-		headers.set('X-Rocky-User-Role', locals.currentUser.role);
+		headers.set('X-Rocky-User-Is-Admin', String(locals.currentUser.isAdmin));
 	}
 
 	const init: RequestInit = {
@@ -35,7 +35,7 @@ async function forward(request: Request, locals: App.Locals, path: string): Prom
 }
 
 function ensureAuthorized(path: string, currentUser: App.Locals['currentUser']): void {
-	if (path === 'auth/preview-users') {
+	if (path === 'auth/preview-users' || path === 'auth/microsoft/login' || path === 'auth/session-user') {
 		return;
 	}
 

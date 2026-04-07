@@ -30,6 +30,23 @@ Create env file:
 2. Set at least:
    - `PUBLIC_APP_ENV=development`
    - `PUBLIC_API_BASE_URL=http://127.0.0.1:5001`
+   - `PUBLIC_ENABLE_MICROSOFT_OAUTH=false`
+
+Microsoft OAuth (optional in development, required in production):
+
+- `PUBLIC_MICROSOFT_CLIENT_ID=<entra-app-client-id>`
+- `PUBLIC_MICROSOFT_TENANT_ID=common` (or your tenant id)
+
+Redirect callback behavior:
+
+- Rocky always uses `{origin}/login` as the Microsoft callback URL.
+- This callback must be registered by Entra app admins in the app registration redirect URI list.
+
+Auth mode rules:
+
+- development: preview auth by default, Microsoft OAuth only when `PUBLIC_ENABLE_MICROSOFT_OAUTH=true`
+- testing: preview auth only
+- production: Microsoft OAuth only
 
 ## Run frontend locally
 

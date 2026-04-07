@@ -28,7 +28,7 @@ export type CreateCourseInput = {
 	name: string;
 	code: string;
 	semester: string;
-	instructorEmail: string;
+	instructorId: string;
 	instructorName?: string;
 };
 
@@ -36,11 +36,11 @@ export type UpdateCourseMetadataInput = {
 	name: string;
 	code: string;
 	semester: string;
-	instructorEmail: string;
+	instructorId: string;
 };
 
 export type CourseMemberInput = {
-	email: string;
+	id: string;
 	role?: 'student' | 'instructor';
 };
 
@@ -57,7 +57,7 @@ export type ApiCourseHistoryEntry = Partial<{
 }>;
 
 export type CourseApiHistoryEntry = {
-	userEmail: string;
+	userId: string;
 	courseCode: string;
 	courseId: number;
 	eventType: string;
@@ -74,13 +74,12 @@ export async function createCourse(input: CreateCourseInput): Promise<Course> {
 		code: input.code.trim(),
 		semester: input.semester.trim(),
 		instructor: input.instructorName?.trim() || '',
-		instructor_ids: input.instructorEmail ? [input.instructorEmail.trim().toLowerCase()] : [],
+		instructor_ids: input.instructorId ? [input.instructorId.trim()] : [],
 		student_ids: [],
-		members: input.instructorEmail
+		members: input.instructorId
 			? [
 					{
-						accountEmail: input.instructorEmail.trim().toLowerCase(),
-						email: input.instructorEmail.trim().toLowerCase(),
+						id: input.instructorId.trim(),
 						role: 'instructor'
 					}
 				]
@@ -105,7 +104,7 @@ export async function updateCourseMetadata(courseId: string | number, input: Upd
 			name: input.name.trim(),
 			code: input.code.trim(),
 			semester: input.semester.trim(),
-			instructorEmail: input.instructorEmail.trim().toLowerCase()
+			instructorId: input.instructorId.trim()
 		})
 	});
 
@@ -120,11 +119,11 @@ export async function addCourseMembers(courseId: string | number, members: Cours
 	});
 }
 
-export async function removeCourseMember(courseId: string | number, email: string): Promise<void> {
+export async function removeCourseMember(courseId: string | number, id: string): Promise<void> {
 	await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/members`, {
 		method: 'DELETE',
 		headers: jsonHeaders(),
-		body: JSON.stringify({ email })
+		body: JSON.stringify({ id })
 	});
 }
 
@@ -136,19 +135,19 @@ export async function createCourseGroup(courseId: string | number, name: string)
 	});
 }
 
-export async function addGroupMember(courseId: string | number, groupId: string, email: string): Promise<void> {
+export async function addGroupMember(courseId: string | number, groupId: string, id: string): Promise<void> {
 	await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/groups/${groupId}/members`, {
 		method: 'POST',
 		headers: jsonHeaders(),
-		body: JSON.stringify({ email })
+		body: JSON.stringify({ id })
 	});
 }
 
-export async function removeGroupMember(courseId: string | number, groupId: string, email: string): Promise<void> {
+export async function removeGroupMember(courseId: string | number, groupId: string, id: string): Promise<void> {
 	await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/groups/${groupId}/members`, {
 		method: 'DELETE',
 		headers: jsonHeaders(),
-		body: JSON.stringify({ email })
+		body: JSON.stringify({ id })
 	});
 }
 
@@ -169,7 +168,7 @@ export async function deleteCourseApiKey(courseId: string | number): Promise<voi
 export async function fetchCourseApiHistory(courseId: string | number): Promise<CourseApiHistoryEntry[]> {
 	const rawHistory = await fetchJson<ApiCourseHistoryEntry[]>(`/api/backend/courses/${courseId}/api-history`);
 	return rawHistory.map((entry) => ({
-		userEmail: entry.u_id?.trim().toLowerCase() || 'unknown',
+		userId: entry.u_id?.trim() || 'unknown',
 		courseCode: entry.c_id?.trim() || 'Unknown Course',
 		courseId: typeof entry.course_id === 'number' && Number.isFinite(entry.course_id) ? entry.course_id : Number(courseId),
 		eventType: entry.event_type?.trim() || 'request',

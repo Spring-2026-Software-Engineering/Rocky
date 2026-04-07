@@ -3,6 +3,9 @@ import { env } from '$env/dynamic/public';
 const PUBLIC_APP_ENV = (env.PUBLIC_APP_ENV ?? 'production').toString();
 const PUBLIC_API_BASE_URL = (env.PUBLIC_API_BASE_URL ?? 'http://localhost:5001').toString();
 const PUBLIC_ENABLE_DBTEST = (env.PUBLIC_ENABLE_DBTEST ?? 'false').toString();
+const PUBLIC_ENABLE_MICROSOFT_OAUTH = (env.PUBLIC_ENABLE_MICROSOFT_OAUTH ?? 'false').toString();
+const PUBLIC_MICROSOFT_CLIENT_ID = (env.PUBLIC_MICROSOFT_CLIENT_ID ?? '').toString();
+const PUBLIC_MICROSOFT_TENANT_ID = (env.PUBLIC_MICROSOFT_TENANT_ID ?? '').toString();
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
@@ -49,3 +52,38 @@ function parseApiBaseUrl(value: string): string {
 export const APP_ENV = parseAppEnv(requirePublicEnv('PUBLIC_APP_ENV', PUBLIC_APP_ENV));
 export const API_BASE_URL = parseApiBaseUrl(requirePublicEnv('PUBLIC_API_BASE_URL', PUBLIC_API_BASE_URL));
 export const ENABLE_DBTEST = parseBooleanEnv('PUBLIC_ENABLE_DBTEST', requirePublicEnv('PUBLIC_ENABLE_DBTEST', PUBLIC_ENABLE_DBTEST));
+
+export type AuthMode = 'preview' | 'microsoft';
+
+function resolveAuthMode(appEnv: 'development' | 'testing' | 'production', microsoftEnabledOverride: boolean): AuthMode {
+	if (appEnv === 'production') {
+		return 'microsoft';
+	}
+
+	if (appEnv === 'testing') {
+		return 'preview';
+	}
+
+	return microsoftEnabledOverride ? 'microsoft' : 'preview';
+}
+
+const microsoftEnabledOverride = parseBooleanEnv(
+	'PUBLIC_ENABLE_MICROSOFT_OAUTH',
+	requirePublicEnv('PUBLIC_ENABLE_MICROSOFT_OAUTH', PUBLIC_ENABLE_MICROSOFT_OAUTH)
+);
+
+export const AUTH_MODE = resolveAuthMode(APP_ENV, microsoftEnabledOverride);
+export const ENABLE_MICROSOFT_OAUTH = AUTH_MODE === 'microsoft';
+export const ENABLE_PREVIEW_AUTH = AUTH_MODE === 'preview';
+
+const MICROSOFT_TENANT_ID = PUBLIC_MICROSOFT_TENANT_ID.trim();
+
+export const MICROSOFT_OAUTH = {
+	clientId: PUBLIC_MICROSOFT_CLIENT_ID.trim(),
+	tenantId: MICROSOFT_TENANT_ID,
+	authority: `https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}`
+};
+
+if (ENABLE_MICROSOFT_OAUTH && !MICROSOFT_OAUTH.clientId) {
+	throw new Error('Missing required public environment variable: PUBLIC_MICROSOFT_CLIENT_ID');
+}

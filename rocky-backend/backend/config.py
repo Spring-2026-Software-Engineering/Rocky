@@ -18,6 +18,7 @@ class Settings:
     db_name: str
     enable_db_inspector: bool
     enable_preview_login: bool
+    enable_microsoft_oauth: bool
 
 
 def _is_truthy(value: str | None) -> bool:
@@ -45,6 +46,14 @@ def get_settings() -> Settings:
     host = os.getenv("ROCKY_API_HOST", "127.0.0.1")
     port = os.getenv("ROCKY_API_PORT", "5001")
 
+    microsoft_override = _is_truthy(os.getenv("ROCKY_ENABLE_MICROSOFT_OAUTH", "false"))
+    if app_env == "production":
+        enable_microsoft_oauth = True
+    elif app_env == "testing":
+        enable_microsoft_oauth = False
+    else:
+        enable_microsoft_oauth = microsoft_override
+
     return Settings(
         app_env=app_env,
         host=host.strip() or "127.0.0.1",
@@ -54,5 +63,6 @@ def get_settings() -> Settings:
         mongodb_uri=mongodb_uri,
         db_name=os.getenv("ROCKY_DB_NAME", "rocky_db").strip() or "rocky_db",
         enable_db_inspector=_is_truthy(os.getenv("ROCKY_ENABLE_DB_INSPECTOR", "false" if app_env == "production" else "true")),
-        enable_preview_login=_is_truthy(os.getenv("ROCKY_ENABLE_PREVIEW_LOGIN", "false" if app_env == "production" else "true")),
+        enable_preview_login=not enable_microsoft_oauth,
+        enable_microsoft_oauth=enable_microsoft_oauth,
     )

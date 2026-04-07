@@ -4,7 +4,6 @@ import re
 from datetime import datetime
 from typing import Any
 
-ALLOWED_USER_ROLES = {"student", "instructor", "admin", "client"}
 ALLOWED_TERMS = {"spring", "summer", "fall", "winter"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -60,24 +59,28 @@ def normalize_course_members(value: Any):
         if not isinstance(entry, dict):
             return None, None, None, "each member must be an object."
 
+        member_id = normalize_str(entry.get("id") or entry.get("memberId") or entry.get("member_id"))
         account_email = normalize_str(entry.get("accountEmail") or entry.get("email")).lower()
-        if not account_email or not EMAIL_RE.match(account_email):
-            return None, None, None, "each member must include a valid accountEmail/email."
+        if not member_id:
+            return None, None, None, "each member must include a valid id."
+        if account_email and not EMAIL_RE.match(account_email):
+            return None, None, None, "member email must be valid when provided."
 
         role = normalize_str(entry.get("role") or "student").lower()
         if role not in {"student", "instructor"}:
             return None, None, None, "member role must be 'student' or 'instructor'."
 
         normalized = {
+            "id": member_id,
             "accountEmail": account_email,
             "email": account_email,
             "role": role,
         }
         members.append(normalized)
         if role == "instructor":
-            instructor_ids.append(account_email)
+            instructor_ids.append(member_id)
         else:
-            student_ids.append(account_email)
+            student_ids.append(member_id)
 
     return members, instructor_ids, student_ids, None
 
@@ -98,18 +101,20 @@ def normalize_course_groups(value: Any):
         if not name:
             return None, "each group requires a name."
 
-        member_emails = entry.get("memberEmails")
-        if not isinstance(member_emails, list):
-            return None, "group.memberEmails must be a list."
+        member_ids = entry.get("memberIds")
+        if member_ids is None:
+            member_ids = entry.get("memberEmails")
+        if not isinstance(member_ids, list):
+            return None, "group.memberIds must be a list."
 
-        normalized_emails = []
-        for email in member_emails:
-            email_value = normalize_str(email).lower()
-            if not email_value or not EMAIL_RE.match(email_value):
-                return None, "group.memberEmails entries must be valid email strings."
-            normalized_emails.append(email_value)
+        normalized_ids = []
+        for member_id in member_ids:
+            member_id_value = normalize_str(member_id)
+            if not member_id_value:
+                return None, "group.memberIds entries must be non-empty id strings."
+            normalized_ids.append(member_id_value)
 
-        groups.append({"id": group_id, "name": name, "memberEmails": normalized_emails})
+        groups.append({"id": group_id, "name": name, "memberIds": normalized_ids})
 
     return groups, None
 
@@ -118,30 +123,43 @@ def validate_user_payload(payload: Any):
     if not isinstance(payload, dict):
         return None, "Request body must be a JSON object."
 
-    name = normalize_str(payload.get("name"))
+    first_name = normalize_str(payload.get("first_name") or payload.get("firstName"))
+    last_name = normalize_str(payload.get("last_name") or payload.get("lastName"))
     email = normalize_str(payload.get("email")).lower()
-    flash_id = normalize_str(payload.get("flash_id"))
-    role = normalize_str(payload.get("role")).lower()
-    external_id = normalize_str(payload.get("_id"))
+    user_id = normalize_str(payload.get("id"))
+    raw_is_admin = payload.get("is_admin") if "is_admin" in payload else payload.get("isAdmin")
+    if raw_is_admin is None:
+        is_admin = False
+    elif isinstance(raw_is_admin, bool):
+        is_admin = raw_is_admin
+    else:
+        return None, "is_admin must be a boolean."
 
-    if not name:
-        return None, "User name is required."
+    raw_is_active = payload.get("is_active") if "is_active" in payload else payload.get("isActive")
+    if raw_is_active is None:
+        is_active = True
+    elif isinstance(raw_is_active, bool):
+        is_active = raw_is_active
+    else:
+        return None, "is_active must be a boolean."
+
+    if not first_name:
+        return None, "User first_name is required."
+    if not last_name:
+        return None, "User last_name is required."
     if not email or not EMAIL_RE.match(email):
         return None, "A valid user email is required."
-    if not flash_id:
-        flash_id = f"seed-{email.split('@')[0]}"
-    if role not in ALLOWED_USER_ROLES:
-        allowed_roles = ", ".join(sorted(ALLOWED_USER_ROLES))
-        return None, f"Invalid role. Allowed values: {allowed_roles}."
+    if not user_id:
+        user_id = f"seed-{email.split('@')[0]}"
 
     cleaned = {
-        "name": name,
+        "id": user_id,
+        "first_name": first_name,
+        "last_name": last_name,
         "email": email,
-        "flash_id": flash_id,
-        "role": role,
+        "is_admin": is_admin,
+        "is_active": is_active,
     }
-    if external_id:
-        cleaned["external_id"] = external_id
 
     return cleaned, None
 
@@ -187,8 +205,8 @@ def validate_course_payload(payload: Any):
 
     cleaned = {
         "name": name,
-        "instructor_ids": [v.strip().lower() for v in instructor_ids],
-        "student_ids": [v.strip().lower() for v in student_ids],
+        "instructor_ids": [v.strip() for v in instructor_ids],
+        "student_ids": [v.strip() for v in student_ids],
         "semester": parsed_semester["display"],
         "semester_obj": {"year": parsed_semester["year"], "term": parsed_semester["term"]},
         "members": members,

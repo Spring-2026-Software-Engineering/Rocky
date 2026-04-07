@@ -58,12 +58,23 @@ For production, set `ROCKY_DB_BACKEND=mongodb` and provide `ROCKY_MONGODB_URI`.
 Development minimum:
 
 - [rocky-backend/.env](rocky-backend/.env): `ROCKY_APP_ENV=development`, `ROCKY_DB_BACKEND=mongita`, `ROCKY_API_HOST`, `ROCKY_API_PORT`
-- [rocky-interface/.env](rocky-interface/.env): `PUBLIC_APP_ENV=development`, `PUBLIC_API_BASE_URL`, `ROCKY_WEB_HOST`, `ROCKY_WEB_PORT`, `ROCKY_ALLOWED_HOSTS`
+- [rocky-interface/.env](rocky-interface/.env): `PUBLIC_APP_ENV=development`, `PUBLIC_API_BASE_URL`, `PUBLIC_ENABLE_MICROSOFT_OAUTH`, `ROCKY_WEB_HOST`, `ROCKY_WEB_PORT`, `ROCKY_ALLOWED_HOSTS`
+
+For development Microsoft OAuth, set:
+
+- [rocky-interface/.env](rocky-interface/.env): `PUBLIC_ENABLE_MICROSOFT_OAUTH=true`, `PUBLIC_MICROSOFT_CLIENT_ID`, optional `PUBLIC_MICROSOFT_TENANT_ID`, optional `PUBLIC_MICROSOFT_REDIRECT_URI`
+- [rocky-backend/.env](rocky-backend/.env): `ROCKY_ENABLE_MICROSOFT_OAUTH=true`
 
 Production minimum:
 
-- [rocky-backend/.env](rocky-backend/.env): `ROCKY_APP_ENV=production`, `ROCKY_DB_BACKEND=mongodb`, `ROCKY_MONGODB_URI`, `ROCKY_ENABLE_DB_INSPECTOR=false`, `ROCKY_ENABLE_PREVIEW_LOGIN=false`, `ROCKY_API_HOST`, `ROCKY_API_PORT`
-- [rocky-interface/.env](rocky-interface/.env): `PUBLIC_APP_ENV=production`, `PUBLIC_API_BASE_URL`, `ROCKY_WEB_HOST`, `ROCKY_WEB_PORT`, `ROCKY_ALLOWED_HOSTS`
+- [rocky-backend/.env](rocky-backend/.env): `ROCKY_APP_ENV=production`, `ROCKY_DB_BACKEND=mongodb`, `ROCKY_MONGODB_URI`, `ROCKY_ENABLE_DB_INSPECTOR=false`, `ROCKY_API_HOST`, `ROCKY_API_PORT`
+- [rocky-interface/.env](rocky-interface/.env): `PUBLIC_APP_ENV=production`, `PUBLIC_API_BASE_URL`, `PUBLIC_MICROSOFT_CLIENT_ID`, optional `PUBLIC_MICROSOFT_TENANT_ID`, optional `PUBLIC_MICROSOFT_REDIRECT_URI`, `ROCKY_WEB_HOST`, `ROCKY_WEB_PORT`, `ROCKY_ALLOWED_HOSTS`
+
+Auth mode behavior:
+
+- Development: preview auth by default; Microsoft OAuth enabled only when override env variables are true.
+- Testing: preview auth only.
+- Production: Microsoft OAuth only.
 
 Both launchers load `.env` and `.env.local` from the repo root, backend, and frontend directories.
 

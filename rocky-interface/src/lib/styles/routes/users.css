@@ -1,0 +1,106 @@
+.user-tab-bar {
+	display: flex;
+	gap: 12px;
+	margin-bottom: 20px;
+	flex-wrap: wrap;
+}
+
+.user-tab-btn {
+	min-width: 160px;
+	justify-content: center;
+}
+
+.user-tab-active {
+	background: var(--color-accent-light);
+	border-color: var(--color-accent);
+	color: var(--color-accent);
+	font-weight: var(--font-weight-semibold);
+}
+
+.whitelist-heading {
+	margin: 0 0 12px 0;
+}
+
+.whitelist-form {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.whitelist-form .view-btn {
+	justify-self: end;
+	justify-content: center;
+	min-width: 112px;
+}
+
+.whitelist-feedback {
+	margin: 0 0 12px 0;
+}
+
+.whitelist-error {
+	color: #991b1b;
+}
+
+.user-actions {
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	flex-wrap: nowrap;
+}
+
+.user-action-btn {
+	padding: 5px 10px;
+	font-size: 0.9rem;
+	line-height: 1.1;
+}
+
+.users-table {
+	table-layout: fixed;
+	width: 100%;
+}
+
+.users-col-name {
+	width: 20%;
+}
+
+.users-col-email {
+	width: 24%;
+}
+
+.users-col-id {
+	width: 20%;
+}
+
+.users-col-admin {
+	width: 11%;
+}
+
+.users-col-active {
+	width: 11%;
+}
+
+.users-col-actions {
+	width: 14%;
+}
+
+.users-table td,
+.users-table th {
+	vertical-align: middle;
+	padding: var(--space-md) var(--space-md);
+}
+
+.users-table th:nth-child(4),
+.users-table td:nth-child(4),
+.users-table th:nth-child(5),
+.users-table td:nth-child(5),
+.users-table th:nth-child(6),
+.users-table td:nth-child(6) {
+	text-align: center;
+}
+
+@media (max-width: 900px) {
+	.whitelist-form {
+		grid-template-columns: 1fr;
+	}
+}

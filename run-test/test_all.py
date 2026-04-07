@@ -9,6 +9,7 @@ TEST_MODULES = [
     "backend.test_backend_validation",
     "backend.test_user_settings",
     "backend.test_course_api_history",
+    "backend.test_oauth_microsoft",
     "frontend.test_preview_login_chromedriver",
     "frontend.test_view_titles_chromedriver",
 ]

@@ -1,9 +1,11 @@
 [
   {
-    "_id": "local-admin",
-    "name": "Offline Admin",
+    "first_name": "Offline",
+    "last_name": "Admin",
+    "id": "KSUID000000001",
     "email": "admin.local@kent.edu",
-    "role": "admin",
+    "is_admin": true,
+    "is_active": true,
     "settings": {
       "themePreference": "dark",
       "widgets": [
@@ -13,10 +15,12 @@
     }
   },
   {
-    "_id": "local-instructor-1",
-    "name": "Dr. Avery Cole",
+    "first_name": "Avery",
+    "last_name": "Cole",
+    "id": "KSUID000000002",
     "email": "instructor.local@kent.edu",
-    "role": "instructor",
+    "is_admin": false,
+    "is_active": true,
     "settings": {
       "themePreference": "light",
       "widgets": [
@@ -25,10 +29,12 @@
     }
   },
   {
-    "_id": "local-instructor-2",
-    "name": "Prof. Jordan Ellis",
+    "first_name": "Jordan",
+    "last_name": "Ellis",
+    "id": "KSUID000000003",
     "email": "instructor.alt@kent.edu",
-    "role": "instructor",
+    "is_admin": false,
+    "is_active": true,
     "settings": {
       "themePreference": "system",
       "widgets": [
@@ -38,10 +44,12 @@
     }
   },
   {
-    "_id": "local-001",
-    "name": "Mila Ross",
+    "first_name": "Mila",
+    "last_name": "Ross",
+    "id": "KSUID000000004",
     "email": "student.local@kent.edu",
-    "role": "client",
+    "is_admin": false,
+    "is_active": true,
     "settings": {
       "themePreference": "system",
       "widgets": [
@@ -50,10 +58,12 @@
     }
   },
   {
-    "_id": "local-002",
-    "name": "Noah Kim",
+    "first_name": "Noah",
+    "last_name": "Kim",
+    "id": "KSUID000000005",
     "email": "student.alt1@kent.edu",
-    "role": "client",
+    "is_admin": false,
+    "is_active": true,
     "settings": {
       "themePreference": "light",
       "widgets": [
@@ -63,10 +73,12 @@
     }
   },
   {
-    "_id": "local-003",
-    "name": "Lina Chen",
+    "first_name": "Lina",
+    "last_name": "Chen",
+    "id": "KSUID000000006",
     "email": "student.alt2@kent.edu",
-    "role": "client",
+    "is_admin": false,
+    "is_active": true,
     "settings": {
       "themePreference": "dark",
       "widgets": [
@@ -76,10 +88,12 @@
     }
   },
   {
-    "_id": "local-004",
-    "name": "Sofia Patel",
+    "first_name": "Sofia",
+    "last_name": "Patel",
+    "id": "KSUID000000007",
     "email": "student.alt3@kent.edu",
-    "role": "client",
+    "is_admin": false,
+    "is_active": true,
     "settings": {
       "themePreference": "system",
       "widgets": [

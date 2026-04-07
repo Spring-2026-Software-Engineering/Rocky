@@ -45,15 +45,19 @@ def _set_course_member_lists(course: dict[str, Any]) -> None:
         if not isinstance(member, dict):
             continue
 
+        member_id = normalize_str(member.get("id"))
         email = normalize_str(member.get("accountEmail") or member.get("email")).lower()
         name = normalize_str(member.get("name")) or "Unknown User"
         role = normalize_str(member.get("role") or "student").lower()
-        if not email or not EMAIL_RE.match(email):
+        if not member_id:
             continue
+        if email and not EMAIL_RE.match(email):
+            email = ""
         if role not in {"student", "instructor"}:
             role = "student"
 
         normalized = {
+            "id": member_id,
             "accountEmail": email,
             "email": email,
             "name": name,
@@ -61,9 +65,9 @@ def _set_course_member_lists(course: dict[str, Any]) -> None:
         }
         normalized_members.append(normalized)
         if role == "instructor":
-            instructor_ids.append(email)
+            instructor_ids.append(member_id)
         else:
-            student_ids.append(email)
+            student_ids.append(member_id)
 
     course["members"] = normalized_members
     course["instructor_ids"] = instructor_ids
@@ -74,59 +78,73 @@ def _set_course_member_lists(course: dict[str, Any]) -> None:
             course["instructor"] = first_instructor["name"]
 
 
-def _lookup_user(users_collection, email: str):
-    return users_collection.find_one({"email": email.lower()})
+def _lookup_user(users_collection, identifier: str):
+    normalized_identifier = normalize_str(identifier)
+    if not normalized_identifier:
+        return None
+    user = users_collection.find_one({"id": normalized_identifier})
+    if user:
+        return user
+    if EMAIL_RE.match(normalized_identifier.lower()):
+        return users_collection.find_one({"email": normalized_identifier.lower()})
+    return None
 
 
-def _is_course_admin(role: str) -> bool:
-    return role == "admin"
+def _is_course_admin(is_admin: bool) -> bool:
+    return bool(is_admin)
 
 
-def _is_course_instructor(course: dict[str, Any], email: str) -> bool:
-    normalized_email = email.lower()
+def _is_course_instructor(course: dict[str, Any], requester_identifier: str) -> bool:
+    normalized_identifier = requester_identifier.lower()
     for member in course.get("members", []):
         if not isinstance(member, dict):
             continue
+        member_id = normalize_str(member.get("id")).lower()
         member_email = normalize_str(member.get("accountEmail") or member.get("email")).lower()
-        if member_email == normalized_email and normalize_str(member.get("role")).lower() == "instructor":
+        if (
+            (member_id and member_id == normalized_identifier)
+            or (member_email and member_email == normalized_identifier)
+        ) and normalize_str(member.get("role")).lower() == "instructor":
             return True
     return False
 
 
-def can_manage_people(course: dict[str, Any], requester_email: str, requester_role: str) -> bool:
-    return _is_course_admin(requester_role) or (requester_role == "instructor" and _is_course_instructor(course, requester_email))
+def can_manage_people(course: dict[str, Any], requester_identifier: str, requester_is_admin: bool) -> bool:
+    return _is_course_admin(requester_is_admin) or _is_course_instructor(course, requester_identifier)
 
 
-def can_manage_metadata(requester_role: str) -> bool:
-    return _is_course_admin(requester_role)
+def can_manage_metadata(requester_is_admin: bool) -> bool:
+    return _is_course_admin(requester_is_admin)
 
 
-def can_manage_api_keys(requester_role: str) -> bool:
-    return _is_course_admin(requester_role)
+def can_manage_api_keys(requester_is_admin: bool) -> bool:
+    return _is_course_admin(requester_is_admin)
 
 
-def course_is_visible_to_requester(course: dict[str, Any], requester_email: str, requester_role: str) -> bool:
-    if _is_course_admin(requester_role):
+def course_is_visible_to_requester(course: dict[str, Any], requester_identifier: str, requester_is_admin: bool) -> bool:
+    if _is_course_admin(requester_is_admin):
         return True
-    return _is_course_instructor(course, requester_email) or any(
-        normalize_str(member.get("accountEmail") or member.get("email")).lower() == requester_email.lower()
+    return _is_course_instructor(course, requester_identifier) or any(
+        normalize_str(member.get("id")).lower() == requester_identifier.lower()
+        or normalize_str(member.get("accountEmail") or member.get("email")).lower() == requester_identifier.lower()
         for member in course.get("members", [])
         if isinstance(member, dict)
     )
 
 
-def filter_visible_courses(courses: list[dict[str, Any]], requester_email: str | None, requester_role: str | None) -> list[dict[str, Any]]:
-    if requester_role == "admin":
+def filter_visible_courses(courses: list[dict[str, Any]], requester_identifier: str | None, requester_is_admin: bool) -> list[dict[str, Any]]:
+    if requester_is_admin:
         return courses
-    if not requester_email:
+    if not requester_identifier:
         return []
-    return [course for course in courses if course_is_visible_to_requester(course, requester_email, requester_role or "")]
+    return [course for course in courses if course_is_visible_to_requester(course, requester_identifier, requester_is_admin)]
 
 
 def apply_course_metadata_patch(course: dict[str, Any], users_collection, payload: dict[str, Any]) -> dict[str, Any]:
     name = payload.get("name")
     code = payload.get("code")
     semester = payload.get("semester")
+    instructor_id = normalize_str(payload.get("instructorId") or payload.get("instructor_id"))
     instructor_email = normalize_str(payload.get("instructorEmail")).lower()
 
     if name is not None:
@@ -140,14 +158,15 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
         course["semester"] = parsed_semester["display"]
         course["semester_obj"] = {"year": parsed_semester["year"], "term": parsed_semester["term"]}
 
-    if instructor_email is not None:
-        if instructor_email:
-            if not EMAIL_RE.match(instructor_email):
-                raise ValueError("instructorEmail must be a valid email.")
-            user = _lookup_user(users_collection, instructor_email)
+    if instructor_id or instructor_email:
+        identifier = instructor_id or instructor_email
+        if identifier:
+            user = _lookup_user(users_collection, identifier)
             if not user:
-                raise ValueError("Instructor email must match an existing user.")
-            instructor_name = normalize_str(user.get("name")) or "Unknown Instructor"
+                raise ValueError("Instructor id must match an existing user.")
+            instructor_name = f"{normalize_str(user.get('first_name'))} {normalize_str(user.get('last_name'))}".strip() or "Unknown Instructor"
+            resolved_email = normalize_str(user.get("email")).lower()
+            resolved_id = normalize_str(user.get("id"))
             course["instructor"] = instructor_name
             course["members"] = [
                 member
@@ -158,25 +177,19 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
             course["members"].insert(
                 0,
                 {
-                    "accountEmail": instructor_email,
-                    "email": instructor_email,
+                    "id": resolved_id,
+                    "accountEmail": resolved_email,
+                    "email": resolved_email,
                     "name": instructor_name,
                     "role": "instructor",
                 },
             )
-        else:
-            course["members"] = [
-                member
-                for member in course.get("members", [])
-                if not (isinstance(member, dict) and normalize_str(member.get("role")).lower() == "instructor")
-            ]
-            course["instructor"] = "Unknown Instructor"
 
     _set_course_member_lists(course)
     return course
 
 
-def add_course_members(course: dict[str, Any], users_collection, payload: Any, requester_role: str) -> dict[str, Any]:
+def add_course_members(course: dict[str, Any], users_collection, payload: Any, requester_is_admin: bool) -> dict[str, Any]:
     if isinstance(payload, dict) and "members" in payload:
         members_payload = payload.get("members")
     else:
@@ -189,32 +202,36 @@ def add_course_members(course: dict[str, Any], users_collection, payload: Any, r
         raise ValueError("members must be a list or member object.")
 
     existing_members = {
-        normalize_str(member.get("accountEmail") or member.get("email")).lower(): member
+        normalize_str(member.get("id")): member
         for member in course.get("members", [])
-        if isinstance(member, dict)
+        if isinstance(member, dict) and normalize_str(member.get("id"))
     }
 
     for entry in members_payload:
         if not isinstance(entry, dict):
             raise ValueError("each member must be an object.")
 
-        email = normalize_str(entry.get("email") or entry.get("accountEmail")).lower()
+        member_id = normalize_str(entry.get("id") or entry.get("memberId") or entry.get("member_id"))
+        member_email = normalize_str(entry.get("email") or entry.get("accountEmail")).lower()
         role = normalize_str(entry.get("role") or "student").lower()
-        if not email or not EMAIL_RE.match(email):
-            raise ValueError("each member requires a valid email.")
+        if not member_id and not member_email:
+            raise ValueError("each member requires an id.")
         if role not in {"student", "instructor"}:
             raise ValueError("member role must be student or instructor.")
-        if role == "instructor" and requester_role != "admin":
+        if role == "instructor" and not requester_is_admin:
             raise ValueError("Only admins can add instructor members.")
 
-        user = _lookup_user(users_collection, email)
+        user = _lookup_user(users_collection, member_id or member_email)
         if not user:
-            raise ValueError(f"Unknown user: {email}")
+            raise ValueError(f"Unknown user: {member_id or member_email}")
 
-        name = normalize_str(user.get("name")) or "Unknown User"
-        existing_members[email] = {
-            "accountEmail": email,
-            "email": email,
+        resolved_id = normalize_str(user.get("id"))
+        resolved_email = normalize_str(user.get("email")).lower()
+        name = f"{normalize_str(user.get('first_name'))} {normalize_str(user.get('last_name'))}".strip() or "Unknown User"
+        existing_members[resolved_id] = {
+            "id": resolved_id,
+            "accountEmail": resolved_email,
+            "email": resolved_email,
             "name": name,
             "role": role,
         }
@@ -224,37 +241,37 @@ def add_course_members(course: dict[str, Any], users_collection, payload: Any, r
     return course
 
 
-def remove_course_member(course: dict[str, Any], email: str, requester_role: str) -> dict[str, Any]:
-    normalized_email = normalize_str(email).lower()
-    if not normalized_email or not EMAIL_RE.match(normalized_email):
-        raise ValueError("email must be valid.")
+def remove_course_member(course: dict[str, Any], member_id: str, requester_is_admin: bool) -> dict[str, Any]:
+    normalized_member_id = normalize_str(member_id)
+    if not normalized_member_id:
+        raise ValueError("id must be valid.")
 
     current_member = next(
         (
             member
             for member in course.get("members", [])
-            if isinstance(member, dict) and normalize_str(member.get("accountEmail") or member.get("email")).lower() == normalized_email
+            if isinstance(member, dict) and normalize_str(member.get("id")) == normalized_member_id
         ),
         None,
     )
-    if current_member and normalize_str(current_member.get("role")).lower() == "instructor" and requester_role != "admin":
+    if current_member and normalize_str(current_member.get("role")).lower() == "instructor" and not requester_is_admin:
         raise ValueError("Only admins can remove instructor members.")
 
     course["members"] = [
         member
         for member in course.get("members", [])
-        if not (isinstance(member, dict) and normalize_str(member.get("accountEmail") or member.get("email")).lower() == normalized_email)
+        if not (isinstance(member, dict) and normalize_str(member.get("id")) == normalized_member_id)
     ]
 
     for group in course.get("groups", []):
         if not isinstance(group, dict):
             continue
-        member_emails = [
-            member_email
-            for member_email in group.get("memberEmails", [])
-            if normalize_str(member_email).lower() != normalized_email
+        member_ids = [
+            group_member_id
+            for group_member_id in group.get("memberIds", group.get("memberEmails", []))
+            if normalize_str(group_member_id) != normalized_member_id
         ]
-        group["memberEmails"] = member_emails
+        group["memberIds"] = member_ids
 
     _set_course_member_lists(course)
     return course
@@ -278,45 +295,45 @@ def create_course_group(course: dict[str, Any], name: str) -> dict[str, Any]:
         group_id = f"{safe_slug}-{suffix}"
 
     course.setdefault("groups", [])
-    course["groups"].append({"id": group_id, "name": group_name, "memberEmails": []})
+    course["groups"].append({"id": group_id, "name": group_name, "memberIds": []})
     return course
 
 
-def add_group_member(course: dict[str, Any], group_id: str, email: str) -> dict[str, Any]:
+def add_group_member(course: dict[str, Any], group_id: str, member_id: str) -> dict[str, Any]:
     normalized_group_id = normalize_str(group_id)
-    normalized_email = normalize_str(email).lower()
+    normalized_member_id = normalize_str(member_id)
     if not normalized_group_id:
         raise ValueError("groupId is required.")
-    if not normalized_email or not EMAIL_RE.match(normalized_email):
-        raise ValueError("email must be valid.")
+    if not normalized_member_id:
+        raise ValueError("id must be valid.")
 
     group = next((group for group in course.get("groups", []) if isinstance(group, dict) and normalize_str(group.get("id")) == normalized_group_id), None)
     if not group:
         raise ValueError("Group not found.")
 
-    member_emails = [normalize_str(member_email).lower() for member_email in group.get("memberEmails", [])]
-    if normalized_email not in member_emails:
-        member_emails.append(normalized_email)
-    group["memberEmails"] = member_emails
+    member_ids = [normalize_str(group_member_id) for group_member_id in group.get("memberIds", group.get("memberEmails", []))]
+    if normalized_member_id not in member_ids:
+        member_ids.append(normalized_member_id)
+    group["memberIds"] = member_ids
     return course
 
 
-def remove_group_member(course: dict[str, Any], group_id: str, email: str) -> dict[str, Any]:
+def remove_group_member(course: dict[str, Any], group_id: str, member_id: str) -> dict[str, Any]:
     normalized_group_id = normalize_str(group_id)
-    normalized_email = normalize_str(email).lower()
+    normalized_member_id = normalize_str(member_id)
     if not normalized_group_id:
         raise ValueError("groupId is required.")
-    if not normalized_email or not EMAIL_RE.match(normalized_email):
-        raise ValueError("email must be valid.")
+    if not normalized_member_id:
+        raise ValueError("id must be valid.")
 
     group = next((group for group in course.get("groups", []) if isinstance(group, dict) and normalize_str(group.get("id")) == normalized_group_id), None)
     if not group:
         raise ValueError("Group not found.")
 
-    group["memberEmails"] = [
-        member_email
-        for member_email in group.get("memberEmails", [])
-        if normalize_str(member_email).lower() != normalized_email
+    group["memberIds"] = [
+        group_member_id
+        for group_member_id in group.get("memberIds", group.get("memberEmails", []))
+        if normalize_str(group_member_id) != normalized_member_id
     ]
     return course
 
@@ -327,17 +344,17 @@ def regenerate_course_api_key(course: dict[str, Any], api_keys_collection, reque
         raise ValueError("Course code is required for API key management.")
 
     api_keys_collection.delete_many({"c_id": course_code})
-    instructor_email = next(
+    instructor_id = next(
         (
-            normalize_str(member.get("accountEmail") or member.get("email")).lower()
+            normalize_str(member.get("id"))
             for member in course.get("members", [])
             if isinstance(member, dict) and normalize_str(member.get("role")).lower() == "instructor"
         ),
-        requester_email.lower(),
+        requester_email,
     )
 
     key_doc = {
-        "u_id": instructor_email,
+        "u_id": instructor_id,
         "c_id": course_code,
         "expire": None,
         "created": datetime.now(timezone.utc).isoformat(),

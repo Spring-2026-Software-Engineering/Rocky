@@ -14,12 +14,12 @@
 		name: '',
 		code: '',
 		semester: '',
-		instructorEmail: ''
+		instructorId: ''
 	};
 
 	onMount(async () => {
 		try {
-			if ($page.data.currentUser?.role?.toLowerCase() === 'admin') {
+			if ($page.data.currentUser?.isAdmin) {
 				users = await fetchUsersForViews();
 			}
 		} catch (error) {
@@ -33,18 +33,18 @@
 			name: '',
 			code: '',
 			semester: '',
-			instructorEmail: ''
+			instructorId: ''
 		};
 	}
 
 	async function createCourseFromForm() {
-		const normalizedInstructorEmail = form.instructorEmail.trim().toLowerCase();
+		const normalizedInstructorId = form.instructorId.trim();
 		const created = await createCourse({
 			name: form.name.trim() || 'Untitled Course',
 			code: form.code.trim() || 'TBD 0000',
 			semester: form.semester.trim() || '',
-			instructorEmail: normalizedInstructorEmail,
-			instructorName: accountUsers.find((user) => user.email.toLowerCase() === normalizedInstructorEmail)?.name
+			instructorId: normalizedInstructorId,
+			instructorName: accountUsers.find((user) => user.id === normalizedInstructorId)?.displayName
 		});
 
 		selectedCourseId.set(created.id);

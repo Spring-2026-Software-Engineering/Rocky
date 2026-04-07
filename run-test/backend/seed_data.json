@@ -1,34 +1,40 @@
 {
   "users": [
     {
-      "name": "Valid Student",
+      "first_name": "Valid",
+      "last_name": "Student",
       "email": "valid.student@kent.edu",
-      "flash_id": "vs100",
-      "role": "student"
+      "id": "KSUID000000100",
+      "is_admin": false,
+      "is_active": true
     },
     {
-      "name": "Valid Admin",
+      "first_name": "Valid",
+      "last_name": "Admin",
       "email": "valid.admin@kent.edu",
-      "flash_id": "va200",
-      "role": "admin"
+      "id": "KSUID000000200",
+      "is_admin": true,
+      "is_active": true
     },
     {
-      "name": "Bad Missing Email",
-      "flash_id": "bad300",
-      "role": "student"
+      "first_name": "Bad",
+      "last_name": "Missing Email",
+      "id": "KSUID000000300",
+      "is_admin": false
     },
     {
-      "name": "Bad Role",
+      "first_name": "Bad",
+      "last_name": "Role",
       "email": "bad.role@kent.edu",
-      "flash_id": "bad400",
-      "role": "owner"
+      "id": "KSUID000000400",
+      "is_admin": "owner"
     }
   ],
   "courses": [
     {
       "name": "Software Engineering",
-      "instructor_ids": ["valid.admin@kent.edu"],
-      "student_ids": ["valid.student@kent.edu"],
+      "instructor_ids": ["KSUID000000200"],
+      "student_ids": ["KSUID000000100"],
       "semester": {
         "year": 2026,
         "term": "spring"
@@ -36,8 +42,8 @@
     },
     {
       "name": "Invalid Course Term",
-      "instructor_ids": ["valid.admin@kent.edu"],
-      "student_ids": ["valid.student@kent.edu"],
+      "instructor_ids": ["KSUID000000200"],
+      "student_ids": ["KSUID000000100"],
       "semester": {
         "year": 2026,
         "term": "autumn"
@@ -45,7 +51,7 @@
     },
     {
       "name": "Invalid Student Ids",
-      "instructor_ids": ["valid.admin@kent.edu"],
+      "instructor_ids": ["KSUID000000200"],
       "student_ids": [101],
       "semester": {
         "year": 2026,
@@ -55,7 +61,7 @@
   ],
   "api_keys": [
     {
-      "u_id": "valid.student@kent.edu",
+      "u_id": "KSUID000000100",
       "c_id": "Software Engineering",
       "expire": null
     },
@@ -65,7 +71,7 @@
       "expire": null
     },
     {
-      "u_id": "valid.admin@kent.edu",
+      "u_id": "KSUID000000200",
       "c_id": "Software Engineering",
       "expire": "not-an-iso-date"
     }

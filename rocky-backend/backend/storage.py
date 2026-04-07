@@ -11,6 +11,7 @@ from .config import Settings
 @dataclass
 class Collections:
     users: any
+    whitelist_users: any
     courses: any
     api_keys: any
     api_history: any
@@ -23,6 +24,7 @@ class Collections:
 def _from_db(db) -> Collections:
     return Collections(
         users=db["users"],
+        whitelist_users=db["whitelist_users"],
         courses=db["courses"],
         api_keys=db["api_keys"],
         api_history=db["api_history"],

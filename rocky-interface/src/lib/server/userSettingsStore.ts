@@ -14,7 +14,7 @@ function buildHeaders(user: User): HeadersInit {
 		Accept: 'application/json',
 		'Content-Type': 'application/json',
 		'X-Rocky-User-Email': user.email,
-		'X-Rocky-User-Role': user.role
+		'X-Rocky-User-Is-Admin': String(user.isAdmin)
 	};
 }
 

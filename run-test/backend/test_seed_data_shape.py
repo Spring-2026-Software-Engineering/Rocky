@@ -7,7 +7,7 @@ from backend.test_support import BackendTestCase, main, seed_backend
 
 class SeedDataShapeTests(BackendTestCase):
     def test_backend_seed_distribution_is_even(self):
-        self._log("Seeding balanced backend fixture data and checking role/course spread.")
+        self._log("Seeding balanced backend fixture data and checking admin/course spread.")
         summary = seed_backend.seed_from_backend()
         self._log(f"Seed summary: {summary}")
 
@@ -16,10 +16,9 @@ class SeedDataShapeTests(BackendTestCase):
         self.assertEqual(summary["api_keys_inserted"], 6)
         self.assertEqual(summary["api_history_inserted"], 6)
 
-        role_counts = Counter(user["role"] for user in main.users.find())
-        self.assertEqual(role_counts["admin"], 1)
-        self.assertEqual(role_counts["instructor"], 2)
-        self.assertEqual(role_counts["client"], 4)
+        admin_counts = Counter(bool(user.get("is_admin")) for user in main.users.find())
+        self.assertEqual(admin_counts[True], 1)
+        self.assertEqual(admin_counts[False], 6)
 
         self.assertEqual(main.users.count_documents({}), 7)
         self.assertEqual(main.courses.count_documents({}), 6)

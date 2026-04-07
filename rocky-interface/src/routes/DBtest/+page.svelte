@@ -3,9 +3,10 @@
 	import type { DbUser } from '$lib/types/user';
 
 	let users: DbUser[] = [];
-	let name: string = '';
+	let firstName: string = '';
+	let lastName: string = '';
 	let email: string = '';
-	let role: string = 'client';
+	let isAdmin = false;
 	let message: string | null = null;
 
 	async function loadUsers() {
@@ -16,15 +17,16 @@
 	async function addUser() {
 		message = null;
 		try {
-			await createUser({ name, email, role });
+			await createUser({ firstName, lastName, email, isAdmin });
 		} catch (err) {
 			message = err instanceof Error ? err.message : 'Unable to add user.';
 			return;
 		}
 
-		name = '';
+		firstName = '';
+		lastName = '';
 		email = '';
-		role = 'client';
+		isAdmin = false;
 		await loadUsers();
 	}
 
@@ -49,16 +51,19 @@
 <button on:click={loadUsers}>Display Users</button>
 
 <h3>Add User</h3>
-<input placeholder="name" bind:value={name} />
+<input placeholder="first name" bind:value={firstName} />
+<input placeholder="last name" bind:value={lastName} />
 <input placeholder="email" bind:value={email} />
-<input placeholder="role (admin/client)" bind:value={role} />
+<label>
+	<input type="checkbox" bind:checked={isAdmin} /> Admin
+</label>
 <button on:click={addUser}>Add User</button>
 
 <h3>Users</h3>
 <ul>
 	{#each users as user}
 		<li>
-			{user.name} ({user.email})
+			{user.displayName} ({user.email}) - {user.isAdmin ? 'Admin' : 'User'}
 			<button on:click={() => deleteUser(user.id)}>Delete</button>
 		</li>
 	{/each}

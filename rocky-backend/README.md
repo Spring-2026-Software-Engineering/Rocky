@@ -45,7 +45,13 @@ Core variables:
 Security-related toggles:
 
 - `ROCKY_ENABLE_DB_INSPECTOR`: should be `false` in production
-- `ROCKY_ENABLE_PREVIEW_LOGIN`: should be `false` in production
+- `ROCKY_ENABLE_MICROSOFT_OAUTH`: optional development override, ignored in production/testing
+
+Auth mode behavior:
+
+- development: preview login by default; Microsoft OAuth enabled when `ROCKY_ENABLE_MICROSOFT_OAUTH=true`
+- testing: preview login only
+- production: Microsoft OAuth only
 
 Production baseline:
 
@@ -53,7 +59,6 @@ Production baseline:
 - `ROCKY_DB_BACKEND=mongodb`
 - `ROCKY_MONGODB_URI` set to valid credentials
 - `ROCKY_ENABLE_DB_INSPECTOR=false`
-- `ROCKY_ENABLE_PREVIEW_LOGIN=false`
 
 ## Run backend
 

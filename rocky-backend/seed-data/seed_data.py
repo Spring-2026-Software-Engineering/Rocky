@@ -24,6 +24,7 @@ def seed_database(collections, payload: dict[str, Any]) -> dict[str, int]:
     }
 
     collections.users.delete_many({})
+    collections.whitelist_users.delete_many({})
     collections.courses.delete_many({})
     collections.api_keys.delete_many({})
     collections.api_history.delete_many({})
