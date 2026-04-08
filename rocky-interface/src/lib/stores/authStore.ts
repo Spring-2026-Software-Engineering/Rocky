@@ -27,7 +27,8 @@ export function initAuthFromStorage(): void {
 				lastName,
 				displayName: parsed.displayName,
 				email: parsed.email,
-				isAdmin: Boolean(parsed.isAdmin)
+				isAdmin: Boolean(parsed.isAdmin),
+				isActive: true
 			});
 		}
 	} catch {
