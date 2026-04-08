@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { User } from '$lib/types/user';
 	import '$lib/styles/components/topbar.css';
+	import  {sidebarOpen} from '$lib/stores/sidebarStore';
 
 	let { user = null }: { user: User | null } = $props();
 
@@ -8,6 +9,12 @@
 </script>
 
 <header class="topbar">
+		<button class="hamburger" aria-label="Toggle menu" onclick={() => sidebarOpen.update(open => !open)}>
+			<span class="hamburger-line"></span>
+			<span class="hamburger-line"></span>
+			<span class="hamburger-line"></span>
+		</button>
+
 		<img src="/rocky.svg" alt="Rocky" class="brand-logo" />
 		<div class="brand-text">
 			<div class="brand-name">Rocky</div>
