@@ -4,14 +4,11 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<script lang="ts">
-			const theme = document.documentElement.getAttribute('data-theme') || 'system';
+			const theme = document.documentElement.getAttribute('data-theme') || 'light';
 			if (theme === 'dark') {
 				document.documentElement.style.colorScheme = 'dark';
-			} else if (theme === 'light') {
-				document.documentElement.style.colorScheme = 'light';
 			} else {
-				const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-				document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+				document.documentElement.style.colorScheme = 'light';
 			}
 		</script>
 		<style>
@@ -22,16 +19,6 @@
 			html[data-theme='dark'] { 
 				background-color: #171b22; 
 				color: #f1f5f9;
-			}
-			html[data-theme='system'] {
-				background-color: #fff;
-				color: #111827;
-			}
-			@media (prefers-color-scheme: dark) {
-				html[data-theme='system'] { 
-					background-color: #171b22; 
-					color: #f1f5f9;
-				}
 			}
 		</style>
 		%sveltekit.head%

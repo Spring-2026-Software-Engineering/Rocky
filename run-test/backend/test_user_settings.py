@@ -14,14 +14,14 @@ class UserSettingsTests(BackendTestCase):
         )
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
-        self.assertEqual(payload["settings"]["themePreference"], "dark")
+        self.assertEqual(payload["settings"]["themePreference"], "light")
         self.assertEqual(payload["settings"]["widgets"][0]["title"], "Analytics")
 
     def test_patch_user_setting_updates_theme(self):
         self._log("Patching themePreference through key endpoint. Expecting persisted update.")
         update_response = self.client.patch(
             "/user-settings/themePreference",
-            json={"userId": "local-admin", "email": "admin.local@kent.edu", "value": "system"},
+            json={"userId": "local-admin", "email": "admin.local@kent.edu", "value": "dark"},
             headers=self.admin_headers,
         )
         self.assertEqual(update_response.status_code, 200)
@@ -33,11 +33,11 @@ class UserSettingsTests(BackendTestCase):
         )
         self.assertEqual(read_response.status_code, 200)
         payload = read_response.get_json()
-        self.assertEqual(payload["settings"]["themePreference"], "system")
+        self.assertEqual(payload["settings"]["themePreference"], "dark")
 
         stored_user = main.users.find_one({"email": "admin.local@kent.edu"})
         self.assertIsNotNone(stored_user)
-        self.assertEqual((stored_user.get("settings") or {}).get("themePreference"), "system")
+        self.assertEqual((stored_user.get("settings") or {}).get("themePreference"), "dark")
         self.assertEqual((stored_user.get("settings") or {}).get("widgets"), ["analytics", "system-info"])
 
     def test_widgets_are_stored_per_user(self):

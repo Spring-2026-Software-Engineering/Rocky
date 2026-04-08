@@ -3,7 +3,7 @@ import { fetchCurrentUserSettings, updateCurrentUserSetting } from '$lib/api/use
 import { type ThemePreference } from '$lib/settings/userSettings';
 
 function isThemePreference(value: string): value is ThemePreference {
-	return value === 'light' || value === 'dark' || value === 'system';
+	return value === 'light' || value === 'dark';
 }
 
 export function applyThemePreference(preference: ThemePreference): void {
@@ -16,7 +16,7 @@ export function applyThemePreference(preference: ThemePreference): void {
 
 export async function getThemePreference(): Promise<ThemePreference> {
 	if (!browser) {
-		return 'system';
+		return 'light';
 	}
 
 	try {
@@ -25,10 +25,10 @@ export async function getThemePreference(): Promise<ThemePreference> {
 			return settings.themePreference;
 		}
 	} catch {
-		return 'system';
+		return 'light';
 	}
 
-	return 'system';
+	return 'light';
 }
 
 export async function initThemePreference(): Promise<ThemePreference> {

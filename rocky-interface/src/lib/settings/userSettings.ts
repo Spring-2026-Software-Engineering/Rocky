@@ -1,4 +1,4 @@
-export type ThemePreference = 'light' | 'dark' | 'system';
+export type ThemePreference = 'light' | 'dark';
 
 export type UserSettings = {
 	themePreference: ThemePreference;
@@ -13,8 +13,8 @@ type SettingDefinition<K extends UserSettingKey> = {
 
 export const settingsDefinitions: { [K in UserSettingKey]: SettingDefinition<K> } = {
 	themePreference: {
-		defaultValue: 'system',
-		validate: (value): value is ThemePreference => value === 'light' || value === 'dark' || value === 'system'
+		defaultValue: 'light',
+		validate: (value): value is ThemePreference => value === 'light' || value === 'dark'
 	}
 };
 

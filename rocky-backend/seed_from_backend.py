@@ -13,7 +13,7 @@ USERS_FILE = BACKEND_DIR / "seed-data" / "account" / "users.json"
 COURSES_FILE = BACKEND_DIR / "seed-data" / "courses" / "courses.json"
 WIDGETS_FILE = BACKEND_DIR / "seed-data" / "widgets" / "widgets.json"
 API_HISTORY_FILE = BACKEND_DIR / "seed-data" / "api_history.json"
-ALLOWED_THEME_PREFERENCES = {"light", "dark", "system"}
+ALLOWED_THEME_PREFERENCES = {"light", "dark"}
 
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
@@ -100,7 +100,7 @@ def _normalize_widget_list(raw_widgets, fallback_widgets):
 
 
 def _normalize_user_settings(raw_settings, fallback_widgets):
-    theme = "system"
+    theme = "light"
     if isinstance(raw_settings, dict):
         candidate_theme = (raw_settings.get("themePreference") or "").strip().lower()
         if candidate_theme in ALLOWED_THEME_PREFERENCES:

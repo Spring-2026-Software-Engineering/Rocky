@@ -1,0 +1,141 @@
+/* Account view */
+
+.account-lead {
+	margin: 0 0 var(--space-xl);
+	font-size: var(--font-size-lg);
+	color: var(--color-text-secondary);
+}
+
+.account-card {
+	padding: var(--space-xl);
+}
+
+.account-profile-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-xl);
+}
+
+.account-identity {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	min-width: 0;
+}
+
+.account-name {
+	margin: 0 0 var(--space-sm);
+	font-size: clamp(1.8rem, 3vw, 2.7rem);
+	font-weight: var(--font-weight-bold);
+	line-height: 1.15;
+	color: var(--color-text-primary);
+}
+
+.account-identity p {
+	margin: 0;
+	font-size: var(--font-size-lg);
+	color: var(--color-text-secondary);
+	word-break: break-word;
+}
+
+.account-identity strong {
+	color: var(--color-text-primary);
+}
+
+.account-divider {
+	height: 1px;
+	margin: var(--space-xl) 0;
+	background: var(--color-gray-300);
+}
+
+.account-theme-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--space-xl);
+}
+
+.account-theme-title {
+	margin: 0;
+	font-size: clamp(1.5rem, 2.1vw, 1.95rem);
+	font-weight: var(--font-weight-semibold);
+	line-height: 1.2;
+	color: var(--color-text-primary);
+}
+
+.account-note {
+	margin: var(--space-xs) 0 0;
+	font-size: var(--font-size-lg);
+	color: var(--color-text-secondary);
+}
+
+.account-toggle {
+	position: relative;
+	width: 58px;
+	height: 32px;
+	padding: 0;
+	border: 1px solid var(--color-gray-400);
+	border-radius: 999px;
+	background: var(--color-gray-200);
+	cursor: pointer;
+	transition: background-color var(--transition-base), border-color var(--transition-base);
+	flex-shrink: 0;
+}
+
+.account-toggle-knob {
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var(--color-bg-primary);
+	box-shadow: var(--shadow-sm);
+	transition: transform var(--transition-base);
+}
+
+.account-toggle-active {
+	background: var(--color-accent);
+	border-color: var(--color-accent);
+}
+
+.account-toggle-active .account-toggle-knob {
+	transform: translateX(26px);
+}
+
+@media (max-width: 900px) {
+	.account-lead {
+		font-size: var(--font-size-base);
+	}
+
+	.account-card {
+		padding: var(--space-lg);
+	}
+
+	.account-profile-header {
+		align-items: flex-start;
+		gap: var(--space-lg);
+	}
+
+	.account-avatar {
+		width: 72px;
+		height: 72px;
+	}
+
+	.account-name {
+		font-size: clamp(1.4rem, 7vw, 2rem);
+	}
+
+	.account-identity p,
+	.account-note {
+		font-size: var(--font-size-base);
+	}
+
+	.account-theme-title {
+		font-size: clamp(1.2rem, 5vw, 1.5rem);
+	}
+
+	.account-theme-row {
+		align-items: flex-start;
+	}
+}

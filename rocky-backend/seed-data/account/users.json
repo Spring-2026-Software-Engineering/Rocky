@@ -7,7 +7,7 @@
     "is_admin": true,
     "is_active": true,
     "settings": {
-      "themePreference": "dark",
+      "themePreference": "light",
       "widgets": [
         "analytics",
         "system-info"
@@ -36,7 +36,7 @@
     "is_admin": false,
     "is_active": true,
     "settings": {
-      "themePreference": "system",
+      "themePreference": "light",
       "widgets": [
         "analytics",
         "notifications"
@@ -51,7 +51,7 @@
     "is_admin": false,
     "is_active": true,
     "settings": {
-      "themePreference": "system",
+      "themePreference": "light",
       "widgets": [
         "system-info"
       ]
@@ -95,7 +95,7 @@
     "is_admin": false,
     "is_active": true,
     "settings": {
-      "themePreference": "system",
+      "themePreference": "dark",
       "widgets": [
         "notifications"
       ]
