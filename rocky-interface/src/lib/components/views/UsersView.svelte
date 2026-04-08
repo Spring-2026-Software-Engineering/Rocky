@@ -9,6 +9,14 @@
 
   let users: User[] = [];
 
+  //sort users by role
+
+  const roleOrder: Record<string, number> = {
+    admin: 1,
+    instructor: 2,
+    student: 3
+  };
+
   onMount(() => {
     async function fetchUsers() {
       const res = await fetch('http://localhost:5001/users');
@@ -19,10 +27,17 @@
         email: u.email || 'N/A',
         role: u.role || 'N/A'
       }));
+
+      //sort
+      users = [...users].sort(
+      (a, b) => roleOrder[a.role.toLowerCase()] - roleOrder[b.role.toLowerCase()]
+      );
     }
 
     fetchUsers();
   });
+
+  
 </script>
 
 <h1>Users</h1>
