@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import importlib.util
 import random
 import sys
@@ -20,6 +20,7 @@ from backend.course_actions import (
     can_manage_api_keys,
     can_manage_metadata,
     can_manage_people,
+    can_request_api_key,
     create_course_group,
     delete_course_api_keys,
     filter_visible_courses,
@@ -27,6 +28,8 @@ from backend.course_actions import (
     remove_course_member,
     remove_group_member,
     regenerate_course_api_key,
+    update_course_group_key_limit,
+    update_course_member_key_limit,
 )
 from backend.config import get_settings
 from backend.fixtures import read_seed_json
@@ -73,6 +76,7 @@ widgets_default = collections.widgets_default
 help_faq = collections.help_faq
 
 ALLOWED_THEME_PREFERENCES = {"light", "dark", "system"}
+API_KEY_REGENERATION_COOLDOWN = timedelta(minutes=5)
 KENT_EMAIL_SUFFIX = "@kent.edu"
 WLID_PREFIX = "WLID"
 KSUID_PREFIX = "KSUID"
@@ -87,6 +91,141 @@ def _parse_object_id(value: str):
 
 def _bad_request(message: str):
     return jsonify({"error": message}), 400
+
+
+def _course_has_api_key(course: dict[str, Any]) -> bool:
+    return _get_active_course_api_key(course) is not None
+
+
+def _iter_course_api_keys(course: dict[str, Any]) -> list[dict[str, Any]]:
+    course_code = normalize_str(course.get("code"))
+    course_numeric_id = course.get("id") if isinstance(course.get("id"), int) else None
+    keys: list[dict[str, Any]] = []
+    for entry in api_keys.find():
+        if not isinstance(entry, dict):
+            continue
+        if course_numeric_id is not None:
+            if entry.get("course_id") != course_numeric_id:
+                continue
+        elif course_code:
+            if normalize_str(entry.get("c_id")) != course_code:
+                continue
+        else:
+            continue
+        keys.append(entry)
+    return keys
+
+
+def _get_active_course_api_key(course: dict[str, Any]):
+    keys = _iter_course_api_keys(course)
+    if not keys:
+        return None
+    return max(keys, key=lambda entry: normalize_str(entry.get("created")))
+
+
+def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str) -> int:
+    normalized_owner_type = normalize_str(owner_type).lower() or "person"
+    normalized_owner_id = normalize_str(owner_id).lower()
+    if normalized_owner_type == "group":
+        target_group = next(
+            (
+                group
+                for group in course.get("groups", [])
+                if isinstance(group, dict) and normalize_str(group.get("id")).lower() == normalized_owner_id
+            ),
+            None,
+        )
+        key_limit = target_group.get("key_limit") if isinstance(target_group, dict) else None
+        return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
+
+    target_member = next(
+        (
+            member
+            for member in course.get("members", [])
+            if isinstance(member, dict)
+            and (
+                normalize_str(member.get("id")).lower() == normalized_owner_id
+                or normalize_str(member.get("accountEmail") or member.get("email")).lower() == normalized_owner_id
+            )
+        ),
+        None,
+    )
+    key_limit = target_member.get("key_limit") if isinstance(target_member, dict) else None
+    return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
+
+
+def _serialize_api_key_summary(entry: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "owner_type": normalize_str(entry.get("owner_type")).lower() or "person",
+        "owner_id": normalize_str(entry.get("owner_id")).lower(),
+        "key_name": normalize_str(entry.get("key_name")) or "key-1",
+        "created": entry.get("created"),
+        "course_id": entry.get("course_id"),
+    }
+
+
+def _attach_course_key_state(course: dict[str, Any]) -> dict[str, Any]:
+    attached = dict(course)
+    active_key = _get_active_course_api_key(course)
+    attached["has_api_key"] = active_key is not None
+    if isinstance(active_key, dict):
+        attached["api_key_owner_type"] = normalize_str(active_key.get("owner_type")).lower() or None
+        attached["api_key_owner_id"] = normalize_str(active_key.get("owner_id")) or None
+        attached["api_key_group_created_by"] = normalize_str(active_key.get("group_created_by")) or None
+        attached["api_key_created"] = active_key.get("created")
+    return attached
+
+
+def _parse_iso_datetime(value: Any):
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _find_last_api_key_generation(course: dict[str, Any], requester_identifier: str, owner_type: str, owner_id: str):
+    course_code = normalize_str(course.get("code"))
+    course_id = course.get("id") if isinstance(course.get("id"), int) else None
+    normalized_requester = normalize_str(requester_identifier).lower()
+    normalized_owner_type = normalize_str(owner_type).lower() or "person"
+    normalized_owner_id = normalize_str(owner_id).lower() or normalized_requester
+
+    latest_entry = None
+    latest_created = None
+
+    for entry in api_history.find():
+        if not isinstance(entry, dict):
+            continue
+        if normalize_str(entry.get("event_type")).lower() != "generate-key":
+            continue
+        if course_id is not None:
+            if entry.get("course_id") != course_id:
+                continue
+        elif course_code and normalize_str(entry.get("c_id")) != course_code:
+            continue
+
+        entry_requester = normalize_str(entry.get("u_id")).lower()
+        if entry_requester != normalized_requester:
+            continue
+
+        entry_owner_type = normalize_str(entry.get("meta", {}).get("owner_type") if isinstance(entry.get("meta"), dict) else "").lower()
+        entry_owner_id = normalize_str(entry.get("meta", {}).get("owner_id") if isinstance(entry.get("meta"), dict) else "").lower()
+        if entry_owner_type and entry_owner_type != normalized_owner_type:
+            continue
+        if entry_owner_id and entry_owner_id != normalized_owner_id:
+            continue
+
+        created_at = _parse_iso_datetime(entry.get("created"))
+        if created_at is None:
+            continue
+        if latest_created is None or created_at > latest_created:
+            latest_created = created_at
+            latest_entry = entry
+
+    return latest_entry, latest_created
 
 
 def _default_widgets_payload() -> list[dict[str, Any]]:
@@ -815,6 +954,10 @@ def create_course():
     cleaned, error = validate_course_payload(request.get_json(silent=True))
     if error:
         return _bad_request(error)
+
+    if "id" in cleaned:
+        if courses.find_one({"id": cleaned["id"]}) is not None:
+            return _bad_request("Course id already exists.")
     if "id" not in cleaned:
         existing_ids = [course.get("id", 0) for course in courses.find() if isinstance(course.get("id"), int)]
         cleaned["id"] = (max(existing_ids) if existing_ids else 0) + 1
@@ -830,7 +973,7 @@ def get_courses():
         return jsonify(identity[1][0]), identity[1][1]
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
-    result = [_serialize_value(course) for course in courses.find()]
+    result = [_attach_course_key_state(_serialize_value(course)) for course in courses.find()]
     return jsonify(filter_visible_courses(result, requester_id or email, is_admin))
 
 
@@ -845,7 +988,7 @@ def get_course(course_id):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
-    serialized = _serialize_value(course)
+    serialized = _attach_course_key_state(_serialize_value(course))
     visible = filter_visible_courses([serialized], requester_id or email, is_admin)
     if not visible:
         return jsonify({"error": "Not found"}), 404
@@ -976,8 +1119,21 @@ def create_course_group_route(course_id):
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
 
+    global_group_ids = {
+        normalize_str(group.get("id"))
+        for candidate_course in courses.find()
+        for group in candidate_course.get("groups", [])
+        if isinstance(group, dict)
+    }
+    current_course_group_ids = {
+        normalize_str(group.get("id"))
+        for group in course.get("groups", [])
+        if isinstance(group, dict)
+    }
+    global_group_ids -= current_course_group_ids
+
     try:
-        updated = create_course_group(course, data.get("name", ""))
+        updated = create_course_group(course, data.get("name", ""), global_group_ids)
     except ValueError as exc:
         return _bad_request(str(exc))
 
@@ -1049,23 +1205,207 @@ def remove_group_member_route(course_id, group_id):
     return jsonify(_serialize_value(updated))
 
 
+@app.route("/courses/<course_id>/members/<member_id>/key-limit", methods=["PATCH"])
+def update_member_key_limit_route(course_id, member_id):
+    identity = require_requester_identity()
+    if identity[0] is None:
+        return jsonify(identity[1][0]), identity[1][1]
+    email, is_admin = identity
+    requester_id = _resolve_requester_user_id(email)
+
+    course = get_course_record(courses, course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+    if not can_manage_people(course, requester_id or email, is_admin):
+        return jsonify({"error": "Instructor or admin access is required."}), 403
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return _bad_request("Request body must be a JSON object.")
+
+    key_limit = data.get("keyLimit") if "keyLimit" in data else data.get("key_limit")
+    if not isinstance(key_limit, int) or key_limit < 1:
+        return _bad_request("keyLimit must be an integer >= 1.")
+
+    try:
+        updated = update_course_member_key_limit(course, member_id, key_limit)
+    except ValueError as exc:
+        return _bad_request(str(exc))
+
+    courses.replace_one({"_id": course["_id"]}, updated)
+    return jsonify(_serialize_value(updated))
+
+
+@app.route("/courses/<course_id>/groups/<group_id>/key-limit", methods=["PATCH"])
+def update_group_key_limit_route(course_id, group_id):
+    identity = require_requester_identity()
+    if identity[0] is None:
+        return jsonify(identity[1][0]), identity[1][1]
+    email, is_admin = identity
+    requester_id = _resolve_requester_user_id(email)
+
+    course = get_course_record(courses, course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+    if not can_manage_people(course, requester_id or email, is_admin):
+        return jsonify({"error": "Instructor or admin access is required."}), 403
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return _bad_request("Request body must be a JSON object.")
+
+    key_limit = data.get("keyLimit") if "keyLimit" in data else data.get("key_limit")
+    if not isinstance(key_limit, int) or key_limit < 1:
+        return _bad_request("keyLimit must be an integer >= 1.")
+
+    try:
+        updated = update_course_group_key_limit(course, group_id, key_limit)
+    except ValueError as exc:
+        return _bad_request(str(exc))
+
+    courses.replace_one({"_id": course["_id"]}, updated)
+    return jsonify(_serialize_value(updated))
+
+
+@app.route("/courses/<course_id>/api-keys", methods=["GET"])
+def list_course_api_keys_route(course_id):
+    identity = require_requester_identity()
+    if identity[0] is None:
+        return jsonify(identity[1][0]), identity[1][1]
+    email, is_admin = identity
+    requester_id = _resolve_requester_user_id(email)
+
+    course = get_course_record(courses, course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+    if not can_request_api_key(course, requester_id or email, is_admin):
+        return jsonify({"error": "Course access is required."}), 403
+
+    normalized_requester = normalize_str(requester_id or email).lower()
+    requester_group_ids = {
+        normalize_str(group.get("id")).lower()
+        for group in course.get("groups", [])
+        if isinstance(group, dict) and normalized_requester in {normalize_str(member_id).lower() for member_id in group.get("memberIds", [])}
+    }
+
+    result: list[dict[str, Any]] = []
+    for entry in _iter_course_api_keys(course):
+        owner_type = normalize_str(entry.get("owner_type")).lower() or "person"
+        owner_id = normalize_str(entry.get("owner_id")).lower()
+        if not is_admin:
+            if owner_type == "person" and owner_id != normalized_requester:
+                continue
+            if owner_type == "group" and owner_id not in requester_group_ids:
+                continue
+        result.append(_serialize_api_key_summary(entry))
+
+    result.sort(key=lambda item: normalize_str(item.get("key_name")))
+    return jsonify(_serialize_value(result))
+
+
 @app.route("/courses/<course_id>/api-key/regenerate", methods=["POST"])
 def regenerate_course_api_key_route(course_id):
     identity = require_requester_identity()
     if identity[0] is None:
         return jsonify(identity[1][0]), identity[1][1]
     email, is_admin = identity
-    if not can_manage_api_keys(is_admin):
-        return jsonify({"error": "Admin access is required."}), 403
+
+    data = request.get_json(silent=True)
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        return _bad_request("Request body must be a JSON object.")
 
     course = get_course_record(courses, course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    requester_id = _resolve_requester_user_id(email)
+    if not can_request_api_key(course, requester_id or email, is_admin):
+        return jsonify({"error": "Course access is required."}), 403
+
+    owner_type = normalize_str(data.get("ownerType") or data.get("owner_type")).lower() or "person"
+    owner_id = normalize_str(data.get("ownerId") or data.get("owner_id") or data.get("groupId") or data.get("group_id"))
+
+    normalized_requester = normalize_str(requester_id or email).lower()
+
+    if not is_admin:
+        if owner_type == "group":
+            target_group_id = owner_id
+            target_group = next(
+                (
+                    group
+                    for group in course.get("groups", [])
+                    if isinstance(group, dict) and normalize_str(group.get("id")).lower() == normalize_str(target_group_id).lower()
+                ),
+                None,
+            )
+            if target_group is None:
+                return _bad_request("groupId is required for group keys.")
+            is_group_member = normalized_requester in {
+                normalize_str(member_id).lower()
+                for member_id in target_group.get("memberIds", [])
+            }
+            if not is_group_member:
+                return jsonify({"error": "Group membership is required."}), 403
+            owner_type = "group"
+            owner_id = normalize_str(target_group.get("id"))
+        else:
+            owner_type = "person"
+            owner_id = normalized_requester
+    elif owner_type == "group" and not owner_id:
+        return _bad_request("groupId is required for group keys.")
+
+    owner_id = normalize_str(owner_id or normalized_requester).lower()
+    key_name = normalize_str(data.get("keyName") or data.get("key_name") or "key-1")[:64].strip() or "key-1"
+
+    owner_key_limit = _get_owner_key_limit(course, owner_type, owner_id)
+    owner_keys = [
+        entry
+        for entry in _iter_course_api_keys(course)
+        if normalize_str(entry.get("owner_type")).lower() == owner_type
+        and normalize_str(entry.get("owner_id")).lower() == owner_id
+    ]
+    target_key = next(
+        (entry for entry in owner_keys if normalize_str(entry.get("key_name")) == key_name),
+        None,
+    )
+    if target_key is None and len(owner_keys) >= owner_key_limit:
+        return _bad_request(f"Key limit reached for this owner ({owner_key_limit}).")
+
+    target_key_created_at = _parse_iso_datetime(target_key.get("created")) if isinstance(target_key, dict) else None
+    if target_key_created_at is not None and datetime.now(timezone.utc) - target_key_created_at < API_KEY_REGENERATION_COOLDOWN:
+        remaining = API_KEY_REGENERATION_COOLDOWN - (datetime.now(timezone.utc) - target_key_created_at)
+        minutes = max(1, int(remaining.total_seconds() // 60) + (1 if remaining.total_seconds() % 60 else 0))
+        return jsonify({"error": f"Please wait {minutes} minute(s) before generating another key."}), 429
+
+    ownership = {
+        "owner_type": owner_type,
+        "owner_id": owner_id,
+        "key_name": key_name,
+    }
+
     try:
-        key_doc = regenerate_course_api_key(course, api_keys, email)
+        key_doc = regenerate_course_api_key(course, api_keys, requester_id or email, ownership)
     except ValueError as exc:
         return _bad_request(str(exc))
+
+    history_doc = _build_api_history_entry(
+        course,
+        email,
+        {
+            "eventType": "generate-key",
+            "groupId": owner_id if owner_type == "group" else "",
+            "groupName": normalize_str(data.get("groupName") or data.get("group_name")),
+            "meta": {
+                "path": request.path,
+                "owner_type": owner_type,
+                "owner_id": owner_id,
+                "key_name": key_name,
+            },
+        },
+    )
+    api_history.insert_one(history_doc)
 
     return jsonify(_serialize_value(key_doc))
 

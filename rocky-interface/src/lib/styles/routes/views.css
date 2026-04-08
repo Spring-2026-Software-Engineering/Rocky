@@ -261,6 +261,10 @@ select.text-input option {
 	line-height: var(--line-height-normal);
 }
 
+.course-key-error {
+	color: #991b1b;
+}
+
 .course-people-actions {
 	display: flex;
 	justify-content: flex-end;

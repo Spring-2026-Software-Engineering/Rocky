@@ -51,7 +51,11 @@ def seed_database(collections, payload: dict[str, Any]) -> dict[str, int]:
         if error:
             summary["api_keys_rejected"] += 1
             continue
-        cleaned["created"] = datetime.now(timezone.utc).isoformat()
+        provided_created = item.get("created") if isinstance(item, dict) else None
+        if isinstance(provided_created, str) and provided_created.strip():
+            cleaned["created"] = provided_created.strip()
+        else:
+            cleaned["created"] = datetime.now(timezone.utc).isoformat()
         collections.api_keys.insert_one(cleaned)
         summary["api_keys_inserted"] += 1
 

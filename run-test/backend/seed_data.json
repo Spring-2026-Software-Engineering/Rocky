@@ -61,18 +61,27 @@
   ],
   "api_keys": [
     {
-      "u_id": "KSUID000000100",
-      "c_id": "Software Engineering",
+      "owner_type": "person",
+      "owner_id": "ksuid000000100",
+      "u_id": "ksuid000000100",
+      "course_id": 1,
+      "hash": "1f3ce8cd2766afe4f9df19eeb6c6f4f591a7d5474f70a7ee6d74db7b8e4cc0d9",
       "expire": null
     },
     {
+      "owner_type": "person",
+      "owner_id": "",
       "u_id": "",
-      "c_id": "Software Engineering",
+      "course_id": 1,
+      "hash": "1f3ce8cd2766afe4f9df19eeb6c6f4f591a7d5474f70a7ee6d74db7b8e4cc0d9",
       "expire": null
     },
     {
-      "u_id": "KSUID000000200",
-      "c_id": "Software Engineering",
+      "owner_type": "person",
+      "owner_id": "ksuid000000200",
+      "u_id": "ksuid000000200",
+      "course_id": 1,
+      "hash": "",
       "expire": "not-an-iso-date"
     }
   ]

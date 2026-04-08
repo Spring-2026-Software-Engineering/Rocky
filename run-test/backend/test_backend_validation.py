@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 from backend.test_support import BackendTestCase, main, seed_backend
 
 
@@ -23,7 +25,12 @@ class BackendValidationTests(BackendTestCase):
 
         self.assertEqual(main.users.find_one({"email": "bad.role@kent.edu"}), None)
         self.assertEqual(main.courses.find_one({"name": "Invalid Course Term"}), None)
-        self.assertEqual(main.api_keys.find_one({"u_id": ""}), None)
+        self.assertEqual(main.api_keys.find_one({"owner_id": ""}), None)
+
+        seeded_key = main.api_keys.find_one({"course_id": 1})
+        self.assertIsNotNone(seeded_key)
+        self.assertTrue(isinstance(seeded_key.get("hash"), str) and len(seeded_key.get("hash")) == 64)
+        self.assertEqual(seeded_key.get("owner_type"), "person")
 
     def test_create_user_rejects_bad_payload(self):
         self._log("Posting invalid user payload. Expecting HTTP 400.")
@@ -156,6 +163,117 @@ class BackendValidationTests(BackendTestCase):
             headers=self.admin_headers,
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_regenerate_api_key_returns_plaintext_once_and_stores_hash(self):
+        self._log("Regenerating a course API key. Expecting plaintext response and hash-only storage.")
+        response = self.client.post(
+            "/courses/1/api-key/regenerate",
+            headers=self.admin_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.get_json()
+        self.assertIsInstance(payload, dict)
+        plaintext_key = (payload or {}).get("api_key")
+        self.assertTrue(isinstance(plaintext_key, str) and plaintext_key.startswith("sk_kent_"))
+        self.assertNotIn("hash", payload or {})
+        self.assertNotIn("u_id", payload or {})
+        self.assertNotIn("created_by", payload or {})
+        self.assertNotIn("c_id", payload or {})
+
+        stored = main.api_keys.find_one({"course_id": 1, "owner_type": "person", "owner_id": "ksuid000000001", "key_name": "key-1"})
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored.get("hash"), hashlib.sha256(plaintext_key.encode("utf-8")).hexdigest())
+        self.assertEqual(stored.get("owner_type"), "person")
+        self.assertEqual(stored.get("owner_id"), "ksuid000000001")
+        self.assertEqual(stored.get("course_id"), 1)
+        self.assertNotIn("created_by", stored)
+
+    def test_regenerate_group_api_key_tracks_group_and_creator(self):
+        self._log("Regenerating a group-owned API key. Expecting group metadata and creator tracking.")
+        response = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={
+                "ownerType": "group",
+                "groupId": "group-se3010-a",
+            },
+            headers=self.admin_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.get_json() or {}
+        self.assertEqual(payload.get("owner_type"), "group")
+        self.assertEqual(payload.get("group_created_by"), "ksuid000000001")
+
+        stored = main.api_keys.find_one({"course_id": 1, "owner_type": "group", "owner_id": "group-se3010-a", "key_name": "key-1"})
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored.get("owner_type"), "group")
+        self.assertEqual(stored.get("owner_id"), "group-se3010-a")
+        self.assertEqual(stored.get("group_created_by"), "ksuid000000001")
+
+    def test_student_can_generate_own_key_once_then_hits_cooldown(self):
+        self._log("Generating a self-service API key as a student and verifying the cooldown blocks a second request.")
+        first_response = self.client.post(
+            "/courses/1/api-key/regenerate",
+            headers=self.student_headers,
+        )
+        self.assertEqual(first_response.status_code, 200)
+
+        second_response = self.client.post(
+            "/courses/1/api-key/regenerate",
+            headers=self.student_headers,
+        )
+        self.assertEqual(second_response.status_code, 429)
+
+        payload = second_response.get_json() or {}
+        self.assertIn("wait", (payload.get("error") or "").lower())
+
+    def test_api_key_cooldown_is_per_key_not_per_user(self):
+        self._log("Generating a key as student and verifying same key owner/name cannot be overridden within cooldown window.")
+        first_response = self.client.post(
+            "/courses/1/api-key/regenerate",
+            headers=self.student_headers,
+        )
+        self.assertEqual(first_response.status_code, 200)
+
+        student_second = self.client.post(
+            "/courses/1/api-key/regenerate",
+            headers=self.student_headers,
+        )
+        self.assertEqual(student_second.status_code, 429)
+
+        payload = student_second.get_json() or {}
+        self.assertIn("wait", (payload.get("error") or "").lower())
+
+    def test_courses_include_has_api_key_state(self):
+        self._log("Fetching course list and checking has_api_key toggles with delete/regenerate operations.")
+        before = self.client.get("/courses", headers=self.admin_headers)
+        self.assertEqual(before.status_code, 200)
+        before_payload = before.get_json()
+        self.assertIsInstance(before_payload, list)
+        course_before = next((course for course in before_payload if course.get("id") == 1), None)
+        self.assertIsNotNone(course_before)
+        self.assertEqual(course_before.get("has_api_key"), True)
+
+        delete_response = self.client.delete("/courses/1/api-key", headers=self.admin_headers)
+        self.assertEqual(delete_response.status_code, 200)
+
+        after_delete = self.client.get("/courses", headers=self.admin_headers)
+        after_delete_payload = after_delete.get_json()
+        self.assertIsInstance(after_delete_payload, list)
+        course_after_delete = next((course for course in after_delete_payload if course.get("id") == 1), None)
+        self.assertIsNotNone(course_after_delete)
+        self.assertEqual(course_after_delete.get("has_api_key"), False)
+
+        regenerate_response = self.client.post("/courses/1/api-key/regenerate", headers=self.admin_headers)
+        self.assertEqual(regenerate_response.status_code, 200)
+
+        after_regenerate = self.client.get("/courses", headers=self.admin_headers)
+        after_regenerate_payload = after_regenerate.get_json()
+        self.assertIsInstance(after_regenerate_payload, list)
+        course_after_regenerate = next((course for course in after_regenerate_payload if course.get("id") == 1), None)
+        self.assertIsNotNone(course_after_regenerate)
+        self.assertEqual(course_after_regenerate.get("has_api_key"), True)
 
 
 if __name__ == "__main__":

@@ -69,12 +69,20 @@ def normalize_course_members(value: Any):
         role = normalize_str(entry.get("role") or "student").lower()
         if role not in {"student", "instructor"}:
             return None, None, None, "member role must be 'student' or 'instructor'."
+        key_limit = entry.get("key_limit")
+        if key_limit is None:
+            key_limit = entry.get("keyLimit")
+        if key_limit is None:
+            key_limit = 1
+        if not isinstance(key_limit, int) or key_limit < 1:
+            return None, None, None, "member key_limit must be an integer >= 1."
 
         normalized = {
             "id": member_id,
             "accountEmail": account_email,
             "email": account_email,
             "role": role,
+            "key_limit": key_limit,
         }
         members.append(normalized)
         if role == "instructor":
@@ -114,7 +122,15 @@ def normalize_course_groups(value: Any):
                 return None, "group.memberIds entries must be non-empty id strings."
             normalized_ids.append(member_id_value)
 
-        groups.append({"id": group_id, "name": name, "memberIds": normalized_ids})
+        key_limit = entry.get("key_limit")
+        if key_limit is None:
+            key_limit = entry.get("keyLimit")
+        if key_limit is None:
+            key_limit = 1
+        if not isinstance(key_limit, int) or key_limit < 1:
+            return None, "group key_limit must be an integer >= 1."
+
+        groups.append({"id": group_id, "name": name, "memberIds": normalized_ids, "key_limit": key_limit})
 
     return groups, None
 
@@ -234,14 +250,26 @@ def validate_api_key_payload(payload: Any):
     if not isinstance(payload, dict):
         return None, "Request body must be a JSON object."
 
-    u_id = payload.get("u_id")
+    owner_type = normalize_str(payload.get("owner_type") or "person").lower() or "person"
+    owner_id = normalize_str(payload.get("owner_id") or payload.get("u_id")).lower()
+    group_id = normalize_str(payload.get("group_id")).lower() if payload.get("group_id") is not None else ""
+    course_id = payload.get("course_id")
     c_id = payload.get("c_id")
+    key_hash = normalize_str(payload.get("hash"))
     expire = payload.get("expire")
 
-    if not isinstance(u_id, str) or not u_id.strip():
-        return None, "u_id is required and must be a non-empty string."
-    if not isinstance(c_id, str) or not c_id.strip():
-        return None, "c_id is required and must be a non-empty string."
+    if owner_type not in {"person", "group"}:
+        return None, "owner_type must be either person or group."
+    if not owner_id:
+        return None, "owner_id is required and must be a non-empty string."
+    if owner_type == "group" and not owner_id:
+        owner_id = group_id
+    if owner_type == "group" and not owner_id:
+        return None, "owner_id is required when owner_type is group."
+    if not isinstance(course_id, int):
+        return None, "course_id is required and must be an integer."
+    if not key_hash:
+        return None, "hash is required and must be a non-empty string."
     if expire is not None:
         if not isinstance(expire, str):
             return None, "expire must be an ISO datetime string or null."
@@ -251,7 +279,12 @@ def validate_api_key_payload(payload: Any):
             return None, "expire must be a valid ISO datetime string."
 
     return {
-        "u_id": u_id.strip(),
-        "c_id": c_id.strip(),
+        "owner_type": owner_type,
+        "owner_id": owner_id,
+        "u_id": owner_id if owner_type == "person" else None,
+        "group_created_by": normalize_str(payload.get("group_created_by")).lower() or None,
+        "course_id": course_id,
+        "c_id": normalize_str(c_id) if isinstance(c_id, str) else None,
+        "hash": key_hash,
         "expire": expire,
     }, None

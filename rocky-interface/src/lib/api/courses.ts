@@ -68,6 +68,31 @@ export type CourseApiHistoryEntry = {
 	created: string;
 };
 
+export type RegenerateCourseApiKeyResponse = Partial<{
+	api_key: string;
+	owner_type: 'person' | 'group';
+	owner_id: string;
+	group_created_by: string | null;
+	key_name: string;
+	course_id: number;
+	created: string;
+}>;
+
+export type CourseApiKeySummaryResponse = Partial<{
+	owner_type: 'person' | 'group';
+	owner_id: string;
+	key_name: string;
+	created: string;
+	course_id: number;
+}>;
+
+export type RegenerateCourseApiKeyInput = {
+	ownerType?: 'person' | 'group';
+	ownerId?: string;
+	groupId?: string;
+	keyName?: string;
+};
+
 export async function createCourse(input: CreateCourseInput): Promise<Course> {
 	const payload = {
 		name: input.name.trim(),
@@ -151,10 +176,14 @@ export async function removeGroupMember(courseId: string | number, groupId: stri
 	});
 }
 
-export async function regenerateCourseApiKey(courseId: string | number): Promise<void> {
-	await fetchJson(`/api/backend/courses/${courseId}/api-key/regenerate`, {
+export async function regenerateCourseApiKey(
+	courseId: string | number,
+	input: RegenerateCourseApiKeyInput = {}
+): Promise<RegenerateCourseApiKeyResponse> {
+	return fetchJson<RegenerateCourseApiKeyResponse>(`/api/backend/courses/${courseId}/api-key/regenerate`, {
 		method: 'POST',
-		headers: jsonHeaders()
+		headers: jsonHeaders(),
+		body: JSON.stringify(input)
 	});
 }
 
@@ -178,4 +207,24 @@ export async function fetchCourseApiHistory(courseId: string | number): Promise<
 		meta: entry.meta && typeof entry.meta === 'object' ? entry.meta : {},
 		created: entry.created?.trim() || ''
 	}));
+}
+
+export async function fetchCourseApiKeys(courseId: string | number): Promise<CourseApiKeySummaryResponse[]> {
+	return fetchJson<CourseApiKeySummaryResponse[]>(`/api/backend/courses/${courseId}/api-keys`);
+}
+
+export async function updateCourseMemberKeyLimit(courseId: string | number, memberId: string, keyLimit: number): Promise<void> {
+	await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/members/${memberId}/key-limit`, {
+		method: 'PATCH',
+		headers: jsonHeaders(),
+		body: JSON.stringify({ keyLimit })
+	});
+}
+
+export async function updateCourseGroupKeyLimit(courseId: string | number, groupId: string, keyLimit: number): Promise<void> {
+	await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/groups/${groupId}/key-limit`, {
+		method: 'PATCH',
+		headers: jsonHeaders(),
+		body: JSON.stringify({ keyLimit })
+	});
 }

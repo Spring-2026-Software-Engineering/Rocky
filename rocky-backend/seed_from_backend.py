@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +20,7 @@ if str(BACKEND_DIR) not in sys.path:
 if str(SEED_DATA_DIR) not in sys.path:
 	sys.path.insert(0, str(SEED_DATA_DIR))
 
+from backend.api_key_generator import generate_api_key_pair
 from backend.storage import build_in_memory_collections
 import main
 
@@ -166,6 +167,9 @@ def seed_from_backend() -> dict[str, int]:
         if (user.get("email") or "").strip() and (user.get("id") or "").strip()
     }
 
+    used_course_ids: set[int] = set()
+    used_group_ids: set[str] = set()
+
     for index, raw in enumerate(raw_courses, start=1):
         semester_raw = (raw.get("semester") or "Spring 2026").strip()
         year, term = _parse_semester(semester_raw)
@@ -193,6 +197,7 @@ def seed_from_backend() -> dict[str, int]:
                     "accountEmail": account_email,
                     "email": account_email,
                     "role": role,
+                    "key_limit": 1,
                 }
             )
 
@@ -206,6 +211,15 @@ def seed_from_backend() -> dict[str, int]:
         for group in raw_groups:
             if not isinstance(group, dict):
                 continue
+            raw_group_id = (group.get("id") or "").strip().lower()
+            if not raw_group_id:
+                continue
+            unique_group_id = raw_group_id
+            suffix = 2
+            while unique_group_id in used_group_ids:
+                unique_group_id = f"{raw_group_id}-{suffix}"
+                suffix += 1
+
             member_ids = []
             for group_member in group.get("memberIds", group.get("memberEmails", [])):
                 value = (group_member or "").strip().lower() if isinstance(group_member, str) else ""
@@ -219,15 +233,23 @@ def seed_from_backend() -> dict[str, int]:
 
             normalized_groups.append(
                 {
-                    "id": (group.get("id") or "").strip(),
+                    "id": unique_group_id,
                     "name": (group.get("name") or "").strip(),
                     "memberIds": member_ids,
+                    "key_limit": 1,
                 }
             )
+            used_group_ids.add(unique_group_id)
+
+        requested_course_id = raw.get("id") if isinstance(raw.get("id"), int) else index
+        course_id = requested_course_id
+        while course_id in used_course_ids:
+            course_id += 1
+        used_course_ids.add(course_id)
 
         course_doc = {
             # Fields consumed by frontend
-            "id": raw.get("id") if isinstance(raw.get("id"), int) else index,
+            "id": course_id,
             "code": (raw.get("code") or f"TBD {1000 + index}").strip(),
             "name": (raw.get("name") or "Untitled Course").strip(),
             "instructor": (raw.get("instructor") or "Unknown Instructor").strip(),
@@ -247,11 +269,31 @@ def seed_from_backend() -> dict[str, int]:
         courses_inserted += 1
 
         if instructor_ids:
+            _, generated_hash = generate_api_key_pair()
+
+            seeded_owner_type = "person"
+            seeded_owner_id = instructor_ids[0].lower()
+            seeded_group_created_by = None
+
+            if normalized_groups:
+                primary_group = normalized_groups[0]
+                seeded_owner_type = "group"
+                seeded_owner_id = (primary_group.get("id") or "").strip().lower()
+                primary_group_member_ids = primary_group.get("memberIds") if isinstance(primary_group.get("memberIds"), list) else []
+                if primary_group_member_ids:
+                    seeded_group_created_by = (primary_group_member_ids[0] or "").strip().lower() or instructor_ids[0].lower()
+                else:
+                    seeded_group_created_by = instructor_ids[0].lower()
+
             key_doc = {
-                "u_id": instructor_ids[0],
-                "c_id": course_doc["code"],
+                "owner_type": seeded_owner_type,
+                "owner_id": seeded_owner_id,
+                "group_created_by": seeded_group_created_by,
+                "key_name": "key-1",
+                "course_id": course_doc["id"],
+                "hash": generated_hash,
                 "expire": None,
-                "created": datetime.now(timezone.utc).isoformat(),
+                "created": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
             }
             main.api_keys.insert_one(key_doc)
             api_keys_inserted += 1

@@ -66,18 +66,5 @@
       "actor": "student.alt3@kent.edu"
     },
     "created": "2026-04-01T12:40:00Z"
-  },
-  {
-    "u_id": "student.alt1@kent.edu",
-    "c_id": "CS 3200",
-    "course_id": 4,
-    "event_type": "request",
-    "group_id": "group-cs3200-a",
-    "group_name": "Process Managers",
-    "is_group_member": true,
-    "meta": {
-      "path": "/courses/4/api-history"
-    },
-    "created": "2026-04-01T12:45:00Z"
   }
 ]
