@@ -552,9 +552,11 @@
 }
 
 .view-menu-backdrop {
-	position: absolute;
+	position: absolute	;
 	inset: 0;
 	z-index: 10;
+	background: transparent;
+	border-radius: 10px; 
 }
 
 .view-menu {
@@ -603,6 +605,7 @@
 
 .view-switcher {
 	position: relative;
+	z-index: 11;
 }
 
 /* ========== KPI/ANALYTICS CARDS ========== */
