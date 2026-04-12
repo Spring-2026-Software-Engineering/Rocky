@@ -110,30 +110,32 @@
 		</div>
 	</div>
 
-	{#if isLoading}
-		<div class="empty-state">
-			<p>Loading courses...</p>
-		</div>
-	{:else if error}
-		<div class="empty-state">
-			<p><strong>Error:</strong> {error}</p>
-		</div>
-	{:else if courses.length === 0}
-		<div class="empty-state">
-			<p>No courses available.</p>
-		</div>
-	{:else if viewMode === 'card'}
-			<div class="grid grid-3">
-				{#each courses as course}
-					<CourseCard {course} mode="card" on:open={handleOpenCourse} />
-				{/each}
+	<div class="section">
+		{#if isLoading}
+			<div class="empty-state">
+				<p>Loading courses...</p>
 			</div>
-		{:else}
-			<div class="grid grid-1">
-				{#each courses as course}
-					<CourseCard {course} mode="list" on:open={handleOpenCourse} />
-				{/each}
+		{:else if error}
+			<div class="empty-state">
+				<p><strong>Error:</strong> {error}</p>
 			</div>
-	{/if}
+		{:else if courses.length === 0}
+			<div class="empty-state">
+				<p>No courses available.</p>
+			</div>
+		{:else if viewMode === 'card'}
+				<div class="grid grid-3">
+					{#each courses as course}
+						<CourseCard {course} mode="card" on:open={handleOpenCourse} />
+					{/each}
+				</div>
+			{:else}
+				<div class="grid grid-1">
+					{#each courses as course}
+						<CourseCard {course} mode="list" on:open={handleOpenCourse} />
+					{/each}
+				</div>
+		{/if}
+	</div>
 </ViewShell>
 
