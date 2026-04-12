@@ -89,12 +89,14 @@
 }
 
 .view-content {
-	flex: 1;
-	overflow-y: auto;
-	overflow-x: hidden;
-	padding-right: var(--space-sm);
-	scrollbar-width: thin;
-	scrollbar-color: var(--color-gray-300) transparent;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: var(--space-sm);
+    padding-top: var(--space-sm);     
+    margin-top: calc(-1 * var(--space-sm)); 
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gray-300) transparent;
 }
 
 .view-content::-webkit-scrollbar {
