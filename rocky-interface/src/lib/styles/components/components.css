@@ -116,7 +116,7 @@
 @media (max-width: 768px) {
 	.sidebar {
 		position: fixed;
-		top: --var(--size-topbar-height);
+		top: var(--size-topbar-height);
 		left: 0;
 		height: calc(100% - var(--size-topbar-height));
 		transform: translateX(-100%);
@@ -250,16 +250,25 @@
 
 /* ========== WIDGET PANEL ========== */
 .widget-panel {
-	width: var(--size-widget-panel-width);
-	min-width: var(--size-widget-panel-width);
-	height: 100%;
-	background: var(--color-bg-secondary);
-	border: 1px solid var(--color-gray-300);
-	box-shadow: var(--shadow-widget);
-	padding: var(--space-lg) var(--space-lg);
-	box-sizing: border-box;
-	overflow: visible;
-	flex-shrink: 0;
+    width: var(--size-widget-panel-width);
+    min-width: var(--size-widget-panel-width);
+    height: 100%;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-gray-300);
+    box-shadow: var(--shadow-widget);
+    padding: var(--space-lg) var(--space-lg);
+    box-sizing: border-box;
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .widget-panel {
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        border-top: 1px solid var(--color-gray-300);
+    }
 }
 
 .widget-panel-title {

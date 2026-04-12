@@ -34,10 +34,14 @@
 	min-width: 0;
 }
 
-@media (max-width: 1200px) {
-	.page-layout {
-		gap: var(--space-md);
-	}
+@media (max-width: 768px) {
+    .app-content {
+        padding: var(--space-lg);
+        overflow-x: hidden;
+    }
+    .page-layout {
+        flex-direction: column;
+    }
 }
 
 /* ========== VIEW/PAGE STRUCTURE ========== */
