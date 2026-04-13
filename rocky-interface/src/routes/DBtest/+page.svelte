@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createUser, fetchUsersForDbTest, removeUser } from '$lib/api/users';
+	import { createUser, fetchUsersForDbTest, setUserActive } from '$lib/api/users';
 	import type { DbUser } from '$lib/types/user';
 
 	let users: DbUser[] = [];
@@ -33,7 +33,7 @@
 	async function deleteUser(id: string) {
 		message = null;
 		try {
-			await removeUser(id);
+			await setUserActive(id, false);
 		} catch (err) {
 			message = err instanceof Error ? err.message : 'Unable to delete user.';
 			return;

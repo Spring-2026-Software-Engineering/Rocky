@@ -85,8 +85,7 @@ analytics_activity = collections.analytics_activity
 widgets_default = collections.widgets_default
 help_faq = collections.help_faq
 
-ALLOWED_THEME_PREFERENCES = {"light", "dark", "system"}
-API_KEY_REGENERATION_COOLDOWN = timedelta(minutes=5)
+ALLOWED_THEME_PREFERENCES = {"light", "dark"}
 KENT_EMAIL_SUFFIX = "@kent.edu"
 WLID_PREFIX = "WLID"
 KSUID_PREFIX = "KSUID"
@@ -268,7 +267,7 @@ def _default_widget_ids() -> list[str]:
 
 def _default_user_settings() -> dict[str, Any]:
     return {
-        "themePreference": "system",
+        "themePreference": "light",
         "widgets": _default_widget_ids(),
     }
 

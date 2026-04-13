@@ -55,3 +55,7 @@ export default defineConfig(({ mode }) => {
 		}
 	};
 });
+
+optimizeDeps: {
+    exclude: ['@azure/msal-browser']
+}

@@ -50,7 +50,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	event.locals.currentUser = currentUser;
-	event.locals.themePreference = 'system';
+	event.locals.themePreference = 'light';
 	event.locals.initialFrame = readInitialFrameFromCookie(event.cookies.get(FRAME_COOKIE_NAME), currentUser?.isAdmin ?? false);
 
 	if (currentUser) {

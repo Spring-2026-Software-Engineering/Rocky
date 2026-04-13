@@ -9,6 +9,7 @@
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import { openCourseComposer } from '$lib/stores/courseComposerStore';
 	import { framesForRole, toFrameLabel, type FrameName } from '$lib/types/frame';
+	import {sidebarOpen} from '$lib/stores/sidebarStore';
 
 	const frames = Object.keys(frameMap) as FrameName[];
 	const isAdmin = $derived(Boolean(page.data.currentUser?.isAdmin));
@@ -108,6 +109,7 @@
 			}
 
 			currentFrame.set(frame);
+			sidebarOpen.set(false);
 		} catch (error) {
 			console.error('Session validation error:', error);
 			window.location.href = '/login';
@@ -152,6 +154,7 @@
 		selectedCourseId.set(courseId);
 		await handleFrameChange('courses');
 		courseMenuOpen = false;
+		sidebarOpen.set(false);
 		requestAnimationFrame(() => {
 			requestAnimationFrame(() => {
 				scrollToTopOfApp();
@@ -167,7 +170,11 @@
 	}
 </script>
 
-<nav class="sidebar">
+{#if $sidebarOpen}
+    <div class="sidebar-backdrop" onclick={() => sidebarOpen.set(false)} aria-hidden="true"></div>
+{/if}
+
+<nav class="sidebar" class:open={$sidebarOpen}>
 	{#each framesBeforeCourses as frame}
 		<button class="nav-link" class:active={activeFrame === frame} onclick={() => handleFrameChange(frame)}>{toFrameLabel(frame)}</button>
 	{/each}

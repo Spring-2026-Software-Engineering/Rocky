@@ -3,18 +3,19 @@
 	import { goto } from '$app/navigation';
 	import ViewShell from '$lib/components/ViewShell.svelte';
 	import { setThemePreference } from '$lib/stores/themeStore';
-	import type { ThemePreference } from '$lib/settings/userSettings';
+	import '$lib/styles/routes/account.css';
 
-	let selectedTheme = $state<ThemePreference>((page.data.themePreference || 'system') as ThemePreference);
+	let isDarkMode = $state(page.data.themePreference === 'dark');
+	let currentUser = $derived(page.data.currentUser);
 
-	async function handleThemeChange(event: Event) {
-		const value = (event.currentTarget as HTMLSelectElement).value as ThemePreference;
-		selectedTheme = value;
+	async function handleThemeToggle() {
+		const previousValue = isDarkMode;
+		isDarkMode = !previousValue;
 
 		try {
-			await setThemePreference(selectedTheme);
+			await setThemePreference(isDarkMode ? 'dark' : 'light');
 		} catch {
-			selectedTheme = (page.data.themePreference || 'system') as ThemePreference;
+			isDarkMode = previousValue;
 		}
 	}
 
@@ -23,26 +24,39 @@
 	}
 </script>
 
-<ViewShell title="Account Settings">
+<ViewShell title="Account Profile">
 	<div slot="actions">
 		<button class="view-btn" onclick={logout}>Log Out</button>
 	</div>
-
-		<section class="section">
-			<div class="section-header">
-				<h2>Appearance</h2>
+	
+	<section class="section account-card">
+		<div class="account-profile-header">
+			<div class="account-identity">
+				<h2 class="account-name">
+					{currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Unknown User'}
+				</h2>
+				<p><strong>ID:</strong> {currentUser?.id ?? '-'}</p>
+				<p><strong>Email:</strong> {currentUser?.email ?? '-'}</p>
 			</div>
+		</div>
 
-			<div class="section-content">
-				<div class="form-group">
-					<label for="themePreference" class="form-label">Theme Preference</label>
-					<select id="themePreference" class="text-input" bind:value={selectedTheme} onchange={handleThemeChange}>
-						<option value="light">Light</option>
-						<option value="dark">Dark</option>
-						<option value="system">System Default</option>
-					</select>
-					<p class="account-note">Changes apply immediately and are saved to your account.</p>
-				</div>
+		<div class="account-divider" aria-hidden="true"></div>
+
+		<div class="account-theme-row">
+			<div>
+				<p class="account-theme-title">Dark Mode</p>
+				<p class="account-note">Adjust the appearance of the interface.</p>
 			</div>
-		</section>
+			<button
+				type="button"
+				class="account-toggle"
+				class:account-toggle-active={isDarkMode}
+				onclick={handleThemeToggle}
+				aria-pressed={isDarkMode}
+				aria-label="Toggle dark mode"
+			>
+				<span class="account-toggle-knob"></span>
+			</button>
+		</div>
+	</section>
 </ViewShell>
