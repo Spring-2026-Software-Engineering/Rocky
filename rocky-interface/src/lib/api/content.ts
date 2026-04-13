@@ -17,17 +17,22 @@ import {
 import { normalizeFaqItems, type ApiFaqItem, type FaqItem } from '$lib/types/help';
 import { toPanelWidgets, type PanelWidget } from '$lib/types/widget';
 
+const USER_SAFE_ACTION_FAILURE = 'Action failed. Please try again.';
+const USER_SAFE_NETWORK_FAILURE = 'Unable to reach the server. Please try again.';
+
 async function fetchJson<T>(url: string): Promise<T> {
 	let response: Response;
 	try {
 		response = await fetch(url);
 	} catch (err) {
-		const reason = err instanceof Error ? err.message : 'Unknown network error';
-		throw new Error(`Network request failed for ${url}. ${reason}`);
+		console.error('[content api] network request failed', { url, err });
+		throw new Error(USER_SAFE_NETWORK_FAILURE);
 	}
 
 	if (!response.ok) {
-		throw new Error(`Request failed (${response.status}) for ${url}`);
+		const body = await response.text();
+		console.error('[content api] request failed', { url, status: response.status, raw: body });
+		throw new Error(USER_SAFE_ACTION_FAILURE);
 	}
 	return (await response.json()) as T;
 }
@@ -95,9 +100,10 @@ export async function fetchFaqItems(): Promise<FaqItem[]> {
  */
 export function getUserAssignedCourseIds(userId: string, courseDetails: CourseDetail[]): number[] {
 	const normalizedId = userId.trim();
+	const normalizedEmail = userId.trim().toLowerCase();
 	return courseDetails
 		.filter((course) => {
-			return course.members.some((member) => member.id === normalizedId);
+			return course.members.some((member) => member.id === normalizedId || member.email.toLowerCase() === normalizedEmail);
 		})
 		.map((course) => course.id)
 		.filter((id): id is number => typeof id === 'number');

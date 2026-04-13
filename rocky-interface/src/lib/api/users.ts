@@ -1,4 +1,8 @@
 import { normalizeDbUsers, normalizeUsers, type ApiUser, type DbUser, type User, type CreateUserInput, toCreateUserPayload } from '$lib/types/user';
+import { showErrorFeedback, showSuccessFeedback } from '$lib/stores/feedbackStore';
+
+const USER_SAFE_ACTION_FAILURE = 'Action failed. Please try again.';
+const USER_SAFE_NETWORK_FAILURE = 'Unable to reach the server. Please try again.';
 
 export type ApiWhitelistEntry = Partial<{
 	first_name: string;
@@ -50,14 +54,20 @@ async function fetchJson<T>(url: string): Promise<T> {
 	try {
 		response = await fetch(url);
 	} catch (err) {
-		const reason = err instanceof Error ? err.message : 'Unknown network error';
-		throw new Error(`Network request failed for ${url}. ${reason}`);
+		console.error('[users api] network request failed', { url, err });
+		throw new Error(USER_SAFE_NETWORK_FAILURE);
 	}
 
 	if (!response.ok) {
-		throw new Error(`Request failed (${response.status}) for ${url}`);
+		const body = await response.text();
+		console.error('[users api] request failed', { url, status: response.status, raw: body });
+		throw new Error(USER_SAFE_ACTION_FAILURE);
 	}
 	return (await response.json()) as T;
+}
+
+function getErrorMessage(err: unknown, fallback: string): string {
+	return err instanceof Error && err.message.trim() ? err.message : fallback;
 }
 
 export async function fetchUsersForViews(): Promise<User[]> {
@@ -73,27 +83,43 @@ export async function fetchUsersForDbTest(): Promise<DbUser[]> {
 }
 
 export async function createUser(input: CreateUserInput): Promise<void> {
-	const response = await fetch('/api/backend/users', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(toCreateUserPayload(input))
-	});
+	try {
+		const response = await fetch('/api/backend/users', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(toCreateUserPayload(input))
+		});
 
-	if (!response.ok) {
-		throw new Error(`Failed to create user (${response.status}).`);
+		if (!response.ok) {
+			throw new Error(`Failed to create user (${response.status}).`);
+		}
+
+		showSuccessFeedback('User created successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to create user.');
+		showErrorFeedback(message);
+		throw err;
 	}
 }
 
 export async function setUserActive(id: string, isActive: boolean): Promise<void> {
-	const response = await fetch(`/api/backend/users/${id}`, {
-		method: 'PUT',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ is_active: isActive })
-	});
+	try {
+		const response = await fetch(`/api/backend/users/${id}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ is_active: isActive })
+		});
 
-	if (!response.ok) {
-		const payload = (await response.json().catch(() => ({ error: '' }))) as { error?: string };
-		throw new Error(payload.error || `Failed to update user status (${response.status}).`);
+		if (!response.ok) {
+			const payload = (await response.json().catch(() => ({ error: '' }))) as { error?: string };
+			throw new Error(payload.error || `Failed to update user status (${response.status}).`);
+		}
+
+		showSuccessFeedback(isActive ? 'User activated successfully.' : 'User deactivated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update user status.');
+		showErrorFeedback(message);
+		throw err;
 	}
 }
 
@@ -104,31 +130,47 @@ export async function fetchOAuthWhitelistEntries(): Promise<WhitelistEntry[]> {
 }
 
 export async function createOAuthWhitelistEntry(input: CreateWhitelistEntryInput): Promise<void> {
-	const response = await fetch('/api/backend/auth/microsoft/whitelist', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			firstName: input.firstName.trim(),
-			lastName: input.lastName.trim(),
-			email: input.email.trim()
-		})
-	});
+	try {
+		const response = await fetch('/api/backend/auth/microsoft/whitelist', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				firstName: input.firstName.trim(),
+				lastName: input.lastName.trim(),
+				email: input.email.trim()
+			})
+		});
 
-	if (!response.ok) {
-		const payload = (await response.json().catch(() => ({ error: '' }))) as { error?: string };
-		throw new Error(payload.error || `Failed to add whitelist entry (${response.status}).`);
+		if (!response.ok) {
+			const payload = (await response.json().catch(() => ({ error: '' }))) as { error?: string };
+			throw new Error(payload.error || `Failed to add whitelist entry (${response.status}).`);
+		}
+
+		showSuccessFeedback('Whitelist entry added successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to add whitelist entry.');
+		showErrorFeedback(message);
+		throw err;
 	}
 }
 
 export async function setWhitelistUserActive(id: string, isActive: boolean): Promise<void> {
-	const response = await fetch(`/api/backend/auth/microsoft/whitelist/${id}`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ is_active: isActive })
-	});
+	try {
+		const response = await fetch(`/api/backend/auth/microsoft/whitelist/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ is_active: isActive })
+		});
 
-	if (!response.ok) {
-		const payload = (await response.json().catch(() => ({ error: '' }))) as { error?: string };
-		throw new Error(payload.error || `Failed to update whitelist user status (${response.status}).`);
+		if (!response.ok) {
+			const payload = (await response.json().catch(() => ({ error: '' }))) as { error?: string };
+			throw new Error(payload.error || `Failed to update whitelist user status (${response.status}).`);
+		}
+
+		showSuccessFeedback(isActive ? 'Whitelist user activated successfully.' : 'Whitelist user deactivated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update whitelist user status.');
+		showErrorFeedback(message);
+		throw err;
 	}
 }

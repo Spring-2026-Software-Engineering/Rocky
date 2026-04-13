@@ -59,6 +59,10 @@ jobs:
         working-directory: rocky-interface
         run: npm ci
 
+      - name: Run frontend unit tests
+        working-directory: rocky-interface
+        run: npm run test:unit
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -5,6 +5,11 @@ export type ApiCourse = Partial<{
 	instructor: string;
 	semester: string;
 	color: string;
+	has_api_key: boolean;
+	api_key_owner_type: 'person' | 'group' | null;
+	api_key_owner_id: string | null;
+	api_key_group_created_by: string | null;
+	api_key_created: string | null;
 	overview: string;
 	announcements: string[];
 	members: ApiCourseMember[];
@@ -18,14 +23,20 @@ export type Course = {
 	instructor: string;
 	semester: string;
 	color: string;
+	hasApiKey: boolean;
+	apiKeyOwnerType: 'person' | 'group' | null;
+	apiKeyOwnerId: string | null;
+	apiKeyGroupCreatedBy: string | null;
+	apiKeyCreated: string | null;
 };
 
 export type ApiCourseMember = Partial<{
-	id: string;
-	name: string;
+	id: string | null;
+	name: string | null;
 	email: string;
 	role: string;
 	accountEmail: string;
+	key_limit: number;
 }>;
 
 export type CourseAccountRecord = {
@@ -36,10 +47,11 @@ export type CourseAccountRecord = {
 };
 
 export type CourseMember = {
-	id: string;
-	name: string;
+	id: string | null;
+	name: string | null;
 	email: string;
 	role: 'instructor' | 'student';
+	keyLimit: number;
 };
 
 export type ApiCourseDetail = Partial<{
@@ -54,6 +66,7 @@ export type ApiCourseGroup = Partial<{
 	courseId: number;
 	name: string;
 	memberIds: string[];
+	key_limit: number;
 }>;
 
 export type CourseDetail = {
@@ -68,6 +81,15 @@ export type CourseGroup = {
 	courseId: number;
 	name: string;
 	memberIds: string[];
+	keyLimit: number;
+};
+
+export type CourseApiKeySummary = {
+	ownerType: 'person' | 'group';
+	ownerId: string;
+	keyName: string;
+	created: string;
+	courseId: number;
 };
 
 function normalizeSemester(rawSemester?: string): string {
@@ -89,7 +111,12 @@ export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 		name: raw.name?.trim() || 'Untitled Course',
 		instructor,
 		semester: normalizeSemester(raw.semester),
-		color: raw.color?.trim() || '#1a4a8a'
+		color: raw.color?.trim() || '#1a4a8a',
+		hasApiKey: Boolean(raw.has_api_key),
+		apiKeyOwnerType: raw.api_key_owner_type || null,
+		apiKeyOwnerId: raw.api_key_owner_id?.trim() || null,
+		apiKeyGroupCreatedBy: raw.api_key_group_created_by?.trim() || null,
+		apiKeyCreated: raw.api_key_created?.trim() || null
 	};
 }
 
@@ -105,34 +132,24 @@ function toCourseMemberRole(role: string): 'instructor' | 'student' {
 	return normalizeMemberRole(role);
 }
 
-function deriveNameFromEmail(email: string): string {
-	const normalized = email.trim().toLowerCase();
-	if (!normalized || normalized === 'n/a' || !normalized.includes('@')) {
-		return 'Unknown User';
-	}
-
-	const localPart = normalized.split('@')[0] || '';
-	const words = localPart
-		.split(/[._-]+/)
-		.filter((piece) => piece.length > 0)
-		.map((piece) => `${piece.charAt(0).toUpperCase()}${piece.slice(1)}`);
-
-	return words.length > 0 ? words.join(' ') : 'Unknown User';
-}
-
-function normalizeCourseMember(raw: ApiCourseMember, index = 0, accountsByEmail?: Record<string, CourseAccountRecord>): CourseMember {
+function normalizeCourseMember(raw: ApiCourseMember, accountsByEmail?: Record<string, CourseAccountRecord>): CourseMember {
 	const referenceEmail = raw.accountEmail?.trim().toLowerCase() || raw.email?.trim().toLowerCase() || '';
 	const matchedAccount = referenceEmail ? accountsByEmail?.[referenceEmail] : undefined;
 	const email = matchedAccount?.email || raw.email?.trim() || raw.accountEmail?.trim() || 'N/A';
-	const name = matchedAccount?.name || raw.name?.trim() || deriveNameFromEmail(email);
+	const name = matchedAccount?.name || raw.name?.trim() || null;
 	const role = raw.role || 'student';
-	const id = raw.id?.trim() || matchedAccount?.id || `member-${index + 1}`;
+	const rawId = raw.id?.trim() || '';
+	const id = matchedAccount?.id || rawId || null;
 
 	return {
 		id,
 		name,
 		email,
-		role: toCourseMemberRole(role)
+		role: toCourseMemberRole(role),
+		keyLimit:
+			typeof raw.key_limit === 'number' && Number.isFinite(raw.key_limit) && raw.key_limit > 0
+				? Math.floor(raw.key_limit)
+				: 1
 	};
 }
 
@@ -144,7 +161,7 @@ export function normalizeCourseDetail(raw: ApiCourseDetail, index = 0, accountsB
 			? raw.announcements.map((item) => item?.trim() || '').filter((item) => item.length > 0)
 			: [],
 		members: Array.isArray(raw.members)
-			? raw.members.map((member, memberIndex) => normalizeCourseMember(member, memberIndex, accountsByEmail))
+			? raw.members.map((member) => normalizeCourseMember(member, accountsByEmail))
 			: []
 	};
 }
@@ -164,7 +181,11 @@ export function normalizeCourseGroup(raw: ApiCourseGroup, index = 0): CourseGrou
 		id: raw.id?.trim() || `group-${index + 1}`,
 		courseId: typeof raw.courseId === 'number' && Number.isFinite(raw.courseId) ? raw.courseId : 0,
 		name: raw.name?.trim() || `Group ${index + 1}`,
-		memberIds: normalizedMemberIds
+		memberIds: normalizedMemberIds,
+		keyLimit:
+			typeof raw.key_limit === 'number' && Number.isFinite(raw.key_limit) && raw.key_limit > 0
+				? Math.floor(raw.key_limit)
+				: 1
 	};
 }
 

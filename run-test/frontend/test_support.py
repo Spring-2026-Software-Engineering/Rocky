@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import logging
 import subprocess
 import sys
 import time
@@ -22,12 +23,13 @@ BACKEND_DIR = ROOT / "rocky-backend"
 BASE_URL = "http://127.0.0.1:4173"
 NPM_BIN = "npm.cmd" if os.name == "nt" else "npm"
 PYTHON_BIN = sys.executable
+logger = logging.getLogger("rocky.tests.frontend")
 
 
 class FrontendBrowserTestCase(unittest.TestCase):
     @classmethod
     def _log(cls, message: str):
-        print(f"[frontend-e2e] {message}", flush=True)
+        logger.info("[frontend-e2e] %s", message)
 
     @classmethod
     def setUpClass(cls):

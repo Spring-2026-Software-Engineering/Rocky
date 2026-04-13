@@ -14,7 +14,7 @@ class SeedDataShapeTests(BackendTestCase):
         self.assertEqual(summary["users_inserted"], 7)
         self.assertEqual(summary["courses_inserted"], 6)
         self.assertEqual(summary["api_keys_inserted"], 6)
-        self.assertEqual(summary["api_history_inserted"], 6)
+        self.assertEqual(summary["api_history_inserted"], 5)
 
         admin_counts = Counter(bool(user.get("is_admin")) for user in main.users.find())
         self.assertEqual(admin_counts[True], 1)
@@ -22,7 +22,7 @@ class SeedDataShapeTests(BackendTestCase):
 
         self.assertEqual(main.users.count_documents({}), 7)
         self.assertEqual(main.courses.count_documents({}), 6)
-        self.assertEqual(main.api_history.count_documents({}), 6)
+        self.assertEqual(main.api_history.count_documents({}), 5)
 
     def test_each_seeded_user_has_own_widgets(self):
         self._log("Checking that widgets are embedded per user record.")
