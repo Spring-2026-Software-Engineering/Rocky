@@ -25,6 +25,7 @@
 	let whitelistMessage: string | null = null;
 	let isSavingWhitelist = false;
 	let searchQuery = '';
+	let sortByName = false;
 
 	let firstName = '';
 	let lastName = '';
@@ -131,9 +132,9 @@
 					type="text"
 					placeholder="Search users"
 					bind:value={searchQuery}
-					class="view-btn user-search-input"
+					class="view-btn"
 					/>
-					
+
 					<button type="button" class="view-btn user-tab-btn" class:user-tab-active={activeTab === 'kent'} onclick={() => (activeTab = 'kent')}>
 						Kent Emails
 					</button>
@@ -156,7 +157,12 @@
 							</colgroup>
 							<thead>
 								<tr>
-									<th>Name</th>
+									<th
+										style="cursor: pointer; user-select: none;"
+										onclick={() => (sortByName = !sortByName)} 
+									>
+										Name {sortByName ? '▲' : '▼'}
+									</th>
 									<th>Email</th>
 									<th>ID</th>
 									<th>Admin</th>
@@ -172,6 +178,11 @@
 								{:else}
 									{#each kentUsers.filter((user) =>
 										user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+									)
+									.sort((a, b) =>
+										sortByName
+											? (a.displayName ?? '').localeCompare(b.displayName ?? '')
+											: 0
 									) as user}
 										<tr>
 											<td>{user.displayName}</td>
