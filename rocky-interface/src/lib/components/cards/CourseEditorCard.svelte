@@ -2,6 +2,10 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { User } from '$lib/types/user';
 
+	const DEFAULT_SEMESTER_YEAR_MIN = 2000;
+	const DEFAULT_SEMESTER_YEAR_MAX = 2200;
+	const DEFAULT_SEMESTER_TERMS = ['none', 'summer', 'fall', 'spring'];
+
 	type CourseEditorForm = {
 		name: string;
 		code: string;
@@ -14,10 +18,80 @@
 	export let form: CourseEditorForm;
 	export let users: User[] = [];
 	export let idPrefix = 'course-editor';
+	export let useSemesterPicker = false;
+	export let semesterYearMin = DEFAULT_SEMESTER_YEAR_MIN;
+	export let semesterYearMax = DEFAULT_SEMESTER_YEAR_MAX;
+	export let semesterTerms: string[] = DEFAULT_SEMESTER_TERMS;
+
+	let selectedSemesterTerm = 'none';
+	let selectedSemesterYear = DEFAULT_SEMESTER_YEAR_MIN;
+	let lastParsedSemester = '';
 
 	const dispatch = createEventDispatcher<{ submit: void }>();
 
+	function clampSemesterYear(value: number): number {
+		if (!Number.isFinite(value)) {
+			return semesterYearMin;
+		}
+		if (value < semesterYearMin) {
+			return semesterYearMin;
+		}
+		if (value > semesterYearMax) {
+			return semesterYearMax;
+		}
+		return Math.floor(value);
+	}
+
+	function toSemesterTitle(value: string): string {
+		if (!value) {
+			return '';
+		}
+		return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+	}
+
+	function parseSemester(semesterValue: string): { term: string; year: number } {
+		const fallbackYear = clampSemesterYear(new Date().getFullYear());
+		const normalized = semesterValue.trim();
+		if (!normalized) {
+			return { term: 'none', year: fallbackYear };
+		}
+
+		const [termRaw, yearRaw] = normalized.split(/\s+/, 2);
+		const term = (termRaw || '').trim().toLowerCase();
+		const parsedYear = Number(yearRaw);
+
+		return {
+			term: semesterTerms.includes(term) ? term : 'none',
+			year: clampSemesterYear(parsedYear)
+		};
+	}
+
+	function updateSemesterFromControls() {
+		if (!useSemesterPicker) {
+			return;
+		}
+
+		selectedSemesterYear = clampSemesterYear(selectedSemesterYear);
+		form.semester = `${toSemesterTitle(selectedSemesterTerm)} ${selectedSemesterYear}`.trim();
+		lastParsedSemester = form.semester;
+	}
+
+	$: if (useSemesterPicker && form.semester !== lastParsedSemester) {
+		const parsed = parseSemester(form.semester);
+		selectedSemesterTerm = parsed.term;
+		selectedSemesterYear = parsed.year;
+		lastParsedSemester = form.semester;
+	}
+
+	$: if (useSemesterPicker && !semesterTerms.includes(selectedSemesterTerm)) {
+		selectedSemesterTerm = 'none';
+		updateSemesterFromControls();
+	}
+
 	function submitForm() {
+		if (useSemesterPicker) {
+			updateSemesterFromControls();
+		}
 		dispatch('submit');
 	}
 </script>
@@ -31,12 +105,39 @@
 		</div>
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-code-input`}>Course ID</label>
-			<input id={`${idPrefix}-code-input`} class="text-input" type="text" bind:value={form.code} />
+			<input id={`${idPrefix}-code-input`} class="text-input" type="text" bind:value={form.code} placeholder="Optional" />
 		</div>
-		<div class="form-group">
-			<label class="form-label" for={`${idPrefix}-semester-input`}>Semester</label>
-			<input id={`${idPrefix}-semester-input`} class="text-input" type="text" bind:value={form.semester} />
-		</div>
+		{#if useSemesterPicker}
+			<div class="form-group">
+				<label class="form-label" for={`${idPrefix}-semester-term-select`}>Semester</label>
+				<div class="course-semester-row">
+					<select
+						id={`${idPrefix}-semester-term-select`}
+						class="text-input"
+						bind:value={selectedSemesterTerm}
+						onchange={updateSemesterFromControls}
+					>
+						{#each semesterTerms as term}
+							<option value={term}>{toSemesterTitle(term)}</option>
+						{/each}
+					</select>
+					<input
+						id={`${idPrefix}-semester-year-input`}
+						class="text-input"
+						type="number"
+						min={semesterYearMin}
+						max={semesterYearMax}
+						bind:value={selectedSemesterYear}
+						onchange={updateSemesterFromControls}
+					/>
+				</div>
+			</div>
+		{:else}
+			<div class="form-group">
+				<label class="form-label" for={`${idPrefix}-semester-input`}>Semester</label>
+				<input id={`${idPrefix}-semester-input`} class="text-input" type="text" bind:value={form.semester} />
+			</div>
+		{/if}
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-instructor-select`}>Instructor</label>
 			<select id={`${idPrefix}-instructor-select`} class="text-input" bind:value={form.instructorId}>
