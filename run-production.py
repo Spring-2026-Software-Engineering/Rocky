@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -20,9 +21,12 @@ REPO_ROOT = Path(__file__).resolve().parent
 BACKEND_DIR = REPO_ROOT / "rocky-backend"
 FRONTEND_DIR = REPO_ROOT / "rocky-interface"
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("rocky.run-production")
+
 
 def log(message: str) -> None:
-    print(f"[run-production] {message}", flush=True)
+    logger.info("[run-production] %s", message)
 
 
 def get_python_executable() -> str:

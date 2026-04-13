@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -23,6 +24,8 @@ if str(SEED_DATA_DIR) not in sys.path:
 from backend.api_key_generator import generate_api_key_pair
 from backend.storage import build_in_memory_collections
 import main
+
+logger = logging.getLogger("rocky.seed")
 
 
 def _load_json(path: Path):
@@ -355,5 +358,6 @@ def seed_backend_from_fixture(path: Path = FIXTURE_PATH) -> dict[str, int]:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     summary = seed_from_backend()
-    print(f"[seed] Seeded backend from backend fixture data: {summary}")
+    logger.info("[seed] Seeded backend from backend fixture data: %s", summary)

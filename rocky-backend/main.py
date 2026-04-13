@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import importlib.util
+import logging
 import random
 import sys
 from typing import Any
@@ -40,6 +41,11 @@ from backend.validation import (
     validate_course_payload,
     validate_user_payload,
 )
+from backend.route_handlers import auth as auth_handlers
+from backend.route_handlers import content as content_handlers
+from backend.route_handlers import courses as course_handlers
+from backend.route_handlers import settings as settings_handlers
+from backend.route_handlers import users as user_handlers
 
 SEED_DATA_DIR = Path(__file__).resolve().parent / "seed-data"
 if str(SEED_DATA_DIR) not in sys.path:
@@ -63,6 +69,9 @@ seed_data_static_content = _seed_data.seed_static_content
 settings = get_settings()
 app = Flask(__name__)
 CORS(app)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("rocky.backend")
 
 collections: Collections = build_collections(settings)
 users = collections.users
@@ -607,1020 +616,256 @@ def seed_static_content() -> dict[str, int]:
 	return seed_data_static_content(collections, read_seed_json)
 
 
+def _route_deps() -> dict[str, Any]:
+    return {
+        "settings": settings,
+        "users": users,
+        "whitelist_users": whitelist_users,
+        "courses": courses,
+        "api_keys": api_keys,
+        "api_history": api_history,
+        "analytics_kpis": analytics_kpis,
+        "analytics_activity": analytics_activity,
+        "widgets_default": widgets_default,
+        "help_faq": help_faq,
+        "EMAIL_RE": EMAIL_RE,
+        "KSUID_PREFIX": KSUID_PREFIX,
+        "logger": logger,
+        "require_admin": require_admin,
+        "require_requester_identity": require_requester_identity,
+        "normalize_str": normalize_str,
+        "_bad_request": _bad_request,
+        "_get_collection_snapshot": _get_collection_snapshot,
+        "_resolve_user_record": _resolve_user_record,
+        "_resolve_requester_user_id": _resolve_requester_user_id,
+        "_serialize_user": _serialize_user,
+        "_serialize_whitelist_user": _serialize_whitelist_user,
+        "_is_user_active": _is_user_active,
+        "_default_user_settings": _default_user_settings,
+        "_normalize_oauth_payload": _normalize_oauth_payload,
+        "_is_kent_email": _is_kent_email,
+        "_coerce_ksuid": _coerce_ksuid,
+        "_next_prefixed_id": _next_prefixed_id,
+        "_next_unique_wlid": _next_unique_wlid,
+        "_can_access_user_record": _can_access_user_record,
+        "_default_widgets_payload": _default_widgets_payload,
+        "_get_settings_for_user": _get_settings_for_user,
+        "_sanitize_user_settings": _sanitize_user_settings,
+        "_sanitize_user_settings_patch": _sanitize_user_settings_patch,
+        "_resolve_user_settings": _resolve_user_settings,
+        "_upsert_settings_for_user": _upsert_settings_for_user,
+        "_serialize_value": _serialize_value,
+        "_attach_course_key_state": _attach_course_key_state,
+        "_build_api_history_entry": course_handlers._build_api_history_entry,
+        "validate_user_payload": validate_user_payload,
+        "validate_course_payload": validate_course_payload,
+        "filter_visible_courses": filter_visible_courses,
+        "get_course_record": get_course_record,
+        "can_manage_metadata": can_manage_metadata,
+        "can_manage_people": can_manage_people,
+        "can_request_api_key": can_request_api_key,
+        "can_manage_api_keys": can_manage_api_keys,
+        "add_course_members": add_course_members,
+        "remove_course_member": remove_course_member,
+        "create_course_group": create_course_group,
+        "add_group_member": add_group_member,
+        "remove_group_member": remove_group_member,
+        "update_course_member_key_limit": update_course_member_key_limit,
+        "update_course_group_key_limit": update_course_group_key_limit,
+        "delete_course_api_keys": delete_course_api_keys,
+        "regenerate_course_api_key": regenerate_course_api_key,
+        "_get_owner_key_limit": _get_owner_key_limit,
+        "_iter_course_api_keys": _iter_course_api_keys,
+        "_serialize_api_key_summary": _serialize_api_key_summary,
+        "_parse_iso_datetime": _parse_iso_datetime,
+        "API_KEY_REGENERATION_COOLDOWN": API_KEY_REGENERATION_COOLDOWN,
+        "ALLOWED_THEME_PREFERENCES": ALLOWED_THEME_PREFERENCES,
+    }
+
+
 @app.route("/health", methods=["GET"])
 def health_check():
-    return jsonify({"ok": True, "env": settings.app_env})
+    return content_handlers.health_check(_route_deps())
 
 
 @app.route("/", methods=["GET"])
 def index_page():
-    if settings.app_env == "production" and not settings.enable_db_inspector:
-        return jsonify({"error": "Not found"}), 404
-
-    collections_snapshot = {
-        "users": {
-            "docs": _get_collection_snapshot(users),
-            "description": "Canonical user records; each user document owns its settings.",
-        },
-        "whitelist_users": {
-            "docs": _get_collection_snapshot(whitelist_users),
-            "description": "Approved non-@kent.edu addresses for Microsoft OAuth login.",
-        },
-        "courses": {
-            "docs": _get_collection_snapshot(courses),
-            "description": "Course records and memberships.",
-        },
-        "api_keys": {
-            "docs": _get_collection_snapshot(api_keys),
-            "description": "Issued API keys.",
-        },
-        "api_history": {
-            "docs": _get_collection_snapshot(api_history),
-            "description": "Per-course API request history.",
-        },
-    }
-    return render_template(
-        "index.html",
-        generated_at=datetime.now(timezone.utc).isoformat(),
-        collections=collections_snapshot,
-    )
+    return content_handlers.index_page(_route_deps())
 
 
 @app.route("/auth/preview-users", methods=["GET"])
 def get_preview_users():
-    if not settings.enable_preview_login:
-        return jsonify({"error": "Not found"}), 404
-
-    result = [_serialize_user(user) for user in users.find()]
-    known_emails = {normalize_str(user.get("email")).lower() for user in result if isinstance(user, dict)}
-    for entry in whitelist_users.find():
-        email = normalize_str(entry.get("email")).lower()
-        if not email or email in known_emails:
-            continue
-        result.append(
-            _serialize_user(
-                {
-                    "id": normalize_str(entry.get("id")),
-                    "first_name": normalize_str(entry.get("first_name")),
-                    "last_name": normalize_str(entry.get("last_name")),
-                    "email": email,
-                    "is_admin": bool(entry.get("is_admin")),
-                    "is_active": _is_user_active(entry),
-                    "settings": entry.get("settings", _default_user_settings()),
-                    "created_at": entry.get("created_at"),
-                }
-            )
-        )
-    return jsonify(result)
+    return auth_handlers.get_preview_users(_route_deps())
 
 
 @app.route("/auth/session-user", methods=["GET"])
 def get_session_user():
-    email = normalize_str(request.args.get("email")).lower()
-    if not email or not EMAIL_RE.match(email):
-        return _bad_request("A valid email query parameter is required.")
-
-    user_record = _resolve_user_record(None, email)
-    if not user_record:
-        return jsonify({"error": "User not found"}), 404
-
-    return jsonify(_serialize_user(user_record))
+    return auth_handlers.get_session_user(_route_deps())
 
 
 @app.route("/auth/microsoft/login", methods=["POST"])
 def microsoft_login():
-    if not settings.enable_microsoft_oauth:
-        return jsonify({"error": "Not found"}), 404
-
-    cleaned, payload_error = _normalize_oauth_payload(request.get_json(silent=True))
-    if payload_error:
-        print(f"[oauth] login denied: invalid payload ({payload_error})", flush=True)
-        return _bad_request(payload_error)
-
-    email = cleaned["email"]
-    first_name = cleaned["first_name"]
-    last_name = cleaned["last_name"]
-    if _is_kent_email(email):
-        user_record = _resolve_user_record(None, email)
-        generated_id = _coerce_ksuid(cleaned.get("id")) or _next_prefixed_id(users, "id", KSUID_PREFIX)
-
-        if not user_record:
-            to_insert = {
-                "id": generated_id,
-                "first_name": first_name,
-                "last_name": last_name,
-                "email": email,
-                "is_admin": False,
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "settings": _default_user_settings(),
-            }
-            users.insert_one(to_insert)
-            user_record = users.find_one({"id": generated_id})
-            print(f"[oauth] login success: created Kent user {email}", flush=True)
-        else:
-            users.update_one(
-                {"id": user_record["id"]},
-                {
-                    "$set": {
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "id": user_record.get("id") or generated_id,
-                    }
-                },
-            )
-            user_record = users.find_one({"id": user_record["id"]})
-            print(f"[oauth] login success: existing Kent user {email}", flush=True)
-
-        return jsonify({"ok": True, "user": _serialize_user(user_record)})
-
-    whitelist_record = whitelist_users.find_one({"email": email})
-    if not whitelist_record:
-        print(f"[oauth] login denied: non-Kent email not whitelisted ({email})", flush=True)
-        return jsonify({"error": "This email is not approved for access."}), 403
-
-    user_record = users.find_one({"email": email})
-    if not user_record:
-        external_id = normalize_str(whitelist_record.get("id"))
-        whitelist_is_active = _is_user_active(whitelist_record)
-        to_insert = {
-            "id": external_id,
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": email,
-            "is_admin": False,
-            "is_active": whitelist_is_active,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "settings": _default_user_settings(),
-        }
-        users.insert_one(to_insert)
-        user_record = users.find_one({"id": external_id})
-        print(f"[oauth] login success: created whitelisted user {email}", flush=True)
-    else:
-        whitelist_is_active = _is_user_active(whitelist_record)
-        users.update_one(
-            {"id": user_record["id"]},
-            {
-                "$set": {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "id": whitelist_record["id"],
-                    "is_active": whitelist_is_active,
-                }
-            },
-        )
-        user_record = users.find_one({"id": user_record["id"]})
-        print(f"[oauth] login success: existing whitelisted user {email}", flush=True)
-
-    return jsonify({"ok": True, "user": _serialize_user(user_record)})
+    return auth_handlers.microsoft_login(_route_deps())
 
 
 @app.route("/auth/microsoft/whitelist", methods=["GET"])
 def get_oauth_whitelist():
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    result = [_serialize_whitelist_user(entry) for entry in whitelist_users.find()]
-    return jsonify(result)
+    return auth_handlers.get_oauth_whitelist(_route_deps())
 
 
 @app.route("/auth/microsoft/whitelist", methods=["POST"])
 def add_oauth_whitelist_entry():
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    payload = request.get_json(silent=True)
-    if not isinstance(payload, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    first_name = normalize_str(payload.get("firstName") or payload.get("first_name"))
-    last_name = normalize_str(payload.get("lastName") or payload.get("last_name"))
-    email = normalize_str(payload.get("email")).lower()
-
-    if not first_name:
-        return _bad_request("firstName is required.")
-    if not last_name:
-        return _bad_request("lastName is required.")
-    if not email or not EMAIL_RE.match(email):
-        return _bad_request("A valid email is required.")
-    if _is_kent_email(email):
-        return _bad_request("@kent.edu emails should not be added to the external whitelist.")
-
-    existing = whitelist_users.find_one({"email": email})
-    if existing:
-        print(f"[oauth] whitelist unchanged: entry already exists for {email}", flush=True)
-        return jsonify({"message": "Whitelist entry already exists.", "entry": _serialize_whitelist_user(existing)})
-
-    identity = require_requester_identity()
-    requester_email = ""
-    if identity[0] is not None:
-        requester_email, _ = identity
-
-    created = {
-        "id": _next_unique_wlid(),
-        "first_name": first_name,
-        "last_name": last_name,
-        "email": email,
-        "is_admin": False,
-        "is_active": True,
-        "settings": _default_user_settings(),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "created_by": requester_email,
-    }
-    whitelist_users.insert_one(created)
-    saved = whitelist_users.find_one({"id": created["id"]})
-
-    print(f"[oauth] whitelist add success: {email}", flush=True)
-    return jsonify({"message": "Whitelist entry added.", "entry": _serialize_whitelist_user(saved)}), 201
+    return auth_handlers.add_oauth_whitelist_entry(_route_deps())
 
 
 @app.route("/auth/microsoft/whitelist/<entry_id>", methods=["PATCH", "DELETE"])
 def update_or_delete_oauth_whitelist_entry(entry_id):
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    normalized_entry_id = normalize_str(entry_id)
-    if not normalized_entry_id:
-        return _bad_request("Invalid whitelist entry id.")
-
-    entry = whitelist_users.find_one({"id": normalized_entry_id})
-    if not entry:
-        return jsonify({"error": "Whitelist entry not found"}), 404
-
-    if request.method == "PATCH":
-        payload = request.get_json(silent=True)
-        if not isinstance(payload, dict):
-            return _bad_request("Request body must be a JSON object.")
-        if "is_active" not in payload:
-            return _bad_request("is_active is required.")
-        if not isinstance(payload.get("is_active"), bool):
-            return _bad_request("is_active must be a boolean.")
-
-        is_active = bool(payload.get("is_active"))
-        whitelist_users.update_one({"id": normalized_entry_id}, {"$set": {"is_active": is_active}})
-        users.update_one({"id": normalized_entry_id}, {"$set": {"is_active": is_active}})
-        updated = whitelist_users.find_one({"id": normalized_entry_id})
-        return jsonify({"message": "Whitelist user updated.", "entry": _serialize_whitelist_user(updated)})
-
-    return jsonify({"error": "Whitelist deletion is disabled. Use account activation controls."}), 405
+    return auth_handlers.update_or_delete_oauth_whitelist_entry(_route_deps(), entry_id)
 
 
 @app.route("/users", methods=["POST"])
 def create_user():
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    cleaned, error = validate_user_payload(request.get_json(silent=True))
-    if error:
-        return _bad_request(error)
-
-    cleaned["created_at"] = datetime.now(timezone.utc).isoformat()
-    cleaned["settings"] = _default_user_settings()
-    cleaned["is_active"] = True
-    users.insert_one(cleaned)
-    return jsonify({"message": "User created"})
+    return user_handlers.create_user(_route_deps())
 
 
 @app.route("/users", methods=["GET"])
 def get_users():
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    result = [_serialize_user(user) for user in users.find()]
-    return jsonify(result)
+    return user_handlers.get_users(_route_deps())
 
 
 @app.route("/users/<user_id>", methods=["GET"])
 def get_user(user_id):
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    user = _resolve_user_record(user_id, None)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    return jsonify(_serialize_user(user))
+    return user_handlers.get_user(_route_deps(), user_id)
 
 
 @app.route("/users/<user_id>", methods=["PUT"])
 def update_user(user_id):
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    user = _resolve_user_record(user_id, None)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict) or not data:
-        return _bad_request("Request body must be a non-empty JSON object.")
-
-    if set(data.keys()) != {"is_active"}:
-        return _bad_request("Only is_active may be updated through this endpoint.")
-    if not isinstance(data.get("is_active"), bool):
-        return _bad_request("is_active must be a boolean.")
-
-    is_active = bool(data.get("is_active"))
-    users.update_one({"id": user["id"]}, {"$set": {"is_active": is_active}})
-    whitelist_users.update_one({"id": user["id"]}, {"$set": {"is_active": is_active}})
-    return jsonify({"message": "User updated"})
+    return user_handlers.update_user(_route_deps(), user_id)
 
 
 @app.route("/users/<user_id>", methods=["DELETE"])
 def delete_user(user_id):
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    user = _resolve_user_record(user_id, None)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    return jsonify({"error": "User deletion is disabled. Use account activation controls."}), 405
+    return user_handlers.delete_user(_route_deps(), user_id)
 
 
 @app.route("/courses", methods=["POST"])
 def create_course():
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    cleaned, error = validate_course_payload(request.get_json(silent=True))
-    if error:
-        return _bad_request(error)
-
-    if "id" in cleaned:
-        if courses.find_one({"id": cleaned["id"]}) is not None:
-            return _bad_request("Course id already exists.")
-    if "id" not in cleaned:
-        existing_ids = [course.get("id", 0) for course in courses.find() if isinstance(course.get("id"), int)]
-        cleaned["id"] = (max(existing_ids) if existing_ids else 0) + 1
-
-    courses.insert_one(cleaned)
-    return jsonify(_serialize_value(cleaned)), 201
+    return course_handlers.create_course(_route_deps())
 
 
 @app.route("/courses", methods=["GET"])
 def get_courses():
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-    result = [_attach_course_key_state(_serialize_value(course)) for course in courses.find()]
-    return jsonify(filter_visible_courses(result, requester_id or email, is_admin))
+    return course_handlers.get_courses(_route_deps())
 
 
 @app.route("/courses/<course_id>", methods=["GET"])
 def get_course(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    serialized = _attach_course_key_state(_serialize_value(course))
-    visible = filter_visible_courses([serialized], requester_id or email, is_admin)
-    if not visible:
-        return jsonify({"error": "Not found"}), 404
-
-    return jsonify(visible[0])
+    return course_handlers.get_course(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/metadata", methods=["PATCH"])
 def patch_course_metadata(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    _, is_admin = identity
-    if not can_manage_metadata(is_admin):
-        return jsonify({"error": "Admin access is required."}), 403
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict) or not data:
-        return _bad_request("Request body must be a non-empty JSON object.")
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    try:
-        updated = apply_course_metadata_patch(course, users, data)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.patch_course_metadata(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>", methods=["DELETE"])
 def delete_course(course_id):
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    courses.delete_one({"_id": course["_id"]})
-    return jsonify({"message": "Course deleted"})
+    return course_handlers.delete_course(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/members", methods=["POST"])
 def add_course_members_route(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    data = request.get_json(silent=True)
-    if data is None:
-        return _bad_request("Request body is required.")
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    if not can_manage_people(course, requester_id or email, is_admin):
-        return jsonify({"error": "Instructor or admin access is required."}), 403
-
-    members_payload = data.get("members") if isinstance(data, dict) else data
-    if isinstance(members_payload, dict):
-        members_payload = [members_payload]
-
-    try:
-        updated = add_course_members(course, users, members_payload, is_admin)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.add_course_members_route(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/members", methods=["DELETE"])
 def remove_course_member_route(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    target_member_id = normalize_str(data.get("id") or data.get("memberId") or data.get("member_id"))
-    if not target_member_id:
-        return _bad_request("id is required.")
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    if not can_manage_people(course, requester_id or email, is_admin):
-        return jsonify({"error": "Instructor or admin access is required."}), 403
-
-    try:
-        updated = remove_course_member(course, target_member_id, is_admin)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.remove_course_member_route(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/groups", methods=["POST"])
 def create_course_group_route(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    if not can_manage_people(course, requester_id or email, is_admin):
-        return jsonify({"error": "Instructor or admin access is required."}), 403
-
-    global_group_ids = {
-        normalize_str(group.get("id"))
-        for candidate_course in courses.find()
-        for group in candidate_course.get("groups", [])
-        if isinstance(group, dict)
-    }
-    current_course_group_ids = {
-        normalize_str(group.get("id"))
-        for group in course.get("groups", [])
-        if isinstance(group, dict)
-    }
-    global_group_ids -= current_course_group_ids
-
-    try:
-        updated = create_course_group(course, data.get("name", ""), global_group_ids)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.create_course_group_route(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/groups/<group_id>/members", methods=["POST"])
 def add_group_member_route(course_id, group_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    if not can_manage_people(course, requester_id or email, is_admin):
-        return jsonify({"error": "Instructor or admin access is required."}), 403
-
-    target_member_id = normalize_str(data.get("id") or data.get("memberId") or data.get("member_id"))
-    if not target_member_id:
-        return _bad_request("id is required.")
-
-    try:
-        updated = add_group_member(course, group_id, target_member_id)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.add_group_member_route(_route_deps(), course_id, group_id)
 
 
 @app.route("/courses/<course_id>/groups/<group_id>/members", methods=["DELETE"])
 def remove_group_member_route(course_id, group_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    if not can_manage_people(course, requester_id or email, is_admin):
-        return jsonify({"error": "Instructor or admin access is required."}), 403
-
-    target_member_id = normalize_str(data.get("id") or data.get("memberId") or data.get("member_id"))
-    if not target_member_id:
-        return _bad_request("id is required.")
-
-    try:
-        updated = remove_group_member(course, group_id, target_member_id)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.remove_group_member_route(_route_deps(), course_id, group_id)
 
 
 @app.route("/courses/<course_id>/members/<member_id>/key-limit", methods=["PATCH"])
 def update_member_key_limit_route(course_id, member_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-    if not can_manage_people(course, requester_id or email, is_admin):
-        return jsonify({"error": "Instructor or admin access is required."}), 403
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    key_limit = data.get("keyLimit") if "keyLimit" in data else data.get("key_limit")
-    if not isinstance(key_limit, int) or key_limit < 1:
-        return _bad_request("keyLimit must be an integer >= 1.")
-
-    try:
-        updated = update_course_member_key_limit(course, member_id, key_limit)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.update_member_key_limit_route(_route_deps(), course_id, member_id)
 
 
 @app.route("/courses/<course_id>/groups/<group_id>/key-limit", methods=["PATCH"])
 def update_group_key_limit_route(course_id, group_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-    if not can_manage_people(course, requester_id or email, is_admin):
-        return jsonify({"error": "Instructor or admin access is required."}), 403
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    key_limit = data.get("keyLimit") if "keyLimit" in data else data.get("key_limit")
-    if not isinstance(key_limit, int) or key_limit < 1:
-        return _bad_request("keyLimit must be an integer >= 1.")
-
-    try:
-        updated = update_course_group_key_limit(course, group_id, key_limit)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return course_handlers.update_group_key_limit_route(_route_deps(), course_id, group_id)
 
 
 @app.route("/courses/<course_id>/api-keys", methods=["GET"])
 def list_course_api_keys_route(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-    if not can_request_api_key(course, requester_id or email, is_admin):
-        return jsonify({"error": "Course access is required."}), 403
-
-    normalized_requester = normalize_str(requester_id or email).lower()
-    requester_group_ids = {
-        normalize_str(group.get("id")).lower()
-        for group in course.get("groups", [])
-        if isinstance(group, dict) and normalized_requester in {normalize_str(member_id).lower() for member_id in group.get("memberIds", [])}
-    }
-
-    result: list[dict[str, Any]] = []
-    for entry in _iter_course_api_keys(course):
-        owner_type = normalize_str(entry.get("owner_type")).lower() or "person"
-        owner_id = normalize_str(entry.get("owner_id")).lower()
-        if not is_admin:
-            if owner_type == "person" and owner_id != normalized_requester:
-                continue
-            if owner_type == "group" and owner_id not in requester_group_ids:
-                continue
-        result.append(_serialize_api_key_summary(entry))
-
-    result.sort(key=lambda item: normalize_str(item.get("key_name")))
-    return jsonify(_serialize_value(result))
+    return course_handlers.list_course_api_keys_route(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/api-key/regenerate", methods=["POST"])
 def regenerate_course_api_key_route(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-
-    data = request.get_json(silent=True)
-    if data is None:
-        data = {}
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    requester_id = _resolve_requester_user_id(email)
-    if not can_request_api_key(course, requester_id or email, is_admin):
-        return jsonify({"error": "Course access is required."}), 403
-
-    owner_type = normalize_str(data.get("ownerType") or data.get("owner_type")).lower() or "person"
-    owner_id = normalize_str(data.get("ownerId") or data.get("owner_id") or data.get("groupId") or data.get("group_id"))
-
-    normalized_requester = normalize_str(requester_id or email).lower()
-
-    if not is_admin:
-        if owner_type == "group":
-            target_group_id = owner_id
-            target_group = next(
-                (
-                    group
-                    for group in course.get("groups", [])
-                    if isinstance(group, dict) and normalize_str(group.get("id")).lower() == normalize_str(target_group_id).lower()
-                ),
-                None,
-            )
-            if target_group is None:
-                return _bad_request("groupId is required for group keys.")
-            is_group_member = normalized_requester in {
-                normalize_str(member_id).lower()
-                for member_id in target_group.get("memberIds", [])
-            }
-            if not is_group_member:
-                return jsonify({"error": "Group membership is required."}), 403
-            owner_type = "group"
-            owner_id = normalize_str(target_group.get("id"))
-        else:
-            owner_type = "person"
-            owner_id = normalized_requester
-    elif owner_type == "group" and not owner_id:
-        return _bad_request("groupId is required for group keys.")
-
-    owner_id = normalize_str(owner_id or normalized_requester).lower()
-    key_name = normalize_str(data.get("keyName") or data.get("key_name") or "key-1")[:64].strip() or "key-1"
-
-    owner_key_limit = _get_owner_key_limit(course, owner_type, owner_id)
-    owner_keys = [
-        entry
-        for entry in _iter_course_api_keys(course)
-        if normalize_str(entry.get("owner_type")).lower() == owner_type
-        and normalize_str(entry.get("owner_id")).lower() == owner_id
-    ]
-    target_key = next(
-        (entry for entry in owner_keys if normalize_str(entry.get("key_name")) == key_name),
-        None,
-    )
-    if target_key is None and len(owner_keys) >= owner_key_limit:
-        return _bad_request(f"Key limit reached for this owner ({owner_key_limit}).")
-
-    target_key_created_at = _parse_iso_datetime(target_key.get("created")) if isinstance(target_key, dict) else None
-    if target_key_created_at is not None and datetime.now(timezone.utc) - target_key_created_at < API_KEY_REGENERATION_COOLDOWN:
-        remaining = API_KEY_REGENERATION_COOLDOWN - (datetime.now(timezone.utc) - target_key_created_at)
-        minutes = max(1, int(remaining.total_seconds() // 60) + (1 if remaining.total_seconds() % 60 else 0))
-        return jsonify({"error": f"Please wait {minutes} minute(s) before generating another key."}), 429
-
-    ownership = {
-        "owner_type": owner_type,
-        "owner_id": owner_id,
-        "key_name": key_name,
-    }
-
-    try:
-        key_doc = regenerate_course_api_key(course, api_keys, requester_id or email, ownership)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    history_doc = _build_api_history_entry(
-        course,
-        email,
-        {
-            "eventType": "generate-key",
-            "groupId": owner_id if owner_type == "group" else "",
-            "groupName": normalize_str(data.get("groupName") or data.get("group_name")),
-            "meta": {
-                "path": request.path,
-                "owner_type": owner_type,
-                "owner_id": owner_id,
-                "key_name": key_name,
-            },
-        },
-    )
-    api_history.insert_one(history_doc)
-
-    return jsonify(_serialize_value(key_doc))
+    return course_handlers.regenerate_course_api_key_route(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/api-key", methods=["DELETE"])
 def delete_course_api_key_route(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    _, is_admin = identity
-    if not can_manage_api_keys(is_admin):
-        return jsonify({"error": "Admin access is required."}), 403
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    try:
-        deleted_count = delete_course_api_keys(course, api_keys)
-    except ValueError as exc:
-        return _bad_request(str(exc))
-
-    return jsonify({"message": "API keys deleted", "deleted": deleted_count})
+    return course_handlers.delete_course_api_key_route(_route_deps(), course_id)
 
 
 @app.route("/user-settings", methods=["GET"])
 def get_user_settings():
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    user_record = _resolve_user_record(request.args.get("userId"), request.args.get("email") or email)
-    if not user_record:
-        return jsonify({"error": "User not found"}), 404
-    if not _can_access_user_record(email, is_admin, user_record):
-        return jsonify({"error": "You may only access your own settings."}), 403
-
-    settings_payload = _get_settings_for_user(user_record)
-    return jsonify({"settings": settings_payload})
+    return settings_handlers.get_user_settings(_route_deps())
 
 
 @app.route("/user-settings", methods=["PATCH"])
 def patch_user_settings():
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    user_record = _resolve_user_record(data.get("userId"), data.get("email") or email)
-    if not user_record:
-        return jsonify({"error": "User not found"}), 404
-    if not _can_access_user_record(email, is_admin, user_record):
-        return jsonify({"error": "You may only access your own settings."}), 403
-
-    patch, patch_error = _sanitize_user_settings_patch(data.get("patch"))
-    if patch_error:
-        return _bad_request(patch_error)
-
-    current = _sanitize_user_settings(user_record.get("settings"))
-    updated = {**current, **patch}
-    _upsert_settings_for_user(user_record, updated)
-    return jsonify({"settings": _resolve_user_settings(updated)})
+    return settings_handlers.patch_user_settings(_route_deps())
 
 
 @app.route("/user-settings/<setting_key>", methods=["PATCH"])
 def patch_user_setting(setting_key):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    user_record = _resolve_user_record(data.get("userId"), data.get("email") or email)
-    if not user_record:
-        return jsonify({"error": "User not found"}), 404
-    if not _can_access_user_record(email, is_admin, user_record):
-        return jsonify({"error": "You may only access your own settings."}), 403
-
-    if setting_key != "themePreference":
-        return _bad_request(f"Unsupported user setting key: {setting_key}.")
-
-    value = normalize_str(data.get("value")).lower()
-    if value not in ALLOWED_THEME_PREFERENCES:
-        allowed = ", ".join(sorted(ALLOWED_THEME_PREFERENCES))
-        return _bad_request(f"themePreference must be one of: {allowed}.")
-
-    current = _sanitize_user_settings(user_record.get("settings"))
-    current["themePreference"] = value
-    _upsert_settings_for_user(user_record, current)
-    return jsonify({"settings": _resolve_user_settings(current)})
-
-
-def _build_api_history_entry(course: dict[str, Any], requester_email: str, payload: dict[str, Any]) -> dict[str, Any]:
-    requester_id = _resolve_requester_user_id(requester_email)
-    groups = course.get("groups") if isinstance(course.get("groups"), list) else []
-    matched_group = next(
-        (
-            group
-            for group in groups
-            if isinstance(group, dict)
-            and requester_id in [normalize_str(member_id) for member_id in (group.get("memberIds") or group.get("memberEmails") or [])]
-        ),
-        None,
-    )
-
-    group_id = normalize_str(payload.get("groupId")) or (normalize_str(matched_group.get("id")) if matched_group else "")
-    group_name = normalize_str(payload.get("groupName")) or (normalize_str(matched_group.get("name")) if matched_group else "")
-
-    return {
-        "u_id": requester_id,
-        "c_id": normalize_str(course.get("code")),
-        "course_id": course.get("id"),
-        "event_type": normalize_str(payload.get("eventType")) or "request",
-        "group_id": group_id or None,
-        "group_name": group_name or None,
-        "is_group_member": bool(group_id),
-        "meta": payload.get("meta") if isinstance(payload.get("meta"), dict) else {},
-        "created": datetime.now(timezone.utc).isoformat(),
-    }
+    return settings_handlers.patch_user_setting(_route_deps(), setting_key)
 
 
 @app.route("/courses/<course_id>/api-history", methods=["POST"])
 def append_course_api_history(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    visible = filter_visible_courses([_serialize_value(course)], requester_id or email, is_admin)
-    if not visible:
-        return jsonify({"error": "Not found"}), 404
-
-    payload = request.get_json(silent=True)
-    if payload is None:
-        payload = {}
-    if not isinstance(payload, dict):
-        return _bad_request("Request body must be a JSON object.")
-
-    history_doc = _build_api_history_entry(course, email, payload)
-    api_history.insert_one(history_doc)
-    return jsonify(_serialize_value(history_doc)), 201
+    return course_handlers.append_course_api_history(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/api-history", methods=["GET"])
 def get_course_api_history(course_id):
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-    requester_id = _resolve_requester_user_id(email)
-
-    course = get_course_record(courses, course_id)
-    if not course:
-        return jsonify({"error": "Course not found"}), 404
-
-    visible = filter_visible_courses([_serialize_value(course)], requester_id or email, is_admin)
-    if not visible:
-        return jsonify({"error": "Not found"}), 404
-
-    query = {"c_id": normalize_str(course.get("code"))}
-    if not can_manage_people(course, requester_id or email, is_admin):
-        query["u_id"] = _resolve_requester_user_id(email)
-
-    rows = [_serialize_value(item) for item in api_history.find(query)]
-    return jsonify(rows)
+    return course_handlers.get_course_api_history(_route_deps(), course_id)
 
 
 @app.route("/analytics/kpis", methods=["GET"])
 def get_analytics_kpis():
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    return jsonify(_get_collection_snapshot(analytics_kpis))
+    return content_handlers.get_analytics_kpis(_route_deps())
 
 
 @app.route("/analytics/activity", methods=["GET"])
 def get_analytics_activity():
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
-
-    return jsonify(_get_collection_snapshot(analytics_activity))
+    return content_handlers.get_analytics_activity(_route_deps())
 
 
 @app.route("/widgets/default", methods=["GET"])
 def get_default_widgets():
-    identity = require_requester_identity()
-    if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
-    email, is_admin = identity
-
-    user_record = _resolve_user_record(None, email)
-    if not user_record:
-        return jsonify({"error": "User not found"}), 404
-    if not _can_access_user_record(email, is_admin, user_record):
-        return jsonify({"error": "You may only access your own widgets."}), 403
-
-    settings_payload = _get_settings_for_user(user_record)
-    return jsonify(settings_payload.get("widgets", []))
+    return content_handlers.get_default_widgets(_route_deps())
 
 
 @app.route("/help/faq", methods=["GET"])
 def get_help_faq():
-    return jsonify(_get_collection_snapshot(help_faq))
+    return content_handlers.get_help_faq(_route_deps())
 
 
 if __name__ == "__main__":

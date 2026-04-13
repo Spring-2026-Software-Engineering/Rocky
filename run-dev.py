@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -22,9 +23,12 @@ BACKEND_DIR = REPO_ROOT / "rocky-backend"
 FRONTEND_DIR = REPO_ROOT / "rocky-interface"
 SEED_SCRIPT = BACKEND_DIR / "seed_from_backend.py"
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("rocky.run-dev")
+
 
 def log(message: str) -> None:
-    print(f"[run-dev] {message}", flush=True)
+    logger.info("[run-dev] %s", message)
 
 
 def _python_can_run_backend(python_exe: Path | str) -> bool:

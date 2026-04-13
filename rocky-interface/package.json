@@ -7,6 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
+		"test:unit": "vitest run",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -23,7 +24,8 @@
 		"svelte": "^5.48.2",
 		"svelte-check": "^4.3.5",
 		"typescript": "^5.9.3",
-		"vite": "^6.4.1"
+		"vite": "^6.4.1",
+		"vitest": "^2.1.9"
 	},
 	"dependencies": {
 		"@azure/msal-browser": "^5.6.3"
