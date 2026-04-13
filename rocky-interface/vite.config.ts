@@ -5,6 +5,12 @@ import { loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, '.', '');
 
+	if (mode === 'test') {
+		return {
+			plugins: [sveltekit()]
+		};
+	}
+
 	if (mode === 'production') {
 		return {
 			plugins: [sveltekit()]
