@@ -24,8 +24,10 @@
 	import type { User } from '$lib/types/user';
 	import type { CourseApiHistoryEntry, CourseApiKeySummaryResponse } from '$lib/api/courses';
 
-	type CourseTab = 'home' | 'edit-course' | 'edit-people' | 'groups';
+	type CourseTab = 'home' | 'edit-course' | 'edit-roster' | 'groups';
 	const API_KEY_PREFIX = 'sk_kent_';
+	const SEMESTER_YEAR_MIN = 2000;
+	const SEMESTER_YEAR_MAX = 2200;
 
 	let allCourses: Course[] = [];
 	let allUsers: User[] = [];
@@ -227,7 +229,7 @@
 	$: availableTabs = [
 		'home',
 		...(canEditCourse ? (['edit-course'] as CourseTab[]) : []),
-		...(canEditPeopleAndGroups ? (['edit-people', 'groups'] as CourseTab[]) : [])
+		...(canEditPeopleAndGroups ? (['edit-roster', 'groups'] as CourseTab[]) : [])
 	] as CourseTab[];
 	$: if (!availableTabs.includes(activeTab)) {
 		activeTab = 'home';
@@ -649,7 +651,7 @@
 				<div class="course-tab-bar">
 					{#each availableTabs as tab}
 						<button type="button" class="view-btn" class:course-tab-active={activeTab === tab} onclick={() => (activeTab = tab)}>
-							{tab === 'home' ? 'Home' : tab === 'edit-course' ? 'Edit Course' : tab === 'edit-people' ? 'Edit People' : 'Groups'}
+							{tab === 'home' ? 'Home' : tab === 'edit-course' ? 'Edit Course' : tab === 'edit-roster' ? 'Edit Roster' : 'Groups'}
 						</button>
 					{/each}
 				</div>
@@ -805,10 +807,13 @@
 						idPrefix="edit-course"
 						users={accountUsers}
 						form={editCourseForm}
+						useSemesterPicker={true}
+						semesterYearMin={SEMESTER_YEAR_MIN}
+						semesterYearMax={SEMESTER_YEAR_MAX}
 						on:submit={saveCourseEdits}
 					/>
 				</div>
-			{:else if activeTab === 'edit-people' && canEditPeopleAndGroups}
+			{:else if activeTab === 'edit-roster' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
 						<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>

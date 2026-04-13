@@ -4,7 +4,9 @@ import re
 from datetime import datetime
 from typing import Any
 
-ALLOWED_TERMS = {"spring", "summer", "fall", "winter"}
+SEMESTER_YEAR_MIN = 2000
+SEMESTER_YEAR_MAX = 2200
+ALLOWED_TERMS = {"none", "spring", "summer", "fall"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
@@ -20,8 +22,8 @@ def parse_semester(value: Any):
     if isinstance(value, dict):
         year = value.get("year")
         term = normalize_str(value.get("term")).lower()
-        if not isinstance(year, int) or year < 2000 or year > 2100:
-            return None, "semester.year must be an integer between 2000 and 2100."
+        if not isinstance(year, int) or year < SEMESTER_YEAR_MIN or year > SEMESTER_YEAR_MAX:
+            return None, f"semester.year must be an integer between {SEMESTER_YEAR_MIN} and {SEMESTER_YEAR_MAX}."
         if term not in ALLOWED_TERMS:
             allowed_terms = ", ".join(sorted(ALLOWED_TERMS))
             return None, f"semester.term must be one of: {allowed_terms}."
@@ -39,8 +41,8 @@ def parse_semester(value: Any):
         if term not in ALLOWED_TERMS:
             allowed_terms = ", ".join(sorted(ALLOWED_TERMS))
             return None, f"semester term in string format must be one of: {allowed_terms}."
-        if year < 2000 or year > 2100:
-            return None, "semester year in string format must be between 2000 and 2100."
+        if year < SEMESTER_YEAR_MIN or year > SEMESTER_YEAR_MAX:
+            return None, f"semester year in string format must be between {SEMESTER_YEAR_MIN} and {SEMESTER_YEAR_MAX}."
         return {"year": year, "term": term, "display": semester_display(term, year)}, None
 
     return None, "semester must be either an object {year, term} or a string like 'Fall 2026'."

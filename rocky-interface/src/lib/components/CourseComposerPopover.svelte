@@ -9,6 +9,9 @@
 	import { closeCourseComposer, courseComposerState } from '$lib/stores/courseComposerStore';
 	import type { User } from '$lib/types/user';
 
+	const SEMESTER_YEAR_MIN = 2000;
+	const SEMESTER_YEAR_MAX = 2200;
+
 	let users: User[] = [];
 	let form = {
 		name: '',
@@ -41,7 +44,7 @@
 		const normalizedInstructorId = form.instructorId.trim();
 		const created = await createCourse({
 			name: form.name.trim() || 'Untitled Course',
-			code: form.code.trim() || 'TBD 0000',
+			code: form.code.trim(),
 			semester: form.semester.trim() || '',
 			instructorId: normalizedInstructorId,
 			instructorName: accountUsers.find((user) => user.id === normalizedInstructorId)?.displayName
@@ -84,6 +87,9 @@
 				idPrefix="global-create-course"
 				users={accountUsers}
 				form={form}
+				useSemesterPicker={true}
+				semesterYearMin={SEMESTER_YEAR_MIN}
+				semesterYearMax={SEMESTER_YEAR_MAX}
 				on:submit={createCourseFromForm}
 			/>
 		</div>

@@ -228,6 +228,12 @@ select.text-input option {
 	gap: var(--space-md) var(--space-lg);
 }
 
+.course-semester-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(8rem, 10rem);
+	gap: var(--space-sm);
+}
+
 .course-edit-actions {
 	display: flex;
 	justify-content: flex-end;
