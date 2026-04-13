@@ -54,6 +54,6 @@ describe('fetchCourseApiHistory', () => {
 			})
 		);
 
-		await expect(fetchCourseApiHistory(1)).rejects.toThrow('boom');
+		await expect(fetchCourseApiHistory(1)).rejects.toThrow('Action failed. Please try again.');
 	});
 });

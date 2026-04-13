@@ -47,6 +47,8 @@ def get_session_user(deps: dict[str, Any]):
     _bad_request = deps["_bad_request"]
     _resolve_user_record = deps["_resolve_user_record"]
     _serialize_user = deps["_serialize_user"]
+    reconcile_course_members_for_user = deps["reconcile_course_members_for_user"]
+    courses = deps["courses"]
 
     email = normalize_str(request.args.get("email")).lower()
     if not email or not EMAIL_RE.match(email):
@@ -55,6 +57,10 @@ def get_session_user(deps: dict[str, Any]):
     user_record = _resolve_user_record(None, email)
     if not user_record:
         return jsonify({"error": "User not found"}), 404
+
+    updated_courses = reconcile_course_members_for_user(courses, user_record)
+    if updated_courses:
+        user_record = _resolve_user_record(None, email) or user_record
 
     return jsonify(_serialize_user(user_record))
 
@@ -75,6 +81,8 @@ def microsoft_login(deps: dict[str, Any]):
     normalize_str = deps["normalize_str"]
     _is_user_active = deps["_is_user_active"]
     logger = deps["logger"]
+    reconcile_course_members_for_user = deps["reconcile_course_members_for_user"]
+    courses = deps["courses"]
 
     if not settings.enable_microsoft_oauth:
         return jsonify({"error": "Not found"}), 404
@@ -119,6 +127,7 @@ def microsoft_login(deps: dict[str, Any]):
             user_record = users.find_one({"id": user_record["id"]})
             logger.info("[oauth] login success: existing Kent user %s", email)
 
+        reconcile_course_members_for_user(courses, user_record)
         return jsonify({"ok": True, "user": _serialize_user(user_record)})
 
     whitelist_record = whitelist_users.find_one({"email": email})
@@ -159,6 +168,7 @@ def microsoft_login(deps: dict[str, Any]):
         user_record = users.find_one({"id": user_record["id"]})
         logger.info("[oauth] login success: existing whitelisted user %s", email)
 
+    reconcile_course_members_for_user(courses, user_record)
     return jsonify({"ok": True, "user": _serialize_user(user_record)})
 
 

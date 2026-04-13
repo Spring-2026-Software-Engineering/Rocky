@@ -29,6 +29,7 @@ from backend.course_actions import (
     remove_course_member,
     remove_group_member,
     regenerate_course_api_key,
+    reconcile_course_members_for_user,
     update_course_group_key_limit,
     update_course_member_key_limit,
 )
@@ -661,6 +662,7 @@ def _route_deps() -> dict[str, Any]:
         "validate_course_payload": validate_course_payload,
         "filter_visible_courses": filter_visible_courses,
         "get_course_record": get_course_record,
+        "apply_course_metadata_patch": apply_course_metadata_patch,
         "can_manage_metadata": can_manage_metadata,
         "can_manage_people": can_manage_people,
         "can_request_api_key": can_request_api_key,
@@ -674,6 +676,7 @@ def _route_deps() -> dict[str, Any]:
         "update_course_group_key_limit": update_course_group_key_limit,
         "delete_course_api_keys": delete_course_api_keys,
         "regenerate_course_api_key": regenerate_course_api_key,
+        "reconcile_course_members_for_user": reconcile_course_members_for_user,
         "_get_owner_key_limit": _get_owner_key_limit,
         "_iter_course_api_keys": _iter_course_api_keys,
         "_serialize_api_key_summary": _serialize_api_key_summary,

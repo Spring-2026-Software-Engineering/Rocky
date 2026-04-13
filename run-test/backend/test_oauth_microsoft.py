@@ -209,6 +209,80 @@ class MicrosoftOAuthTests(BackendTestCase):
         payload = response.get_json()
         self.assertEqual(payload.get("email"), "admin.local@kent.edu")
 
+    def test_session_user_reconciles_pending_course_member(self):
+        self._log("Creating pending course member by email, then resolving session user to trigger id/name reconciliation.")
+        self.client.post(
+            "/courses/1/members",
+            json={"members": [{"email": "new.student@kent.edu", "role": "student"}]},
+            headers=self.admin_headers,
+        )
+
+        create_user_response = self.client.post(
+            "/users",
+            json={
+                "first_name": "New",
+                "last_name": "Student",
+                "email": "new.student@kent.edu",
+                "id": "KSUID000000222",
+                "is_admin": False,
+            },
+            headers=self.admin_headers,
+        )
+        self.assertEqual(create_user_response.status_code, 200)
+
+        session_response = self.client.get(
+            "/auth/session-user",
+            query_string={"email": "new.student@kent.edu"},
+        )
+        self.assertEqual(session_response.status_code, 200)
+
+        course = main.courses.find_one({"id": 1})
+        self.assertIsNotNone(course)
+        member = next(
+            (
+                m
+                for m in (course.get("members") or [])
+                if isinstance(m, dict) and (m.get("email") or "").lower() == "new.student@kent.edu"
+            ),
+            None,
+        )
+        self.assertIsNotNone(member)
+        self.assertEqual(member.get("id"), "KSUID000000222")
+        self.assertEqual(member.get("name"), "New Student")
+
+    def test_microsoft_login_reconciles_pending_member_for_kent_user(self):
+        self._log("Adding pending Kent member then logging in with Microsoft OAuth to verify course member id/name reconciliation.")
+        self.client.post(
+            "/courses/1/members",
+            json={"members": [{"email": "oauth.student@kent.edu", "role": "student"}]},
+            headers=self.admin_headers,
+        )
+
+        login_response = self.client.post(
+            "/auth/microsoft/login",
+            json={
+                "firstName": "Oauth",
+                "lastName": "Student",
+                "email": "oauth.student@kent.edu",
+                "id": "222333444",
+            },
+        )
+        self.assertEqual(login_response.status_code, 200)
+
+        course = main.courses.find_one({"id": 1})
+        self.assertIsNotNone(course)
+        member = next(
+            (
+                m
+                for m in (course.get("members") or [])
+                if isinstance(m, dict) and (m.get("email") or "").lower() == "oauth.student@kent.edu"
+            ),
+            None,
+        )
+        self.assertIsNotNone(member)
+        self.assertEqual(member.get("id"), "KSUID222333444")
+        self.assertEqual(member.get("name"), "Oauth Student")
+
 
 if __name__ == "__main__":
     import unittest

@@ -445,7 +445,11 @@ def list_course_api_keys_route(deps: dict[str, Any], course_id: str):
     requester_group_ids = {
         normalize_str(group.get("id")).lower()
         for group in course.get("groups", [])
-        if isinstance(group, dict) and normalized_requester in {normalize_str(member_id).lower() for member_id in group.get("memberIds", [])}
+        if isinstance(group, dict)
+        and (
+            normalized_requester in {normalize_str(member_id).lower() for member_id in group.get("memberIds", [])}
+            or normalize_str(email).lower() in {normalize_str(member_id).lower() for member_id in group.get("memberIds", [])}
+        )
     }
 
     result: list[dict[str, Any]] = []
@@ -474,7 +478,10 @@ def _build_api_history_entry(course: dict[str, Any], requester_email: str, paylo
             group
             for group in groups
             if isinstance(group, dict)
-            and requester_id in [normalize_str(member_id) for member_id in (group.get("memberIds") or group.get("memberEmails") or [])]
+            and (
+                requester_id in [normalize_str(member_id) for member_id in (group.get("memberIds") or group.get("memberEmails") or [])]
+                or requester_email in [normalize_str(member_id).lower() for member_id in (group.get("memberIds") or group.get("memberEmails") or [])]
+            )
         ),
         None,
     )

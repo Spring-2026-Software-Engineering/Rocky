@@ -61,6 +61,52 @@
 	let pendingMemberKeyLimitById: Record<string, number> = {};
 	let pendingGroupKeyLimitById: Record<string, number> = {};
 
+	function normalizeIdentifier(value: string | null | undefined): string {
+		return value?.trim().toLowerCase() || '';
+	}
+
+	function getMemberIdentifier(member: CourseDetail['members'][number]): string {
+		return normalizeIdentifier(member.id) || normalizeIdentifier(member.email);
+	}
+
+	function getMemberDisplayName(member: CourseDetail['members'][number]): string {
+		const currentSessionUser = $page.data.currentUser;
+		if (currentSessionUser && normalizeIdentifier(currentSessionUser.email) === normalizeIdentifier(member.email)) {
+			return currentSessionUser.displayName || member.name || currentSessionUser.email;
+		}
+
+		const matchedUser = allUsers.find((user) => normalizeIdentifier(user.email) === normalizeIdentifier(member.email));
+		if (matchedUser) {
+			return matchedUser.displayName || member.name || matchedUser.email;
+		}
+
+		if (member.name) {
+			return member.name;
+		}
+
+		const email = member.email.trim();
+		return email ? 'Pending user' : 'Unknown user';
+	}
+
+	function memberMatchesCurrentUser(member: CourseDetail['members'][number]): boolean {
+		const currentUserIdentifiers = [currentUserId, currentUserEmail].map(normalizeIdentifier).filter(Boolean);
+		const memberIdentifiers = [normalizeIdentifier(member.id), normalizeIdentifier(member.email)].filter(Boolean);
+		return currentUserIdentifiers.some((identifier) => memberIdentifiers.includes(identifier));
+	}
+
+	function groupContainsCurrentUser(group: CourseGroup): boolean {
+		const currentUserIdentifiers = [currentUserId, currentUserEmail].map(normalizeIdentifier).filter(Boolean);
+		const groupMemberIds = group.memberIds.map(normalizeIdentifier);
+		return currentUserIdentifiers.some((identifier) => groupMemberIds.includes(identifier));
+	}
+
+	function resolveMemberByIdentifier(identifier: string): CourseDetail['members'][number] | undefined {
+		const normalizedIdentifier = normalizeIdentifier(identifier);
+		return (selectedDetail?.members || []).find((member) => {
+			return normalizeIdentifier(member.id) === normalizedIdentifier || normalizeIdentifier(member.email) === normalizedIdentifier;
+		});
+	}
+
 	async function loadWorkspace() {
 		try {
 			const requestList = [fetchCourses(), fetchCourseDetails(), fetchCourseGroups()] as const;
@@ -100,42 +146,56 @@
 	$: nonAdminUsers = allUsers.filter((user) => !user.isAdmin);
 	$: accountUsers = allUsers.filter((user) => user.email && user.email.trim() && user.email !== 'N/A');
 	$: currentUserId = $page.data.currentUser?.id?.trim() || '';
+	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
 	$: isCurrentUserAdmin = Boolean($page.data.currentUser?.isAdmin);
 	$: baseVisibleCourses = isCurrentUserAdmin
 		? allCourses
 		: allCourses.filter((course) => {
 				const members = detailsByCourseId[course.id]?.members || [];
-				return members.some((member) => member.id === currentUserId);
+				return members.some((member) => {
+					const memberId = normalizeIdentifier(member.id);
+					const memberEmail = normalizeIdentifier(member.email);
+					return memberId === normalizeIdentifier(currentUserId) || memberEmail === currentUserEmail;
+				});
 		  });
-	$: instructorIdForCourse = selectedDetail?.members.find((member) => member.role === 'instructor')?.id || '';
-	$: isCurrentUserCourseInstructor = currentUserId !== '' && currentUserId === instructorIdForCourse;
+	$: isCurrentUserCourseInstructor = Boolean(selectedDetail?.members.find((member) => member.role === 'instructor' && memberMatchesCurrentUser(member)));
 	$: isCurrentUserClient = !isCurrentUserAdmin;
 	$: canEditCourse = isCurrentUserAdmin;
 	$: canEditPeopleAndGroups = isCurrentUserAdmin || isCurrentUserCourseInstructor;
-	$: studentGroup = currentUserId
-		? selectedGroups.find((group) => group.memberIds.includes(currentUserId)) || null
-		: null;
+	$: studentGroup = selectedGroups.find((group) => groupContainsCurrentUser(group)) || null;
 	$: studentMembers = (selectedDetail?.members || []).filter((member) => member.role === 'student');
 	$: groupedStudentIdSet = new Set(
-		selectedGroups.flatMap((group) => group.memberIds.map((id) => id.trim()))
+		selectedGroups.flatMap((group) => group.memberIds.map((id) => normalizeIdentifier(id)))
 	);
-	$: ungroupedStudentMembers = studentMembers.filter((member) => !groupedStudentIdSet.has(member.id));
+	$: ungroupedStudentMembers = studentMembers.filter((member) => !groupedStudentIdSet.has(getMemberIdentifier(member)));
+	$: memberByIdentifier = (() => {
+		const lookup = new Map<string, CourseDetail['members'][number]>();
+		for (const member of selectedDetail?.members || []) {
+			const memberId = normalizeIdentifier(member.id);
+			const memberEmail = normalizeIdentifier(member.email);
+			if (memberId) {
+				lookup.set(memberId, member);
+			}
+			if (memberEmail) {
+				lookup.set(memberEmail, member);
+			}
+		}
+		return lookup;
+	})();
 	$: studentGroupMembers = (() => {
 		if (!studentGroup || !selectedDetail) {
 			return [];
 		}
 
-		const memberById = new Map(selectedDetail.members.map((member) => [member.id, member]));
 		return studentGroup.memberIds
-			.map((id) => memberById.get(id))
+			.map((id) => memberByIdentifier.get(normalizeIdentifier(id)))
 			.filter((member): member is NonNullable<typeof member> => Boolean(member))
 			.filter((member) => member.role === 'student');
 	})();
-	$: memberById = new Map((selectedDetail?.members || []).map((member) => [member.id, member]));
 	$: groupMembershipRows = selectedGroups.map((group) => ({
 		group,
 		members: group.memberIds
-			.map((id) => memberById.get(id.trim()))
+			.map((id) => memberByIdentifier.get(normalizeIdentifier(id)))
 			.filter((member): member is NonNullable<typeof member> => Boolean(member))
 			.filter((member) => member.role === 'student')
 	}));
@@ -143,22 +203,22 @@
 	$: canViewCourseApiHistory = isCurrentUserAdmin;
 	$: canViewPersonalApiData = isCurrentUserClient && !isCurrentUserCourseInstructor && !studentGroup;
 	$: personalOwnedKeys = courseApiKeys.filter(
-		(key) => key.ownerType === 'person' && key.ownerId === currentUserId
+		(key) => key.ownerType === 'person' && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId))
 	);
 	$: groupOwnedKeys = courseApiKeys.filter(
 		(key) => key.ownerType === 'group' && selectedGroupIds.has(key.ownerId)
 	);
 	$: canGenerateApiKey = Boolean(
 		selectedCourse &&
-		(isCurrentUserAdmin || (selectedDetail?.members || []).some((member) => member.id === currentUserId))
+		(isCurrentUserAdmin || (selectedDetail?.members || []).some((member) => memberMatchesCurrentUser(member)))
 	);
 	$: hasExistingApiKey = Boolean(selectedCourse?.hasApiKey);
-	$: currentUserIsApiKeyOwner = selectedCourse?.apiKeyOwnerType === 'person' && selectedCourse?.apiKeyOwnerId === currentUserId;
+	$: currentUserIsApiKeyOwner = selectedCourse?.apiKeyOwnerType === 'person' && Boolean(selectedCourse?.apiKeyOwnerId && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(selectedCourse.apiKeyOwnerId)));
 	$: currentUserIsApiKeyGroupMember =
 		selectedCourse?.apiKeyOwnerType === 'group' &&
 		Boolean(
 			selectedCourse.apiKeyOwnerId &&
-			selectedGroups.some((group) => group.id === selectedCourse.apiKeyOwnerId && group.memberIds.includes(currentUserId))
+			selectedGroups.some((group) => group.id === selectedCourse.apiKeyOwnerId && group.memberIds.map(normalizeIdentifier).some((id) => [normalizeIdentifier(currentUserId), currentUserEmail].includes(id)))
 		);
 	$: shouldShowMaskedApiKey = hasExistingApiKey && (isCurrentUserAdmin || currentUserIsApiKeyOwner || currentUserIsApiKeyGroupMember);
 	$: maskedApiKeyPreview = shouldShowMaskedApiKey ? `${API_KEY_PREFIX}${'*'.repeat(17)}` : null;
@@ -178,11 +238,14 @@
 	$: if (selectedCourse) {
 		const matchingUserByName = nonAdminUsers.find((user) => user.displayName === selectedCourse.instructor);
 		const courseInstructorMember = selectedDetail?.members.find((member) => member.role === 'instructor');
+		const matchingUserByEmail = courseInstructorMember
+			? allUsers.find((user) => normalizeIdentifier(user.email) === normalizeIdentifier(courseInstructorMember.email))
+			: undefined;
 		editCourseForm = {
 			name: selectedCourse.name,
 			code: selectedCourse.code,
 			semester: selectedCourse.semester,
-			instructorId: courseInstructorMember?.id || matchingUserByName?.id || ''
+			instructorId: courseInstructorMember?.id || matchingUserByEmail?.id || matchingUserByName?.id || ''
 		};
 	}
 	$: if (selectedCourse && canViewCourseApiHistory && loadedCourseApiHistoryForId !== selectedCourse.id) {
@@ -282,23 +345,31 @@
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
-		await removeCourseMember(selectedCourse.id, memberId);
-		await refreshAfterWrite();
+
+		try {
+			await removeCourseMember(selectedCourse.id, memberId);
+			await refreshAfterWrite();
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
-	async function addMemberByIdPrompt() {
+	async function addMemberByEmailPrompt() {
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
 
-		const idInput = window.prompt('Enter user id to add to this course:');
-		const id = idInput?.trim() || '';
-		if (!id) {
+		const emailInput = window.prompt('Enter user email to add to this course:');
+		const email = emailInput?.trim() || '';
+		if (!email) {
 			return;
 		}
-
-		await addCourseMembers(selectedCourse.id, [{ id, role: 'student' }]);
-		await refreshAfterWrite();
+		try {
+			await addCourseMembers(selectedCourse.id, [{ email, role: 'student' }]);
+			await refreshAfterWrite();
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
 	async function importPeopleFromCanvasCsv(event: Event) {
@@ -320,11 +391,15 @@
 			return;
 		}
 
-		await addCourseMembers(
-			selectedCourse.id,
-			parsedIds.map((id) => ({ id, role: 'student' }))
-		);
-		await refreshAfterWrite();
+		try {
+			await addCourseMembers(
+				selectedCourse.id,
+				parsedIds.map((id) => ({ id, role: 'student' }))
+			);
+			await refreshAfterWrite();
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 
 		target.value = '';
 	}
@@ -340,13 +415,18 @@
 
 		const normalizedInstructorId = editCourseForm.instructorId.trim();
 		const currentInstructorId = selectedDetail?.members.find((member) => member.role === 'instructor')?.id || '';
-		await updateCourseMetadata(selectedCourse.id, {
-			name: editCourseForm.name.trim() || selectedCourse.name,
-			code: editCourseForm.code.trim() || selectedCourse.code,
-			semester: editCourseForm.semester.trim() || selectedCourse.semester,
-			instructorId: normalizedInstructorId || currentInstructorId
-		});
-		await refreshAfterWrite();
+
+		try {
+			await updateCourseMetadata(selectedCourse.id, {
+				name: editCourseForm.name.trim() || selectedCourse.name,
+				code: editCourseForm.code.trim() || selectedCourse.code,
+				semester: editCourseForm.semester.trim() || selectedCourse.semester,
+				instructorId: normalizedInstructorId || currentInstructorId
+			});
+			await refreshAfterWrite();
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
 	async function createGroup() {
@@ -359,9 +439,13 @@
 			return;
 		}
 
-		await createCourseGroupRequest(selectedCourse.id, trimmedName);
-		await refreshAfterWrite();
-		newGroupName = '';
+		try {
+			await createCourseGroupRequest(selectedCourse.id, trimmedName);
+			await refreshAfterWrite();
+			newGroupName = '';
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
 	async function addGroupMember(groupId: string) {
@@ -369,17 +453,21 @@
 			return;
 		}
 
-		const id = (pendingGroupMemberIdByGroupId[groupId] || '').trim();
-		if (!id) {
+		const identifier = (pendingGroupMemberIdByGroupId[groupId] || '').trim();
+		if (!identifier) {
 			return;
 		}
 
-		await addCourseGroupMember(selectedCourse.id, groupId, id);
-		await refreshAfterWrite();
-		pendingGroupMemberIdByGroupId = {
-			...pendingGroupMemberIdByGroupId,
-			[groupId]: ''
-		};
+		try {
+			await addCourseGroupMember(selectedCourse.id, groupId, identifier);
+			await refreshAfterWrite();
+			pendingGroupMemberIdByGroupId = {
+				...pendingGroupMemberIdByGroupId,
+				[groupId]: ''
+			};
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
 	async function removeGroupMember(groupId: string, id: string) {
@@ -387,8 +475,12 @@
 			return;
 		}
 
-		await removeCourseGroupMember(selectedCourse.id, groupId, id);
-		await refreshAfterWrite();
+		try {
+			await removeCourseGroupMember(selectedCourse.id, groupId, id);
+			await refreshAfterWrite();
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
 	async function regenerateApiKey() {
@@ -467,8 +559,12 @@
 		if (!Number.isInteger(keyLimit) || keyLimit < 1) {
 			return;
 		}
-		await updateCourseMemberKeyLimit(selectedCourse.id, memberId, keyLimit);
-		await refreshAfterWrite();
+		try {
+			await updateCourseMemberKeyLimit(selectedCourse.id, memberId, keyLimit);
+			await refreshAfterWrite();
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
 	async function saveGroupKeyLimit(groupId: string) {
@@ -479,8 +575,12 @@
 		if (!Number.isInteger(keyLimit) || keyLimit < 1) {
 			return;
 		}
-		await updateCourseGroupKeyLimit(selectedCourse.id, groupId, keyLimit);
-		await refreshAfterWrite();
+		try {
+			await updateCourseGroupKeyLimit(selectedCourse.id, groupId, keyLimit);
+			await refreshAfterWrite();
+		} catch {
+			// API layer already shows user-facing feedback.
+		}
 	}
 
 	function clearPreviewApiKey() {
@@ -508,7 +608,7 @@
 	}
 
 	function getAvailableMembersForGroup(group: CourseGroup) {
-		return selectableGroupMembers.filter((member) => !group.memberIds.includes(member.id));
+		return selectableGroupMembers.filter((member) => !group.memberIds.map(normalizeIdentifier).includes(getMemberIdentifier(member)));
 	}
 </script>
 
@@ -539,7 +639,9 @@
 			<div class="section-header course-header">
 				<div>
 					<h2>{selectedCourse.name}</h2>
-					<p class="section-text">{selectedCourse.code} · {selectedCourse.semester} · {selectedCourse.instructor}</p>
+					<p class="section-text">
+						{selectedCourse.code} · {selectedCourse.semester} · {selectedDetail?.members.find((member) => member.role === 'instructor') ? getMemberDisplayName(selectedDetail.members.find((member) => member.role === 'instructor') as CourseDetail['members'][number]) : selectedCourse.instructor}
+					</p>
 				</div>
 			</div>
 
@@ -639,7 +741,7 @@
 							<p><strong>{studentGroup.name}</strong></p>
 							<ul class="course-inline-list">
 								{#each studentGroupMembers as member}
-									<li>{member.name} ({member.email}) - API data pending implementation.</li>
+									<li>{getMemberDisplayName(member)} ({member.email}) - API data pending implementation.</li>
 								{/each}
 							</ul>
 						</div>
@@ -650,7 +752,7 @@
 							{#if ungroupedStudentMembers.length}
 								<ul class="course-inline-list">
 									{#each ungroupedStudentMembers as member}
-										<li>{member.name} ({member.email}) - API data pending implementation.</li>
+										<li>{getMemberDisplayName(member)} ({member.email}) - API data pending implementation.</li>
 									{/each}
 								</ul>
 							{:else}
@@ -661,7 +763,7 @@
 							<h3>Group API Data</h3>
 							{#if groupMembershipRows.length}
 								{#each groupMembershipRows as row}
-									<p><strong>{row.group.name}:</strong> {row.members.length ? row.members.map((member) => member.name).join(', ') : 'No student members'} - API data pending implementation.</p>
+									<p><strong>{row.group.name}:</strong> {row.members.length ? row.members.map((member) => getMemberDisplayName(member)).join(', ') : 'No student members'} - API data pending implementation.</p>
 								{/each}
 							{:else}
 								<p>No groups found for this course.</p>
@@ -709,7 +811,7 @@
 			{:else if activeTab === 'edit-people' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
-						<button type="button" class="view-btn" onclick={addMemberByIdPrompt}>Add Person</button>
+						<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>
 						<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
 						<input
 							class="course-hidden-input"
@@ -741,7 +843,7 @@
 								{#if selectedDetail?.members.length}
 									{#each selectedDetail.members as member}
 										<tr>
-											<td>{member.name}</td>
+												<td>{getMemberDisplayName(member)}</td>
 											<td>{member.email}</td>
 											<td>{member.role}</td>
 											<td>
@@ -750,19 +852,19 @@
 														class="text-input"
 														type="number"
 														min="1"
-														value={pendingMemberKeyLimitById[member.id] ?? member.keyLimit}
+															value={pendingMemberKeyLimitById[getMemberIdentifier(member)] ?? member.keyLimit}
 														onchange={(event) => {
 															const target = event.currentTarget as HTMLInputElement;
 															pendingMemberKeyLimitById = {
 																...pendingMemberKeyLimitById,
-																[member.id]: Math.max(1, Number(target.value) || 1)
+																	[getMemberIdentifier(member)]: Math.max(1, Number(target.value) || 1)
 															};
 														}}
 													/>
-													<button type="button" class="list-go-btn" onclick={() => saveMemberKeyLimit(member.id)}>Save</button>
+															<button type="button" class="list-go-btn" onclick={() => saveMemberKeyLimit(getMemberIdentifier(member))}>Save</button>
 												</div>
 											</td>
-											<td class="table-actions-cell"><button type="button" class="list-go-btn" onclick={() => removeMember(member.id)}>Remove</button></td>
+												<td class="table-actions-cell"><button type="button" class="list-go-btn" onclick={() => removeMember(getMemberIdentifier(member))}>Remove</button></td>
 										</tr>
 									{/each}
 								{:else}
@@ -807,9 +909,9 @@
 												{#if group.memberIds.length}
 													<ul class="course-inline-list">
 														{#each group.memberIds as memberId}
-															{@const member = memberById.get(memberId.trim())}
+																{@const member = resolveMemberByIdentifier(memberId)}
 															<li>
-																{member?.name || memberId} ({memberId})
+																	{member ? getMemberDisplayName(member) : memberId} ({memberId})
 																<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, memberId)}>Remove</button>
 															</li>
 														{/each}
@@ -851,7 +953,7 @@
 													>
 														<option value="">Select course member</option>
 														{#each getAvailableMembersForGroup(group) as member}
-															<option value={member.id}>{member.name} ({member.id})</option>
+															<option value={getMemberIdentifier(member)}>{getMemberDisplayName(member)} ({getMemberIdentifier(member)})</option>
 														{/each}
 													</select>
 													<button type="button" class="list-go-btn" onclick={() => addGroupMember(group.id)}>Add</button>

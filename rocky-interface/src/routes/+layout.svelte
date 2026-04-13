@@ -3,6 +3,7 @@
 	import '$lib/styles/layout/app-layout.css';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Topbar from '$lib/components/Topbar.svelte';
+	import FeedbackPopup from '$lib/components/FeedbackPopup.svelte';
 	import { browser } from '$app/environment';
 	import { currentFrame } from '$lib/stores/frameStore';
 	import type { FrameName } from '$lib/types/frame';
@@ -21,6 +22,7 @@
 
 
 <main>
+	<FeedbackPopup />
 	{#if isRootRoute}
 		<Topbar user={data.currentUser} />
 		<div class="app-shell">

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.course_actions import create_course_group, regenerate_course_api_key
+from backend.course_actions import add_course_members, create_course_group, filter_visible_courses, regenerate_course_api_key
 
 
 class FakeCollection:
@@ -23,6 +23,9 @@ class FakeCollection:
             if all(row.get(k) == v for k, v in query.items()):
                 self.rows[idx] = dict(doc)
                 return
+
+    def find(self):
+        return list(self.rows)
 
 
 class CourseActionsUnitTests(unittest.TestCase):
@@ -50,6 +53,57 @@ class CourseActionsUnitTests(unittest.TestCase):
         self.assertEqual(first["owner_id"], "ksuid000000001")
         self.assertEqual(second["owner_id"], "ksuid000000001")
         self.assertNotEqual(first["api_key"], second["api_key"])
+
+    def test_add_course_members_allows_email_before_user_exists(self):
+        users = FakeCollection()
+        course = {"members": []}
+
+        updated = add_course_members(course, users, [{"email": "future.user@example.com", "role": "student"}], False)
+
+        self.assertEqual(len(updated["members"]), 1)
+        member = updated["members"][0]
+        self.assertIsNone(member["id"])
+        self.assertIsNone(member["name"])
+        self.assertEqual(member["email"], "future.user@example.com")
+
+    def test_add_course_members_merges_pending_email_with_real_user(self):
+        users = FakeCollection()
+        users.rows.append(
+            {
+                "id": "KSUID000000123",
+                "first_name": "Future",
+                "last_name": "User",
+                "email": "future.user@example.com",
+            }
+        )
+        course = {
+            "members": [
+                {"id": None, "name": None, "email": "future.user@example.com", "role": "student", "key_limit": 1}
+            ]
+        }
+
+        updated = add_course_members(course, users, [{"email": "future.user@example.com", "role": "student"}], False)
+
+        self.assertEqual(len(updated["members"]), 1)
+        member = updated["members"][0]
+        self.assertEqual(member["id"], "KSUID000000123")
+        self.assertEqual(member["name"], "Future User")
+        self.assertEqual(member["email"], "future.user@example.com")
+
+    def test_filter_visible_courses_matches_pending_member_email(self):
+        courses = [
+            {
+                "id": 1,
+                "members": [
+                    {"id": None, "name": None, "email": "future.user@example.com", "role": "student", "key_limit": 1}
+                ],
+            }
+        ]
+
+        visible = filter_visible_courses(courses, "future.user@example.com", False)
+
+        self.assertEqual(len(visible), 1)
+        self.assertEqual(visible[0]["id"], 1)
 
 
 if __name__ == "__main__":

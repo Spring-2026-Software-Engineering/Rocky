@@ -1,0 +1,51 @@
+.feedback-popup-layer {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	padding: 1rem;
+	pointer-events: none;
+	z-index: 2000;
+}
+
+.feedback-popup {
+	min-width: min(44rem, calc(100vw - 2rem));
+	max-width: min(44rem, calc(100vw - 2rem));
+	padding: 0.85rem 1rem;
+	border-radius: 0.6rem;
+	color: #ffffff;
+	font-size: 0.95rem;
+	font-weight: 600;
+	text-align: center;
+	box-shadow: 0 0.65rem 1.6rem rgba(0, 0, 0, 0.25);
+	animation: feedback-slide-in 160ms ease-out;
+}
+
+.feedback-success {
+	background: #1e7d3b;
+	border: 1px solid #155d2b;
+}
+
+.feedback-error {
+	background: #b8362f;
+	border: 1px solid #8c2823;
+}
+
+@keyframes feedback-slide-in {
+	from {
+		transform: translateY(-8px);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@media (max-width: 640px) {
+	.feedback-popup {
+		font-size: 0.9rem;
+	}
+}
