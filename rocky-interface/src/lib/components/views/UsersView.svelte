@@ -24,6 +24,7 @@
 	let whitelistError: string | null = null;
 	let whitelistMessage: string | null = null;
 	let isSavingWhitelist = false;
+	let searchQuery = '';
 
 	let firstName = '';
 	let lastName = '';
@@ -121,8 +122,18 @@
 				<p><strong>Error:</strong> {error}</p>
 			</div>
 		{:else}
+		
 			<section class="section">
+
 				<div class="user-tab-bar" role="tablist" aria-label="User email categories">
+					
+					<input
+					type="text"
+					placeholder="Search users"
+					bind:value={searchQuery}
+					class="view-btn user-search-input"
+					/>
+					
 					<button type="button" class="view-btn user-tab-btn" class:user-tab-active={activeTab === 'kent'} onclick={() => (activeTab = 'kent')}>
 						Kent Emails
 					</button>
@@ -130,6 +141,7 @@
 						Whitelist Emails
 					</button>
 				</div>
+
 
 				{#if activeTab === 'kent'}
 					<div class="table-container">
@@ -158,7 +170,9 @@
 										<td colspan="6">No Kent email users found.</td>
 									</tr>
 								{:else}
-									{#each kentUsers as user}
+									{#each kentUsers.filter((user) =>
+										user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+									) as user}
 										<tr>
 											<td>{user.displayName}</td>
 											<td>{user.email}</td>
