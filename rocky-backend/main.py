@@ -86,6 +86,7 @@ widgets_default = collections.widgets_default
 help_faq = collections.help_faq
 
 ALLOWED_THEME_PREFERENCES = {"light", "dark"}
+API_KEY_REGENERATION_COOLDOWN = timedelta(minutes=5)
 KENT_EMAIL_SUFFIX = "@kent.edu"
 WLID_PREFIX = "WLID"
 KSUID_PREFIX = "KSUID"
