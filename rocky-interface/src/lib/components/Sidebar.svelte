@@ -166,6 +166,7 @@
 		if (!canCreateCourse) {
 			return;
 		}
+		courseMenuOpen = false;
 		openCourseComposer();
 	}
 </script>
