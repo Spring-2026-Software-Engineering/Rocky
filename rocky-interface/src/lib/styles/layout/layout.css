@@ -153,6 +153,7 @@
 	padding: var(--space-lg);
 	box-shadow: var(--shadow-md);
 	min-height: fit-content;
+	min-height: 100%;
 }
 
 .section-header {
