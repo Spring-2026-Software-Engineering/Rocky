@@ -6,11 +6,12 @@
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import { fetchUsersForViews } from '$lib/api/users';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
+	import {
+		COURSE_EDITOR_SEMESTER_YEAR_MAX,
+		COURSE_EDITOR_SEMESTER_YEAR_MIN
+	} from '$lib/config/courseEditor';
 	import { closeCourseComposer, courseComposerState } from '$lib/stores/courseComposerStore';
 	import type { User } from '$lib/types/user';
-
-	const SEMESTER_YEAR_MIN = 2000;
-	const SEMESTER_YEAR_MAX = 2200;
 
 	let users: User[] = [];
 	let form = {
@@ -88,8 +89,8 @@
 				users={accountUsers}
 				form={form}
 				useSemesterPicker={true}
-				semesterYearMin={SEMESTER_YEAR_MIN}
-				semesterYearMax={SEMESTER_YEAR_MAX}
+				semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
+				semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
 				on:submit={createCourseFromForm}
 			/>
 		</div>
