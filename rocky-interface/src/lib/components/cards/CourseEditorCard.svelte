@@ -11,6 +11,7 @@
 		name: string;
 		code: string;
 		semester: string;
+		color: string;
 		instructorId: string;
 	};
 
@@ -162,6 +163,16 @@
 					<option value={user.id}>{user.displayName} ({user.id})</option>
 				{/each}
 			</select>
+		</div>
+		<div class="form-group">
+			<label class="form-label" for={`${idPrefix}-color-input`}>Course Color</label>
+			<input
+				id={`${idPrefix}-color-input`}
+				class="text-input course-color-input"
+				type="color"
+				bind:value={form.color}
+				aria-label="Course Color"
+			/>
 		</div>
 	</div>
 	<div class="course-edit-actions">

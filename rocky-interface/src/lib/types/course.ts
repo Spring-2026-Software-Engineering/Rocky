@@ -1,3 +1,5 @@
+import { COURSE_EDITOR_DEFAULT_COLOR } from '$lib/config/courseEditor';
+
 export type ApiCourse = Partial<{
 	id: number;
 	code: string;
@@ -114,7 +116,7 @@ export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 		name: raw.name?.trim() || 'Untitled Course',
 		instructor,
 		semester: normalizeSemester(raw.semester),
-		color: raw.color?.trim() || '#1a4a8a',
+		color: raw.color?.trim() || COURSE_EDITOR_DEFAULT_COLOR,
 		hasApiKey: Boolean(raw.has_api_key),
 		apiKeyOwnerType: raw.api_key_owner_type || null,
 		apiKeyOwnerId: raw.api_key_owner_id?.trim() || null,

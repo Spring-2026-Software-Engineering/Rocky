@@ -8,6 +8,7 @@
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
 	import { showErrorFeedback } from '$lib/stores/feedbackStore';
 	import {
+		COURSE_EDITOR_DEFAULT_COLOR,
 		COURSE_EDITOR_SEMESTER_YEAR_MAX,
 		COURSE_EDITOR_SEMESTER_YEAR_MIN
 	} from '$lib/config/courseEditor';
@@ -19,6 +20,7 @@
 		name: '',
 		code: '',
 		semester: '',
+		color: COURSE_EDITOR_DEFAULT_COLOR,
 		instructorId: ''
 	};
 
@@ -38,6 +40,7 @@
 			name: '',
 			code: '',
 			semester: '',
+			color: COURSE_EDITOR_DEFAULT_COLOR,
 			instructorId: ''
 		};
 	}
@@ -54,6 +57,7 @@
 			name: courseName,
 			code: form.code.trim(),
 			semester: form.semester.trim() || '',
+			color: form.color.trim() || COURSE_EDITOR_DEFAULT_COLOR,
 			instructorId: normalizedInstructorId,
 			instructorName: accountUsers.find((user) => user.id === normalizedInstructorId)?.displayName
 		});

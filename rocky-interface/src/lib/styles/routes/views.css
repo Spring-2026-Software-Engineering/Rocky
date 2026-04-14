@@ -234,6 +234,11 @@ select.text-input option {
 	gap: var(--space-sm);
 }
 
+.course-color-input {
+	height: 2.75rem;
+	padding: 0;
+}
+
 .course-edit-actions {
 	display: flex;
 	justify-content: flex-end;

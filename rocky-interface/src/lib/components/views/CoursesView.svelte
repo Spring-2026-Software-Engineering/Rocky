@@ -21,6 +21,7 @@
 	import ViewShell from '$lib/components/ViewShell.svelte';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
 	import {
+		COURSE_EDITOR_DEFAULT_COLOR,
 		COURSE_EDITOR_SEMESTER_YEAR_MAX,
 		COURSE_EDITOR_SEMESTER_YEAR_MIN
 	} from '$lib/config/courseEditor';
@@ -45,6 +46,7 @@
 		name: '',
 		code: '',
 		semester: '',
+		color: COURSE_EDITOR_DEFAULT_COLOR,
 		instructorId: ''
 	};
 	let newGroupName = '';
@@ -250,6 +252,7 @@
 			name: selectedCourse.name,
 			code: selectedCourse.code,
 			semester: selectedCourse.semester,
+			color: selectedCourse.color,
 			instructorId: courseInstructorMember?.id || matchingUserByEmail?.id || matchingUserByName?.id || ''
 		};
 	}
@@ -432,6 +435,7 @@
 				name: courseName,
 				code: editCourseForm.code.trim() || selectedCourse.code,
 				semester: editCourseForm.semester.trim() || selectedCourse.semester,
+				color: editCourseForm.color.trim() || selectedCourse.color,
 				instructorId: normalizedInstructorId || currentInstructorId
 			});
 			await refreshAfterWrite();

@@ -168,6 +168,7 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
     name = payload.get("name")
     code = payload.get("code")
     semester = payload.get("semester")
+    color = payload.get("color")
     instructor_id = normalize_str(payload.get("instructorId") or payload.get("instructor_id"))
     instructor_email = normalize_str(payload.get("instructorEmail")).lower()
 
@@ -181,6 +182,8 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
             raise ValueError(semester_error)
         course["semester"] = parsed_semester["display"]
         course["semester_obj"] = None if parsed_semester["term"] == "none" else {"year": parsed_semester["year"], "term": parsed_semester["term"]}
+    if color is not None:
+        course["color"] = normalize_str(color) or course.get("color", "#1a4a8a")
 
     if instructor_id or instructor_email:
         identifier = instructor_id or instructor_email
