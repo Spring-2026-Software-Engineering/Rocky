@@ -6,6 +6,7 @@
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import { fetchUsersForViews } from '$lib/api/users';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
+	import { showErrorFeedback } from '$lib/stores/feedbackStore';
 	import {
 		COURSE_EDITOR_SEMESTER_YEAR_MAX,
 		COURSE_EDITOR_SEMESTER_YEAR_MIN
@@ -42,9 +43,15 @@
 	}
 
 	async function createCourseFromForm() {
+		const courseName = form.name.trim();
+		if (!courseName) {
+			showErrorFeedback('Course name is required.');
+			return;
+		}
+
 		const normalizedInstructorId = form.instructorId.trim();
 		const created = await createCourse({
-			name: form.name.trim() || 'Untitled Course',
+			name: courseName,
 			code: form.code.trim(),
 			semester: form.semester.trim() || '',
 			instructorId: normalizedInstructorId,

@@ -24,6 +24,7 @@
 		COURSE_EDITOR_SEMESTER_YEAR_MAX,
 		COURSE_EDITOR_SEMESTER_YEAR_MIN
 	} from '$lib/config/courseEditor';
+	import { showErrorFeedback } from '$lib/stores/feedbackStore';
 	import type { Course, CourseApiKeySummary, CourseDetail, CourseGroup } from '$lib/types/course';
 	import type { User } from '$lib/types/user';
 	import type { CourseApiHistoryEntry, CourseApiKeySummaryResponse } from '$lib/api/courses';
@@ -417,12 +418,18 @@
 			return;
 		}
 
+		const courseName = editCourseForm.name.trim();
+		if (!courseName) {
+			showErrorFeedback('Course name is required.');
+			return;
+		}
+
 		const normalizedInstructorId = editCourseForm.instructorId.trim();
 		const currentInstructorId = selectedDetail?.members.find((member) => member.role === 'instructor')?.id || '';
 
 		try {
 			await updateCourseMetadata(selectedCourse.id, {
-				name: editCourseForm.name.trim() || selectedCourse.name,
+				name: courseName,
 				code: editCourseForm.code.trim() || selectedCourse.code,
 				semester: editCourseForm.semester.trim() || selectedCourse.semester,
 				instructorId: normalizedInstructorId || currentInstructorId

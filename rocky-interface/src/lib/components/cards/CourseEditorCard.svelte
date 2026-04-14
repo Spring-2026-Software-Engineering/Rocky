@@ -115,7 +115,7 @@
 	<div class="course-edit-grid">
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-name-input`}>Course Name</label>
-			<input id={`${idPrefix}-name-input`} class="text-input" type="text" bind:value={form.name} />
+			<input id={`${idPrefix}-name-input`} class="text-input" type="text" bind:value={form.name} required />
 		</div>
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-code-input`}>Course ID</label>
