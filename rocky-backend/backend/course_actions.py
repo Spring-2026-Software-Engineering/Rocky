@@ -554,3 +554,37 @@ def delete_course_api_keys(course: dict[str, Any], api_keys_collection) -> int:
     deleted_by_course_code = api_keys_collection.delete_many({"c_id": course_code})
     deleted_count += int(getattr(deleted_by_course_code, "deleted_count", 0))
     return deleted_count
+
+
+def delete_owner_api_keys(course: dict[str, Any], api_keys_collection, owner_type: str, owner_id: str, key_name: str | None = None) -> int:
+    course_code = normalize_str(course.get("code"))
+    if not course_code:
+        raise ValueError("Course code is required for API key management.")
+
+    normalized_owner_id = normalize_str(owner_id).lower()
+    normalized_owner_type = normalize_str(owner_type).lower()
+
+    filter_by_course_id: dict[str, Any] = {
+        "owner_type": normalized_owner_type,
+        "owner_id": normalized_owner_id,
+    }
+    filter_by_course_code: dict[str, Any] = {
+        "c_id": course_code,
+        "owner_type": normalized_owner_type,
+        "owner_id": normalized_owner_id,
+    }
+    if key_name:
+        normalized_key_name = normalize_str(key_name)
+        filter_by_course_id["key_name"] = normalized_key_name
+        filter_by_course_code["key_name"] = normalized_key_name
+
+    deleted_count = 0
+    course_numeric_id = course.get("id") if isinstance(course.get("id"), int) else None
+    if course_numeric_id is not None:
+        filter_by_course_id["course_id"] = course_numeric_id
+        result = api_keys_collection.delete_many(filter_by_course_id)
+        deleted_count += int(getattr(result, "deleted_count", 0))
+
+    result = api_keys_collection.delete_many(filter_by_course_code)
+    deleted_count += int(getattr(result, "deleted_count", 0))
+    return deleted_count

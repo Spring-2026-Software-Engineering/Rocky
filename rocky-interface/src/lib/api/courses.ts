@@ -261,11 +261,12 @@ export async function regenerateCourseApiKey(
 	}
 }
 
-export async function deleteCourseApiKey(courseId: string | number): Promise<void> {
+export async function deleteCourseApiKey(courseId: string | number, keyName?: string): Promise<void> {
 	try {
 		await fetchJson(`/api/backend/courses/${courseId}/api-key`, {
 			method: 'DELETE',
-			headers: jsonHeaders()
+			headers: jsonHeaders(),
+			body: keyName ? JSON.stringify({ keyName }) : undefined
 		});
 
 		showSuccessFeedback('API key deleted successfully.');

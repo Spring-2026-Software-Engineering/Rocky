@@ -598,12 +598,31 @@
 			apiKeyActionError = null;
 			await deleteCourseApiKey(selectedCourse.id);
 			previewApiKey = null;
+			courseApiKeys = courseApiKeys.filter(
+				(key) => !(key.ownerType === 'person' && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId)))
+			);
 			setSelectedCourseHasApiKey(false, {
 				apiKeyOwnerType: null,
 				apiKeyOwnerId: null,
 				apiKeyGroupCreatedBy: null,
 				apiKeyCreated: null
 			});
+		} catch (err) {
+			apiKeyActionError = err instanceof Error ? err.message : 'Unable to delete API key.';
+		}
+	}
+
+	async function deletePersonalKey(keyName: string) {
+		if (!selectedCourse) {
+			return;
+		}
+
+		try {
+			apiKeyActionError = null;
+			await deleteCourseApiKey(selectedCourse.id, keyName);
+			courseApiKeys = courseApiKeys.filter(
+				(key) => !(key.ownerType === 'person' && key.keyName === keyName && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId)))
+			);
 		} catch (err) {
 			apiKeyActionError = err instanceof Error ? err.message : 'Unable to delete API key.';
 		}
@@ -689,7 +708,7 @@
 									{#if canGenerateApiKey && !isCurrentUserAdmin}
 									<button type="button" class="list-go-btn" onclick={regenerateApiKey}>Generate API Key</button>
 									{/if}
-									{#if isCurrentUserAdmin && hasExistingApiKey}
+									{#if hasExistingApiKey && (isCurrentUserAdmin || currentUserIsApiKeyOwner || currentUserIsApiKeyGroupMember)}
 										<button type="button" class="list-go-btn" onclick={deleteApiKey}>Delete API Key</button>
 									{/if}
 								{#if previewApiKey}
@@ -712,7 +731,7 @@
 							{:else}
 								<ul class="course-inline-list">
 									{#each personalOwnedKeys as key}
-										<li><strong>{key.keyName}</strong> · {API_KEY_PREFIX}{'*'.repeat(17)} · {key.created || 'pending timestamp'}</li>
+										<li><strong>{key.keyName}</strong> · {API_KEY_PREFIX}{'*'.repeat(17)} · {key.created || 'pending timestamp'} <button type="button" class="list-go-btn" onclick={() => deletePersonalKey(key.keyName)}>Delete</button></li>
 									{/each}
 								</ul>
 							{/if}

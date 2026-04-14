@@ -628,26 +628,46 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
 
 def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
     require_requester_identity = deps["require_requester_identity"]
+    _resolve_requester_user_id = deps["_resolve_requester_user_id"]
     get_course_record = deps["get_course_record"]
     courses = deps["courses"]
     api_keys = deps["api_keys"]
     can_manage_api_keys = deps["can_manage_api_keys"]
+    can_request_api_key = deps["can_request_api_key"]
     delete_course_api_keys = deps["delete_course_api_keys"]
+    delete_owner_api_keys = deps["delete_owner_api_keys"]
+    normalize_str = deps["normalize_str"]
     _bad_request = deps["_bad_request"]
 
     identity = require_requester_identity()
     if identity[0] is None:
         return jsonify(identity[1][0]), identity[1][1]
-    _, is_admin = identity
-    if not can_manage_api_keys(is_admin):
-        return jsonify({"error": "Admin access is required."}), 403
+    email, is_admin = identity
 
     course = get_course_record(courses, course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
     try:
-        deleted_count = delete_course_api_keys(course, api_keys)
+        if can_manage_api_keys(is_admin):
+            deleted_count = delete_course_api_keys(course, api_keys)
+        else:
+            requester_id = _resolve_requester_user_id(email)
+            requester_identifier = requester_id or email
+            if not can_request_api_key(course, requester_identifier, is_admin):
+                return jsonify({"error": "Course access is required."}), 403
+
+            data = request.get_json(silent=True) or {}
+            group_id = normalize_str(data.get("groupId") or data.get("group_id"))
+            key_name = normalize_str(data.get("keyName") or data.get("key_name")) or None
+            if group_id:
+                owner_type = "group"
+                owner_id = group_id
+            else:
+                owner_type = "person"
+                owner_id = normalize_str(requester_identifier).lower()
+
+            deleted_count = delete_owner_api_keys(course, api_keys, owner_type, owner_id, key_name)
     except ValueError as exc:
         return _bad_request(str(exc))
 
