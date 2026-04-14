@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import {
+		COURSE_EDITOR_SEMESTER_TERMS,
+		COURSE_EDITOR_SEMESTER_YEAR_MAX,
+		COURSE_EDITOR_SEMESTER_YEAR_MIN
+	} from '$lib/config/courseEditor';
 	import type { User } from '$lib/types/user';
-
-	const DEFAULT_SEMESTER_YEAR_MIN = 2000;
-	const DEFAULT_SEMESTER_YEAR_MAX = 2200;
-	const DEFAULT_SEMESTER_TERMS = ['none', 'summer', 'fall', 'spring'];
 
 	type CourseEditorForm = {
 		name: string;
@@ -19,12 +20,12 @@
 	export let users: User[] = [];
 	export let idPrefix = 'course-editor';
 	export let useSemesterPicker = false;
-	export let semesterYearMin = DEFAULT_SEMESTER_YEAR_MIN;
-	export let semesterYearMax = DEFAULT_SEMESTER_YEAR_MAX;
-	export let semesterTerms: string[] = DEFAULT_SEMESTER_TERMS;
+	export let semesterYearMin = COURSE_EDITOR_SEMESTER_YEAR_MIN;
+	export let semesterYearMax = COURSE_EDITOR_SEMESTER_YEAR_MAX;
+	export let semesterTerms: string[] = COURSE_EDITOR_SEMESTER_TERMS;
 
 	let selectedSemesterTerm = 'none';
-	let selectedSemesterYear = DEFAULT_SEMESTER_YEAR_MIN;
+	let selectedSemesterYear = COURSE_EDITOR_SEMESTER_YEAR_MIN;
 	let lastParsedSemester = '';
 
 	const dispatch = createEventDispatcher<{ submit: void }>();

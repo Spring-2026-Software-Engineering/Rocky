@@ -20,14 +20,16 @@
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import ViewShell from '$lib/components/ViewShell.svelte';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
+	import {
+		COURSE_EDITOR_SEMESTER_YEAR_MAX,
+		COURSE_EDITOR_SEMESTER_YEAR_MIN
+	} from '$lib/config/courseEditor';
 	import type { Course, CourseApiKeySummary, CourseDetail, CourseGroup } from '$lib/types/course';
 	import type { User } from '$lib/types/user';
 	import type { CourseApiHistoryEntry, CourseApiKeySummaryResponse } from '$lib/api/courses';
 
 	type CourseTab = 'home' | 'edit-course' | 'edit-roster' | 'groups';
 	const API_KEY_PREFIX = 'sk_kent_';
-	const SEMESTER_YEAR_MIN = 2000;
-	const SEMESTER_YEAR_MAX = 2200;
 
 	let allCourses: Course[] = [];
 	let allUsers: User[] = [];
@@ -827,8 +829,8 @@
 						users={accountUsers}
 						form={editCourseForm}
 						useSemesterPicker={true}
-						semesterYearMin={SEMESTER_YEAR_MIN}
-						semesterYearMax={SEMESTER_YEAR_MAX}
+						semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
+						semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
 						on:submit={saveCourseEdits}
 					/>
 				</div>
