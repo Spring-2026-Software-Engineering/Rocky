@@ -56,6 +56,9 @@
 		if (!normalized) {
 			return { term: 'none', year: fallbackYear };
 		}
+		if (normalized.toLowerCase() === 'none') {
+			return { term: 'none', year: fallbackYear };
+		}
 
 		const [termRaw, yearRaw] = normalized.split(/\s+/, 2);
 		const term = (termRaw || '').trim().toLowerCase();
@@ -69,6 +72,12 @@
 
 	function updateSemesterFromControls() {
 		if (!useSemesterPicker) {
+			return;
+		}
+
+		if (selectedSemesterTerm === 'none') {
+			form.semester = 'None';
+			lastParsedSemester = form.semester;
 			return;
 		}
 
@@ -87,6 +96,10 @@
 	$: if (useSemesterPicker && !semesterTerms.includes(selectedSemesterTerm)) {
 		selectedSemesterTerm = 'none';
 		updateSemesterFromControls();
+	}
+
+	$: if (useSemesterPicker && selectedSemesterTerm === 'none') {
+		selectedSemesterYear = clampSemesterYear(selectedSemesterYear);
 	}
 
 	function submitForm() {
@@ -129,6 +142,8 @@
 						min={semesterYearMin}
 						max={semesterYearMax}
 						bind:value={selectedSemesterYear}
+						disabled={selectedSemesterTerm === 'none'}
+						class:is-disabled={selectedSemesterTerm === 'none'}
 						onchange={updateSemesterFromControls}
 					/>
 				</div>

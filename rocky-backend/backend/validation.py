@@ -15,22 +15,31 @@ def normalize_str(value: Any) -> str:
 
 
 def semester_display(term: str, year: int) -> str:
+    if term == "none":
+        return "None"
     return f"{term.capitalize()} {year}"
 
 
 def parse_semester(value: Any):
+    if value is None:
+        return {"year": None, "term": "none", "display": None}, None
+
     if isinstance(value, dict):
         year = value.get("year")
         term = normalize_str(value.get("term")).lower()
-        if not isinstance(year, int) or year < SEMESTER_YEAR_MIN or year > SEMESTER_YEAR_MAX:
-            return None, f"semester.year must be an integer between {SEMESTER_YEAR_MIN} and {SEMESTER_YEAR_MAX}."
         if term not in ALLOWED_TERMS:
             allowed_terms = ", ".join(sorted(ALLOWED_TERMS))
             return None, f"semester.term must be one of: {allowed_terms}."
+        if term == "none":
+            return {"year": None, "term": "none", "display": None}, None
+        if not isinstance(year, int) or year < SEMESTER_YEAR_MIN or year > SEMESTER_YEAR_MAX:
+            return None, f"semester.year must be an integer between {SEMESTER_YEAR_MIN} and {SEMESTER_YEAR_MAX}."
         return {"year": year, "term": term, "display": semester_display(term, year)}, None
 
     if isinstance(value, str):
         parts = value.strip().split()
+        if len(parts) == 1 and parts[0].lower() == "none":
+            return {"year": None, "term": "none", "display": None}, None
         if len(parts) != 2:
             return None, "semester string must look like 'Fall 2026'."
         term = parts[0].lower()
@@ -41,6 +50,8 @@ def parse_semester(value: Any):
         if term not in ALLOWED_TERMS:
             allowed_terms = ", ".join(sorted(ALLOWED_TERMS))
             return None, f"semester term in string format must be one of: {allowed_terms}."
+        if term == "none":
+            return {"year": None, "term": "none", "display": None}, None
         if year < SEMESTER_YEAR_MIN or year > SEMESTER_YEAR_MAX:
             return None, f"semester year in string format must be between {SEMESTER_YEAR_MIN} and {SEMESTER_YEAR_MAX}."
         return {"year": year, "term": term, "display": semester_display(term, year)}, None
@@ -226,7 +237,7 @@ def validate_course_payload(payload: Any):
         "instructor_ids": [v.strip() for v in instructor_ids],
         "student_ids": [v.strip() for v in student_ids],
         "semester": parsed_semester["display"],
-        "semester_obj": {"year": parsed_semester["year"], "term": parsed_semester["term"]},
+        "semester_obj": None if parsed_semester["term"] == "none" else {"year": parsed_semester["year"], "term": parsed_semester["term"]},
         "members": members,
         "groups": groups,
         "announcements": [v.strip() for v in announcements],

@@ -33,6 +33,14 @@ function getErrorMessage(err: unknown, fallback: string): string {
 	return err instanceof Error && err.message.trim() ? err.message : fallback;
 }
 
+function serializeSemester(value: string): string | null {
+	const normalized = value.trim().toLowerCase();
+	if (!normalized || normalized === 'none') {
+		return null;
+	}
+	return value.trim();
+}
+
 export type CreateCourseInput = {
 	name: string;
 	code: string;
@@ -109,7 +117,7 @@ export async function createCourse(input: CreateCourseInput): Promise<Course> {
 		const payload = {
 			name: input.name.trim(),
 			code: input.code.trim(),
-			semester: input.semester.trim(),
+			semester: serializeSemester(input.semester),
 			instructor: input.instructorName?.trim() || '',
 			instructor_ids: input.instructorId ? [input.instructorId.trim()] : [],
 			student_ids: [],
@@ -147,7 +155,7 @@ export async function updateCourseMetadata(courseId: string | number, input: Upd
 			body: JSON.stringify({
 				name: input.name.trim(),
 				code: input.code.trim(),
-				semester: input.semester.trim(),
+				semester: serializeSemester(input.semester),
 				instructorId: input.instructorId.trim()
 			})
 		});

@@ -3,7 +3,7 @@ export type ApiCourse = Partial<{
 	code: string;
 	name: string;
 	instructor: string;
-	semester: string;
+	semester: string | null;
 	color: string;
 	has_api_key: boolean;
 	api_key_owner_type: 'person' | 'group' | null;
@@ -92,14 +92,17 @@ export type CourseApiKeySummary = {
 	courseId: number;
 };
 
-function normalizeSemester(rawSemester?: string): string {
+function normalizeSemester(rawSemester?: string | null): string {
 	const trimmed = rawSemester?.trim() || '';
+	if (!trimmed || trimmed.toLowerCase() === 'none') {
+		return 'None';
+	}
 	if (/^(spring|summer|fall)\s+\d{4}$/i.test(trimmed)) {
 		const [term, year] = trimmed.split(/\s+/);
 		const capitalizedTerm = `${term.charAt(0).toUpperCase()}${term.slice(1).toLowerCase()}`;
 		return `${capitalizedTerm} ${year}`;
 	}
-	return '';
+	return 'None';
 }
 
 export function normalizeCourse(raw: ApiCourse, index = 0): Course {

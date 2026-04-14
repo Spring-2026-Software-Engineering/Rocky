@@ -180,7 +180,7 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
         if semester_error:
             raise ValueError(semester_error)
         course["semester"] = parsed_semester["display"]
-        course["semester_obj"] = {"year": parsed_semester["year"], "term": parsed_semester["term"]}
+        course["semester_obj"] = None if parsed_semester["term"] == "none" else {"year": parsed_semester["year"], "term": parsed_semester["term"]}
 
     if instructor_id or instructor_email:
         identifier = instructor_id or instructor_email
