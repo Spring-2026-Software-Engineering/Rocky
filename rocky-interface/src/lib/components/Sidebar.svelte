@@ -11,6 +11,15 @@
 	import { framesForRole, toFrameLabel, type FrameName } from '$lib/types/frame';
 	import {sidebarOpen} from '$lib/stores/sidebarStore';
 
+	const frameIcons: Record<FrameName, string> = {
+		dashboard: '/dashboard-icon.svg',
+		users: '/users-icon.svg',
+		courses: '/courses-icon.svg',
+		analytics: '/analytics-icon.svg',
+		account: '/account-icon.svg',
+		help: '/help-icon.svg'
+	};
+
 	const frames = Object.keys(frameMap) as FrameName[];
 	const isAdmin = $derived(Boolean(page.data.currentUser?.isAdmin));
 	const allowedFrames = $derived(framesForRole(isAdmin));
@@ -169,6 +178,10 @@
 		courseMenuOpen = false;
 		openCourseComposer();
 	}
+
+	function iconForFrame(frame: FrameName): string {
+		return frameIcons[frame];
+	}
 </script>
 
 {#if $sidebarOpen}
@@ -177,11 +190,17 @@
 
 <nav class="sidebar" class:open={$sidebarOpen}>
 	{#each framesBeforeCourses as frame}
-		<button class="nav-link" class:active={activeFrame === frame} onclick={() => handleFrameChange(frame)}>{toFrameLabel(frame)}</button>
+		<button class="nav-link" class:active={activeFrame === frame} onclick={() => handleFrameChange(frame)}>
+			<img class="nav-link-icon" src={iconForFrame(frame)} alt="" aria-hidden="true" />
+			<span class="nav-link-label">{toFrameLabel(frame)}</span>
+		</button>
 	{/each}
 
 	<div class="course-tab-group" bind:this={courseTabGroupElement}>
-		<button class="nav-link" class:active={activeFrame === 'courses'} onclick={toggleCourseMenu}>{toFrameLabel('courses')}</button>
+		<button class="nav-link" class:active={activeFrame === 'courses'} onclick={toggleCourseMenu}>
+			<img class="nav-link-icon" src={iconForFrame('courses')} alt="" aria-hidden="true" />
+			<span class="nav-link-label">{toFrameLabel('courses')}</span>
+		</button>
 		{#if courseMenuOpen}
 			<div class="course-popout" role="menu" aria-label="Course list">
 				<div class="course-popout-header">
@@ -216,12 +235,18 @@
 	</div>
 
 	{#each framesAfterCourses as frame}
-		<button class="nav-link" class:active={activeFrame === frame} onclick={() => handleFrameChange(frame)}>{toFrameLabel(frame)}</button>
+		<button class="nav-link" class:active={activeFrame === frame} onclick={() => handleFrameChange(frame)}>
+			<img class="nav-link-icon" src={iconForFrame(frame)} alt="" aria-hidden="true" />
+			<span class="nav-link-label">{toFrameLabel(frame)}</span>
+		</button>
 	{/each}
 
 	<div class="spacer"></div>
 
 	{#if allowedFrames.includes('help')}
-		<button class="nav-link" class:active={activeFrame === 'help'} onclick={() => handleFrameChange('help')}>{toFrameLabel('help')}</button>
+		<button class="nav-link" class:active={activeFrame === 'help'} onclick={() => handleFrameChange('help')}>
+			<img class="nav-link-icon" src={iconForFrame('help')} alt="" aria-hidden="true" />
+			<span class="nav-link-label">{toFrameLabel('help')}</span>
+		</button>
 	{/if}
 </nav>
