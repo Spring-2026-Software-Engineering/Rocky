@@ -8,9 +8,9 @@
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
 	import { showErrorFeedback } from '$lib/stores/feedbackStore';
 	import {
-		COURSE_EDITOR_DEFAULT_COLOR,
 		COURSE_EDITOR_SEMESTER_YEAR_MAX,
-		COURSE_EDITOR_SEMESTER_YEAR_MIN
+		COURSE_EDITOR_SEMESTER_YEAR_MIN,
+		randomCourseEditorColor
 	} from '$lib/config/courseEditor';
 	import { closeCourseComposer, courseComposerState } from '$lib/stores/courseComposerStore';
 	import type { User } from '$lib/types/user';
@@ -20,7 +20,7 @@
 		name: '',
 		code: '',
 		semester: '',
-		color: COURSE_EDITOR_DEFAULT_COLOR,
+		color: randomCourseEditorColor(),
 		instructorId: ''
 	};
 
@@ -40,7 +40,7 @@
 			name: '',
 			code: '',
 			semester: '',
-			color: COURSE_EDITOR_DEFAULT_COLOR,
+			color: randomCourseEditorColor(),
 			instructorId: ''
 		};
 	}
@@ -57,7 +57,7 @@
 			name: courseName,
 			code: form.code.trim(),
 			semester: form.semester.trim() || '',
-			color: form.color.trim() || COURSE_EDITOR_DEFAULT_COLOR,
+			color: form.color.trim() || randomCourseEditorColor(),
 			instructorId: normalizedInstructorId,
 			instructorName: accountUsers.find((user) => user.id === normalizedInstructorId)?.displayName
 		});

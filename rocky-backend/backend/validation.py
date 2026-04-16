@@ -8,6 +8,7 @@ SEMESTER_YEAR_MIN = 2000
 SEMESTER_YEAR_MAX = 2200
 ALLOWED_TERMS = {"none", "spring", "summer", "fall"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+COURSE_COLOR_DEFAULT = "#7b2d8b"
 
 
 def normalize_str(value: Any) -> str:
@@ -242,7 +243,7 @@ def validate_course_payload(payload: Any):
         "groups": groups,
         "announcements": [v.strip() for v in announcements],
         "overview": normalize_str(payload.get("overview")),
-        "color": normalize_str(payload.get("color")) or "#1a4a8a",
+        "color": normalize_str(payload.get("color")) or COURSE_COLOR_DEFAULT,
     }
 
     course_code = normalize_str(payload.get("code"))
