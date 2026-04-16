@@ -107,12 +107,20 @@ function normalizeSemester(rawSemester?: string | null): string {
 	return 'None';
 }
 
+function normalizeCourseCode(rawCode?: string | null): string {
+	const trimmed = rawCode?.trim() || '';
+	if (!trimmed || trimmed.toLowerCase() === 'tbd 0000' || trimmed.toLowerCase() === 'none') {
+		return '';
+	}
+	return trimmed;
+}
+
 export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 	const instructor = raw.instructor?.trim() || 'Unknown Instructor';
 
 	return {
 		id: typeof raw.id === 'number' && Number.isFinite(raw.id) ? raw.id : index + 1,
-		code: raw.code?.trim() || 'TBD 0000',
+		code: normalizeCourseCode(raw.code),
 		name: raw.name?.trim() || 'Untitled Course',
 		instructor,
 		semester: normalizeSemester(raw.semester),

@@ -655,7 +655,9 @@
 				<div>
 					<h2>{selectedCourse.name}</h2>
 					<p class="section-text">
-						{selectedCourse.code} · {selectedCourse.semester} · {selectedDetail?.members.find((member) => member.role === 'instructor') ? getMemberDisplayName(selectedDetail.members.find((member) => member.role === 'instructor') as CourseDetail['members'][number]) : selectedCourse.instructor}
+						{[selectedCourse.code?.trim(), selectedCourse.semester, selectedDetail?.members.find((member) => member.role === 'instructor') ? getMemberDisplayName(selectedDetail.members.find((member) => member.role === 'instructor') as CourseDetail['members'][number]) : selectedCourse.instructor]
+							.filter((value) => value && value.length > 0)
+							.join(' · ')}
 					</p>
 				</div>
 			</div>

@@ -203,7 +203,9 @@
 								<span class="course-dot" style={`background-color: ${course.color};`}></span>
 								<span class="course-item-text">
 									<span class="course-item-name">{course.name}</span>
-									<span class="course-item-meta">{course.code}</span>
+									{#if course.code?.trim()}
+										<span class="course-item-meta">{course.code}</span>
+									{/if}
 								</span>
 							</button>
 						{/each}
