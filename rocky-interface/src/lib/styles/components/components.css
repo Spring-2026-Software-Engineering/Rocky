@@ -109,7 +109,7 @@
 }
 
 .spacer {
-	flex: 1;
+	flex: 0;
 }
 
 /* Overlay for mobile sidebar */
