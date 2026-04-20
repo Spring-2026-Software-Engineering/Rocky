@@ -47,8 +47,6 @@ export async function fetchCourseDetails(): Promise<CourseDetail[]> {
 	const rawCourses = await fetchJson<ApiCourse[]>(coursesUrl);
 	const rawDetails = rawCourses.map((course) => ({
 		id: course.id,
-		overview: course.overview,
-		announcements: course.announcements,
 		members: course.members
 	}));
 	return normalizeCourseDetails(rawDetails);

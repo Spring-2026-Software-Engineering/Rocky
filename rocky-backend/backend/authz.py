@@ -56,7 +56,7 @@ def filter_courses_for_requester(courses: list[dict[str, Any]]) -> list[dict[str
     filtered = []
     for course in courses:
         member_emails = {
-            (member.get("accountEmail") or member.get("email") or "").strip().lower()
+            (member.get("email") or "").strip().lower()
             for member in course.get("members", [])
             if isinstance(member, dict)
         }

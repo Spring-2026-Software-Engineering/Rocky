@@ -20,10 +20,20 @@
 	$: currentUserDisplayName = $page.data.currentUser?.displayName?.trim() || '';
 	$: currentUserFirstName = $page.data.currentUser?.firstName?.trim() || '';
 	$: currentUserLastName = $page.data.currentUser?.lastName?.trim() || '';
+	$: currentUserId = $page.data.currentUser?.id?.trim().toLowerCase() || '';
 	$: currentUserFullName = [currentUserFirstName, currentUserLastName].filter((value) => value.length > 0).join(' ').trim();
 	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
 
 	function isCourseInstructor(course: Course): boolean {
+		const instructorIdentifiers = [course.instructorId, course.instructorEmail]
+			.map((value) => value?.trim().toLowerCase() || '')
+			.filter((value) => value.length > 0);
+
+		const currentIdentifiers = [currentUserId, currentUserEmail].filter((value) => value.length > 0);
+		if (currentIdentifiers.some((identifier) => instructorIdentifiers.includes(identifier))) {
+			return true;
+		}
+
 		const instructorLabel = course.instructor?.trim().toLowerCase() || '';
 		if (!instructorLabel) {
 			return false;

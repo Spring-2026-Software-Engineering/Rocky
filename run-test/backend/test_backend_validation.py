@@ -131,7 +131,6 @@ class BackendValidationTests(BackendTestCase):
                 "instructor": "Dr. Priya Narayanan",
                 "semester": "Summer 2027",
                 "color": "#1d4ed8",
-                "announcements": ["Welcome to Cloud Computing"],
                 "members": [
                     {"id": "KSUID000000002", "role": "instructor"},
                     {"id": "KSUID000000003", "role": "student"},
@@ -274,6 +273,80 @@ class BackendValidationTests(BackendTestCase):
         course_after_regenerate = next((course for course in after_regenerate_payload if course.get("id") == 1), None)
         self.assertIsNotNone(course_after_regenerate)
         self.assertEqual(course_after_regenerate.get("has_api_key"), True)
+
+    def test_instructor_cannot_update_instructor_member_key_limit(self):
+        self._log("Instructor tries to change another instructor key limit. Expecting HTTP 403.")
+        response = self.client.patch(
+            "/courses/1/members/KSUID000000002/key-limit",
+            json={"keyLimit": 3},
+            headers=self.instructor_headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_cannot_set_member_key_limit_above_course_limit(self):
+        self._log("Admin attempts to set member key limit above course key limit. Expecting HTTP 400.")
+        response = self.client.patch(
+            "/courses/2/members/student.alt2@kent.edu/key-limit",
+            json={"keyLimit": 3},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.get_json() or {}
+        self.assertIn("cannot exceed", payload.get("error", ""))
+
+    def test_admin_can_update_instructor_handout_limit(self):
+        self._log("Admin updates course instructor handout limit and value persists on the course.")
+        response = self.client.patch(
+            "/courses/1/instructor-handout-limit",
+            json={"instructorHandoutLimit": 2},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.get_json() or {}
+        self.assertEqual(payload.get("instructor_handout_limit"), 2)
+
+    def test_non_admin_cannot_update_instructor_handout_limit(self):
+        self._log("Instructor attempts to update instructor handout limit. Expecting HTTP 403.")
+        response = self.client.patch(
+            "/courses/1/instructor-handout-limit",
+            json={"instructorHandoutLimit": 4},
+            headers=self.instructor_headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_handout_generation_respects_handout_limit(self):
+        self._log("Admin handouts respect course-wide max active handed-out keys.")
+
+        set_limit_response = self.client.patch(
+            "/courses/1/instructor-handout-limit",
+            json={"instructorHandoutLimit": 2},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(set_limit_response.status_code, 200)
+
+        first = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={"ownerType": "group", "groupId": "group-se3010-a", "keyName": "key-1", "slotIndex": 1},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(first.status_code, 200)
+
+        second = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={"ownerType": "person", "ownerId": "KSUID000000003", "keyName": "key-1", "slotIndex": 1},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(second.status_code, 200)
+
+        third = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={"ownerType": "person", "ownerId": "KSUID000000004", "keyName": "key-1", "slotIndex": 1},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(third.status_code, 400)
+        payload = third.get_json() or {}
+        self.assertIn("Instructor handout key limit reached", payload.get("error", ""))
 
 
 if __name__ == "__main__":

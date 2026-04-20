@@ -179,36 +179,63 @@ def seed_from_backend() -> dict[str, int]:
         year, term = _parse_semester(semester_raw)
 
         members = raw.get("members") if isinstance(raw.get("members"), list) else []
-        instructor_ids: list[str] = []
+        instructor_id = (raw.get("instructor_id") or "").strip()
+        instructor_email = (raw.get("instructor_email") or "").strip().lower()
+        instructor_name = (raw.get("instructor") or "").strip()
         student_ids: list[str] = []
         normalized_members = []
 
         for member in members:
-            account_email = (member.get("accountEmail") or member.get("email") or "").strip().lower()
+            account_email = (member.get("email") or "").strip().lower()
             if not account_email:
                 continue
             member_id = user_id_by_email.get(account_email, "")
             if not member_id:
                 continue
 
-            role = (member.get("role") or "student").strip().lower()
-            if role != "instructor":
-                role = "student"
+            if instructor_email and account_email == instructor_email:
+                instructor_id = member_id
+                instructor_email = account_email
+                if not instructor_name:
+                    matched_user = main.users.find_one({"id": member_id})
+                    if matched_user:
+                        first_name = (matched_user.get("first_name") or "").strip()
+                        last_name = (matched_user.get("last_name") or "").strip()
+                        instructor_name = " ".join(part for part in [first_name, last_name] if part).strip()
+                continue
 
             normalized_members.append(
                 {
                     "id": member_id,
-                    "accountEmail": account_email,
                     "email": account_email,
-                    "role": role,
                     "key_limit": 1,
                 }
             )
+            student_ids.append(member_id)
 
-            if role == "instructor":
-                instructor_ids.append(member_id)
-            else:
-                student_ids.append(member_id)
+        if not instructor_id and instructor_email:
+            fallback_instructor_id = user_id_by_email.get(instructor_email, "")
+            if fallback_instructor_id:
+                instructor_id = fallback_instructor_id
+
+        if instructor_id and not instructor_email:
+            matched_user = main.users.find_one({"id": instructor_id})
+            if matched_user:
+                instructor_email = (matched_user.get("email") or "").strip().lower()
+                if not instructor_name:
+                    first_name = (matched_user.get("first_name") or "").strip()
+                    last_name = (matched_user.get("last_name") or "").strip()
+                    instructor_name = " ".join(part for part in [first_name, last_name] if part).strip()
+
+        instructor_key_limit = raw.get("instructor_key_limit")
+        if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
+            instructor_key_limit = 2
+
+        member_emails_in_course = {
+            (member.get("email") or "").strip().lower()
+            for member in normalized_members
+            if isinstance(member, dict) and (member.get("email") or "").strip()
+        }
 
         raw_groups = raw.get("groups") if isinstance(raw.get("groups"), list) else []
         normalized_groups = []
@@ -225,15 +252,12 @@ def seed_from_backend() -> dict[str, int]:
                 suffix += 1
 
             member_ids = []
-            for group_member in group.get("memberIds", group.get("memberEmails", [])):
+            for group_member in group.get("memberIds", []):
                 value = (group_member or "").strip().lower() if isinstance(group_member, str) else ""
                 if not value:
                     continue
-                mapped_id = user_id_by_email.get(value)
-                if mapped_id:
-                    member_ids.append(mapped_id)
-                elif value.startswith("KSUID") or value.startswith("WLID"):
-                    member_ids.append(group_member)
+                if value in member_emails_in_course:
+                    member_ids.append(value)
 
             normalized_groups.append(
                 {
@@ -256,15 +280,15 @@ def seed_from_backend() -> dict[str, int]:
             "id": course_id,
             "code": (raw.get("code") or f"TBD {1000 + index}").strip(),
             "name": (raw.get("name") or "Untitled Course").strip(),
-            "instructor": (raw.get("instructor") or "Unknown Instructor").strip(),
+            "instructor": instructor_name or "Unknown Instructor",
+            "instructor_id": instructor_id or None,
+            "instructor_email": instructor_email or None,
+            "instructor_key_limit": instructor_key_limit,
             "semester": semester_raw,
             "color": (raw.get("color") or "#1a4a8a").strip(),
-            "overview": (raw.get("overview") or "").strip(),
-            "announcements": raw.get("announcements") if isinstance(raw.get("announcements"), list) else [],
             "members": normalized_members,
             "groups": normalized_groups,
             # Fields expected by backend create/update shape
-            "instructor_ids": instructor_ids,
             "student_ids": student_ids,
             "semester_obj": {"year": year, "term": term},
         }
@@ -272,11 +296,11 @@ def seed_from_backend() -> dict[str, int]:
         main.courses.insert_one(course_doc)
         courses_inserted += 1
 
-        if instructor_ids:
+        if instructor_id:
             _, generated_hash = generate_api_key_pair()
 
             seeded_owner_type = "person"
-            seeded_owner_id = instructor_ids[0].lower()
+            seeded_owner_id = instructor_id.lower()
             seeded_group_created_by = None
 
             if normalized_groups:
@@ -285,9 +309,9 @@ def seed_from_backend() -> dict[str, int]:
                 seeded_owner_id = (primary_group.get("id") or "").strip().lower()
                 primary_group_member_ids = primary_group.get("memberIds") if isinstance(primary_group.get("memberIds"), list) else []
                 if primary_group_member_ids:
-                    seeded_group_created_by = (primary_group_member_ids[0] or "").strip().lower() or instructor_ids[0].lower()
+                    seeded_group_created_by = (primary_group_member_ids[0] or "").strip().lower() or instructor_id.lower()
                 else:
-                    seeded_group_created_by = instructor_ids[0].lower()
+                    seeded_group_created_by = instructor_id.lower()
 
             key_doc = {
                 "owner_type": seeded_owner_type,

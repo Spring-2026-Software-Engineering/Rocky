@@ -61,8 +61,6 @@ export type UpdateCourseMetadataInput = {
 export type CourseMemberInput = {
 	id?: string;
 	email?: string;
-	accountEmail?: string;
-	role?: 'student' | 'instructor';
 };
 
 export type ApiCourseHistoryEntry = Partial<{
@@ -128,16 +126,9 @@ export async function createCourse(input: CreateCourseInput): Promise<Course> {
 			semester: serializeSemester(input.semester),
 			color: input.color.trim(),
 			instructor: input.instructorName?.trim() || '',
-			instructor_ids: input.instructorId ? [input.instructorId.trim()] : [],
+			instructor_id: input.instructorId.trim(),
 			student_ids: [],
-			members: input.instructorId
-				? [
-						{
-							id: input.instructorId.trim(),
-							role: 'instructor'
-						}
-					]
-				: [],
+			members: [],
 			groups: []
 		};
 
@@ -352,6 +343,41 @@ export async function updateCourseMemberKeyLimit(courseId: string | number, memb
 		showSuccessFeedback('Member key limit updated successfully.');
 	} catch (err) {
 		const message = getErrorMessage(err, 'Unable to update member key limit.');
+		showErrorFeedback(message);
+		throw err;
+	}
+}
+
+export async function updateCourseInstructorHandoutLimit(
+	courseId: string | number,
+	instructorHandoutLimit: number
+): Promise<void> {
+	try {
+		await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/instructor-handout-limit`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify({ instructorHandoutLimit })
+		});
+
+		showSuccessFeedback('Instructor handout limit updated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update instructor handout limit.');
+		showErrorFeedback(message);
+		throw err;
+	}
+}
+
+export async function updateCourseInstructorKeyLimit(courseId: string | number, instructorKeyLimit: number): Promise<void> {
+	try {
+		await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/instructor-key-limit`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify({ instructorKeyLimit })
+		});
+
+		showSuccessFeedback('Instructor key limit updated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update instructor key limit.');
 		showErrorFeedback(message);
 		throw err;
 	}

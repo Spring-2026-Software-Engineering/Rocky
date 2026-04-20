@@ -150,39 +150,6 @@
     </style>
   </head>
   <body>
-    {% macro render_node(value, label=None) %}
-      {% if value is mapping %}
-        <li>
-          {% if label is not none %}<span class="tree-label">{{ label }}:</span>{% endif %}
-          <span class="tree-value">object</span>
-          <div class="tree-children">
-            <ul class="tree">
-              {% for key, child in value.items() %}
-                {{ render_node(child, key) }}
-              {% endfor %}
-            </ul>
-          </div>
-        </li>
-      {% elif value is sequence and value is not string %}
-        <li>
-          {% if label is not none %}<span class="tree-label">{{ label }}:</span>{% endif %}
-          <span class="tree-value">class[{{ value | length }}]</span>
-          <div class="tree-children">
-            <ul class="tree">
-              {% for child in value %}
-                {{ render_node(child, loop.index0) }}
-              {% endfor %}
-            </ul>
-          </div>
-        </li>
-      {% else %}
-        <li>
-          {% if label is not none %}<span class="tree-label">{{ label }}:</span>{% endif %}
-          <span class="tree-value">{{ value }}</span>
-        </li>
-      {% endif %}
-    {% endmacro %}
-
     <main>
       <h1>Rocky Backend Collection Snapshot</h1>
       <p>Generated at {{ generated_at }} (UTC)</p>
@@ -198,11 +165,7 @@
           {% if collection.description %}
           <p class="meta">{{ collection.description }}</p>
           {% endif %}
-          <div class="tree-root">
-            <ul class="tree">
-              {{ render_node(docs, name) }}
-            </ul>
-          </div>
+          <pre>{{ docs | tojson(indent=2) }}</pre>
         </div>
       </details>
       {% endfor %}

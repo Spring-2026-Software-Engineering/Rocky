@@ -25,6 +25,7 @@
 	const currentUserDisplayName = $derived(page.data.currentUser?.displayName?.trim() || '');
 	const currentUserFirstName = $derived(page.data.currentUser?.firstName?.trim() || '');
 	const currentUserLastName = $derived(page.data.currentUser?.lastName?.trim() || '');
+	const currentUserId = $derived(page.data.currentUser?.id?.trim().toLowerCase() || '');
 	const currentUserFullName = $derived(
 		[currentUserFirstName, currentUserLastName].filter((value) => value.length > 0).join(' ').trim()
 	);
@@ -191,6 +192,15 @@
 	}
 
 	function isCourseInstructor(course: Course): boolean {
+		const instructorIdentifiers = [course.instructorId, course.instructorEmail]
+			.map((value) => value?.trim().toLowerCase() || '')
+			.filter((value) => value.length > 0);
+
+		const currentIdentifiers = [currentUserId, currentUserEmail].filter((value) => value.length > 0);
+		if (currentIdentifiers.some((identifier) => instructorIdentifiers.includes(identifier))) {
+			return true;
+		}
+
 		const instructorLabel = course.instructor?.trim().toLowerCase() || '';
 		if (!instructorLabel) {
 			return false;

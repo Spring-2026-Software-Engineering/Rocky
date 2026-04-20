@@ -4,31 +4,27 @@
     "code": "SE 3010",
     "name": "Software Engineering I",
     "instructor": "Dr. Avery Cole",
+    "instructor_id":  "KSUID000000002",
+    "instructor_email":  "instructor.local@kent.edu",
+    "instructor_key_limit": 2,
     "semester": "Fall 2026",
     "color": "#1a4a8a",
     "members": [
       {
-        "accountEmail": "instructor.local@kent.edu",
-        "role": "instructor"
+        "email": "instructor.alt@kent.edu"
       },
       {
-        "accountEmail": "instructor.alt@kent.edu",
-        "role": "student"
+        "email": "student.local@kent.edu"
       },
       {
-        "accountEmail": "student.local@kent.edu",
-        "role": "student"
-      },
-      {
-        "accountEmail": "student.alt1@kent.edu",
-        "role": "student"
+        "email": "student.alt1@kent.edu"
       }
     ],
     "groups": [
       {
         "id": "group-se3010-a",
         "name": "Team Alpha",
-        "memberEmails": [
+        "memberIds": [
           "student.local@kent.edu",
           "student.alt1@kent.edu"
         ]
@@ -38,29 +34,26 @@
   {
     "id": 2,
     "code": "CS 2410",
-    "name": "Data Structures & Algorithms",
+    "name": "Data Structures \u0026 Algorithms",
     "instructor": "Prof. Jordan Ellis",
+    "instructor_id":  "KSUID000000003",
+    "instructor_email":  "instructor.alt@kent.edu",
+    "instructor_key_limit": 2,
     "semester": "Fall 2026",
     "color": "#7b2d8b",
     "members": [
       {
-        "accountEmail": "instructor.alt@kent.edu",
-        "role": "instructor"
+        "email": "student.alt2@kent.edu"
       },
       {
-        "accountEmail": "student.alt2@kent.edu",
-        "role": "student"
-      },
-      {
-        "accountEmail": "student.alt3@kent.edu",
-        "role": "student"
+        "email": "student.alt3@kent.edu"
       }
     ],
     "groups": [
       {
         "id": "group-cs2410-a",
         "name": "Algorithm Ninjas",
-        "memberEmails": [
+        "memberIds": [
           "student.alt2@kent.edu",
           "student.alt3@kent.edu"
         ]
@@ -72,24 +65,20 @@
     "code": "CS 3560",
     "name": "Database Systems",
     "instructor": "Dr. Avery Cole",
+    "instructor_id":  "KSUID000000002",
+    "instructor_email":  "instructor.local@kent.edu",
+    "instructor_key_limit": 2,
     "semester": "Fall 2025",
     "color": "#2d6a4f",
     "members": [
       {
-        "accountEmail": "instructor.local@kent.edu",
-        "role": "instructor"
+        "email": "instructor.alt@kent.edu"
       },
       {
-        "accountEmail": "instructor.alt@kent.edu",
-        "role": "student"
+        "email": "student.local@kent.edu"
       },
       {
-        "accountEmail": "student.local@kent.edu",
-        "role": "student"
-      },
-      {
-        "accountEmail": "student.alt2@kent.edu",
-        "role": "student"
+        "email": "student.alt2@kent.edu"
       }
     ],
     "groups": []
@@ -99,27 +88,24 @@
     "code": "CS 3200",
     "name": "Operating Systems",
     "instructor": "Prof. Jordan Ellis",
+    "instructor_id":  "KSUID000000003",
+    "instructor_email":  "instructor.alt@kent.edu",
+    "instructor_key_limit": 2,
     "semester": "Fall 2025",
     "color": "#c05621",
     "members": [
       {
-        "accountEmail": "instructor.alt@kent.edu",
-        "role": "instructor"
+        "email": "student.alt1@kent.edu"
       },
       {
-        "accountEmail": "student.alt1@kent.edu",
-        "role": "student"
-      },
-      {
-        "accountEmail": "student.alt3@kent.edu",
-        "role": "student"
+        "email": "student.alt3@kent.edu"
       }
     ],
     "groups": [
       {
         "id": "group-cs3200-a",
         "name": "Process Managers",
-        "memberEmails": [
+        "memberIds": [
           "student.alt1@kent.edu",
           "student.alt3@kent.edu"
         ]
@@ -131,27 +117,24 @@
     "code": "CS 3810",
     "name": "Human-Computer Interaction",
     "instructor": "Dr. Avery Cole",
+    "instructor_id":  "KSUID000000002",
+    "instructor_email":  "instructor.local@kent.edu",
+    "instructor_key_limit": 2,
     "semester": "Fall 2026",
     "color": "#3b0764",
     "members": [
       {
-        "accountEmail": "instructor.local@kent.edu",
-        "role": "instructor"
+        "email": "student.local@kent.edu"
       },
       {
-        "accountEmail": "student.local@kent.edu",
-        "role": "student"
-      },
-      {
-        "accountEmail": "student.alt3@kent.edu",
-        "role": "student"
+        "email": "student.alt3@kent.edu"
       }
     ],
     "groups": [
       {
         "id": "group-cs3810-ux",
         "name": "UX Research Crew",
-        "memberEmails": [
+        "memberIds": [
           "student.local@kent.edu",
           "student.alt3@kent.edu"
         ]
@@ -163,27 +146,24 @@
     "code": "CS 4990",
     "name": "Senior Capstone Project",
     "instructor": "Prof. Jordan Ellis",
+    "instructor_id":  "KSUID000000003",
+    "instructor_email":  "instructor.alt@kent.edu",
+    "instructor_key_limit": 2,
     "semester": "Spring 2026",
     "color": "#14532d",
     "members": [
       {
-        "accountEmail": "instructor.alt@kent.edu",
-        "role": "instructor"
+        "email": "student.alt1@kent.edu"
       },
       {
-        "accountEmail": "student.alt1@kent.edu",
-        "role": "student"
-      },
-      {
-        "accountEmail": "student.alt2@kent.edu",
-        "role": "student"
+        "email": "student.alt2@kent.edu"
       }
     ],
     "groups": [
       {
         "id": "group-cs4990-cap",
         "name": "Capstone Team",
-        "memberEmails": [
+        "memberIds": [
           "student.alt1@kent.edu",
           "student.alt2@kent.edu"
         ]

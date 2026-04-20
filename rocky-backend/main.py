@@ -32,6 +32,8 @@ from backend.course_actions import (
     regenerate_course_api_key,
     reconcile_course_members_for_user,
     update_course_group_key_limit,
+    update_course_instructor_key_limit,
+    update_course_instructor_handout_limit,
     update_course_member_key_limit,
 )
 from backend.config import get_settings
@@ -149,6 +151,14 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
         key_limit = target_group.get("key_limit") if isinstance(target_group, dict) else None
         return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
 
+    instructor_identifiers = {
+        normalize_str(course.get("instructor_id")).lower(),
+        normalize_str(course.get("instructor_email")).lower(),
+    }
+    if normalized_owner_id in instructor_identifiers:
+        instructor_key_limit = course.get("instructor_key_limit")
+        return instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit > 0 else 2
+
     target_member = next(
         (
             member
@@ -156,7 +166,7 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
             if isinstance(member, dict)
             and (
                 normalize_str(member.get("id")).lower() == normalized_owner_id
-                or normalize_str(member.get("accountEmail") or member.get("email")).lower() == normalized_owner_id
+                or normalize_str(member.get("email")).lower() == normalized_owner_id
             )
         ),
         None,
@@ -685,6 +695,8 @@ def _route_deps() -> dict[str, Any]:
         "add_group_member": add_group_member,
         "remove_group_member": remove_group_member,
         "update_course_member_key_limit": update_course_member_key_limit,
+        "update_course_instructor_key_limit": update_course_instructor_key_limit,
+        "update_course_instructor_handout_limit": update_course_instructor_handout_limit,
         "update_course_group_key_limit": update_course_group_key_limit,
         "delete_course_api_keys": delete_course_api_keys,
         "regenerate_course_api_key": regenerate_course_api_key,
@@ -816,6 +828,16 @@ def remove_group_member_route(course_id, group_id):
 @app.route("/courses/<course_id>/members/<member_id>/key-limit", methods=["PATCH"])
 def update_member_key_limit_route(course_id, member_id):
     return course_handlers.update_member_key_limit_route(_route_deps(), course_id, member_id)
+
+
+@app.route("/courses/<course_id>/instructor-handout-limit", methods=["PATCH"])
+def update_instructor_handout_limit_route(course_id):
+    return course_handlers.update_instructor_handout_limit_route(_route_deps(), course_id)
+
+
+@app.route("/courses/<course_id>/instructor-key-limit", methods=["PATCH"])
+def update_instructor_key_limit_route(course_id):
+    return course_handlers.update_instructor_key_limit_route(_route_deps(), course_id)
 
 
 @app.route("/courses/<course_id>/groups/<group_id>/key-limit", methods=["PATCH"])

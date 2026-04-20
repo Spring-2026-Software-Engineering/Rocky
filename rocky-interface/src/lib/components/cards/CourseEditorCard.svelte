@@ -160,7 +160,7 @@
 			<select id={`${idPrefix}-instructor-select`} class="text-input" bind:value={form.instructorId}>
 				<option value="">None</option>
 				{#each users as user}
-					<option value={user.id}>{user.displayName} ({user.id})</option>
+					<option value={user.id}>{user.displayName}</option>
 				{/each}
 			</select>
 		</div>
