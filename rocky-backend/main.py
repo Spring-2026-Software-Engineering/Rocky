@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import importlib.util
 import logging
 import random
+import re
 import sys
 from typing import Any
 from pathlib import Path
@@ -127,7 +128,7 @@ def _iter_course_api_keys(course: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _get_active_course_api_key(course: dict[str, Any]):
-    keys = _iter_course_api_keys(course)
+    keys = [entry for entry in _iter_course_api_keys(course) if normalize_str(entry.get("hash"))]
     if not keys:
         return None
     return max(keys, key=lambda entry: normalize_str(entry.get("created")))
@@ -165,12 +166,23 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
 
 
 def _serialize_api_key_summary(entry: dict[str, Any]) -> dict[str, Any]:
+    slot_index = entry.get("slot_index") if isinstance(entry.get("slot_index"), int) else None
+    if slot_index is None or slot_index < 1:
+        key_name = normalize_str(entry.get("key_name"))
+        match = re.fullmatch(r"key-(\d+)", key_name)
+        slot_index = int(match.group(1)) if match else 0
+
+    api_key_id = entry.get("api_key_id") if isinstance(entry.get("api_key_id"), int) else 0
+
     return {
         "owner_type": normalize_str(entry.get("owner_type")).lower() or "person",
         "owner_id": normalize_str(entry.get("owner_id")).lower(),
         "key_name": normalize_str(entry.get("key_name")) or "key-1",
+        "slot_index": slot_index,
+        "api_key_id": api_key_id,
         "created": entry.get("created"),
         "course_id": entry.get("course_id"),
+        "has_hash": bool(normalize_str(entry.get("hash"))),
     }
 
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import {
 		addCourseMembers,
@@ -20,6 +20,7 @@
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import ViewShell from '$lib/components/ViewShell.svelte';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
+	import CourseKeySlotCard from '$lib/components/cards/CourseKeySlotCard.svelte';
 	import {
 		COURSE_EDITOR_DEFAULT_COLOR,
 		COURSE_EDITOR_SEMESTER_YEAR_MAX,
@@ -30,7 +31,13 @@
 	import type { User } from '$lib/types/user';
 	import type { CourseApiHistoryEntry, CourseApiKeySummaryResponse } from '$lib/api/courses';
 
-	type CourseTab = 'home' | 'edit-course' | 'edit-roster' | 'groups';
+	type CourseTab = 'home' | 'students' | 'groups' | 'edit-roster' | 'edit-groups' | 'course-settings' | `group:${string}`;
+	type KeySlot = {
+		slotIndex: number;
+		baseKeyName: string;
+		hasExistingKey: boolean;
+		key: CourseApiKeySummary | null;
+	};
 	const API_KEY_PREFIX = 'sk_kent_';
 
 	let allCourses: Course[] = [];
@@ -67,9 +74,20 @@
 	let newGroupKeyNameByGroupId: Record<string, string> = {};
 	let pendingMemberKeyLimitById: Record<string, number> = {};
 	let pendingGroupKeyLimitById: Record<string, number> = {};
+	let editedSlotKeyNamesById: Record<string, string> = {};
 
 	function normalizeIdentifier(value: string | null | undefined): string {
 		return value?.trim().toLowerCase() || '';
+	}
+
+	function parseSlotIndexFromKeyName(value: string | null | undefined): number {
+		const normalized = value?.trim().toLowerCase() || '';
+		const match = normalized.match(/^key-(\d+)$/);
+		if (!match) {
+			return 0;
+		}
+		const parsed = Number(match[1]);
+		return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
 	}
 
 	function getMemberIdentifier(member: CourseDetail['members'][number]): string {
@@ -114,6 +132,194 @@
 		});
 	}
 
+	function isGroupTab(tab: CourseTab): tab is `group:${string}` {
+		return tab.startsWith('group:');
+	}
+
+	function getGroupIdFromTab(tab: `group:${string}`): string {
+		return tab.slice('group:'.length);
+	}
+
+	function getTabLabel(tab: CourseTab): string {
+		if (tab === 'home') {
+			return 'Home';
+		}
+		if (tab === 'students') {
+			return 'Students';
+		}
+		if (tab === 'groups') {
+			return 'Groups';
+		}
+		if (tab === 'edit-roster') {
+			return 'Edit Roster';
+		}
+		if (tab === 'edit-groups') {
+			return 'Edit Groups';
+		}
+		if (tab === 'course-settings') {
+			return 'Course Settings';
+		}
+
+		const groupId = getGroupIdFromTab(tab);
+		const group = selectedGroups.find((candidate) => candidate.id === groupId);
+		return group?.name || 'Group';
+	}
+
+	function resolveActiveStudentGroup(tab: CourseTab): CourseGroup | null {
+		if (!isGroupTab(tab)) {
+			return null;
+		}
+
+		const groupId = getGroupIdFromTab(tab);
+		return studentVisibleGroups.find((group) => group.id === groupId) || null;
+	}
+
+	function buildKeySlots(limit: number, keys: CourseApiKeySummary[]): KeySlot[] {
+		const highestStoredSlot = keys.reduce((maxSlot, key) => (key.slotIndex > maxSlot ? key.slotIndex : maxSlot), 0);
+		const totalSlots = Math.max(1, limit, highestStoredSlot);
+		const slotEntries: Array<CourseApiKeySummary | null> = Array.from({ length: totalSlots }, () => null);
+		const orderedKeys = [...keys].sort((a, b) => {
+			const aSlot = a.slotIndex > 0 ? a.slotIndex : Number.MAX_SAFE_INTEGER;
+			const bSlot = b.slotIndex > 0 ? b.slotIndex : Number.MAX_SAFE_INTEGER;
+			if (aSlot !== bSlot) {
+				return aSlot - bSlot;
+			}
+			const aId = a.apiKeyId > 0 ? a.apiKeyId : Number.MAX_SAFE_INTEGER;
+			const bId = b.apiKeyId > 0 ? b.apiKeyId : Number.MAX_SAFE_INTEGER;
+			if (aId !== bId) {
+				return aId - bId;
+			}
+			return a.created.localeCompare(b.created);
+		});
+
+		for (const key of orderedKeys) {
+			if (key.hasHash === false) {
+				continue;
+			}
+			const targetIndex = key.slotIndex > 0 ? key.slotIndex - 1 : -1;
+			if (targetIndex >= 0 && targetIndex < totalSlots && slotEntries[targetIndex] === null) {
+				slotEntries[targetIndex] = key;
+				continue;
+			}
+			const fallbackIndex = slotEntries.findIndex((entry) => entry === null);
+			if (fallbackIndex >= 0) {
+				slotEntries[fallbackIndex] = key;
+			}
+		}
+
+		return Array.from({ length: totalSlots }, (_, slotIndex) => {
+			const existing = slotEntries[slotIndex];
+			return {
+				slotIndex,
+				baseKeyName: existing?.keyName || `key-${slotIndex + 1}`,
+				hasExistingKey: existing ? existing.hasHash !== false : false,
+				key: existing || null
+			};
+		});
+	}
+
+	function getSlotStateId(ownerType: 'person' | 'group', ownerId: string, slotIndex: number): string {
+		return `${ownerType}:${normalizeIdentifier(ownerId)}:${slotIndex}`;
+	}
+
+	function getSlotKeyName(slotStateId: string, fallbackName: string): string {
+		return editedSlotKeyNamesById[slotStateId] ?? fallbackName;
+	}
+
+	function setSlotKeyName(slotStateId: string, nextName: string) {
+		editedSlotKeyNamesById = {
+			...editedSlotKeyNamesById,
+			[slotStateId]: nextName
+		};
+	}
+
+	async function generateKeyForSlot(
+		ownerType: 'person' | 'group',
+		ownerId: string,
+		slotIndex: number,
+		fallbackKeyName: string
+	): Promise<string | null> {
+		if (!selectedCourse) {
+			return null;
+		}
+
+		const slotStateId = getSlotStateId(ownerType, ownerId, slotIndex);
+		const keyName = getSlotKeyName(slotStateId, fallbackKeyName).trim() || fallbackKeyName;
+
+		try {
+			apiKeyActionError = null;
+			const response = await regenerateCourseApiKey(selectedCourse.id, {
+				ownerType,
+				ownerId: ownerType === 'person' ? ownerId : undefined,
+				groupId: ownerType === 'group' ? ownerId : undefined,
+				keyName,
+				slotIndex: slotIndex + 1
+			});
+
+			editedSlotKeyNamesById = {
+				...editedSlotKeyNamesById,
+				[slotStateId]: keyName
+			};
+
+			upsertGeneratedApiKeySummary(response);
+			return response.api_key?.trim() || null;
+		} catch (err) {
+			apiKeyActionError = err instanceof Error ? err.message : 'Unable to generate key.';
+			return null;
+		}
+	}
+
+	async function removeKeyForSlot(
+		ownerType: 'person' | 'group',
+		ownerId: string,
+		slotIndex: number,
+		fallbackKeyName: string
+	) {
+		if (!selectedCourse) {
+			return;
+		}
+
+		const slotStateId = getSlotStateId(ownerType, ownerId, slotIndex);
+		const keyName = getSlotKeyName(slotStateId, fallbackKeyName).trim() || fallbackKeyName;
+
+		try {
+			apiKeyActionError = null;
+			const response = await deleteCourseApiKey(selectedCourse.id, {
+				ownerType,
+				ownerId: ownerType === 'person' ? ownerId : undefined,
+				groupId: ownerType === 'group' ? ownerId : undefined,
+				keyName,
+				slotIndex: slotIndex + 1
+			});
+			const responseKey = response.key;
+			const responseOwnerType = normalizeIdentifier(responseKey?.owner_type) === 'group' ? 'group' : 'person';
+			const responseOwnerId = normalizeIdentifier(responseKey?.owner_id || ownerId);
+			const responseKeyName = normalizeIdentifier(responseKey?.key_name || keyName);
+			const responseSlotIndex = typeof responseKey?.slot_index === 'number' ? responseKey.slot_index : slotIndex + 1;
+			courseApiKeys = courseApiKeys.map((entry) =>
+				normalizeIdentifier(entry.ownerId) === responseOwnerId &&
+				((entry.slotIndex > 0 && entry.slotIndex === responseSlotIndex) || normalizeIdentifier(entry.keyName) === responseKeyName) &&
+				entry.ownerType === responseOwnerType
+					? {
+						...entry,
+						hasHash: false
+					}
+					: entry
+			);
+		} catch (err) {
+			apiKeyActionError = err instanceof Error ? err.message : 'Unable to remove key.';
+		}
+	}
+
+	function getGroupOwnedKeys(groupId: string): CourseApiKeySummary[] {
+		return groupOwnedKeys.filter((key) => normalizeIdentifier(key.ownerId) === normalizeIdentifier(groupId));
+	}
+
+	function clearSensitiveKeyState() {
+		previewApiKey = null;
+		apiKeyActionError = null;
+	}
+
 	async function loadWorkspace() {
 		try {
 			const requestList = [fetchCourses(), fetchCourseDetails(), fetchCourseGroups()] as const;
@@ -143,6 +349,10 @@
 
 	onMount(async () => {
 		await loadWorkspace();
+	});
+
+	onDestroy(() => {
+		clearSensitiveKeyState();
 	});
 
 	$: visibleCourses = baseVisibleCourses;
@@ -210,11 +420,24 @@
 	$: canViewCourseApiHistory = isCurrentUserAdmin;
 	$: canViewPersonalApiData = isCurrentUserClient && !isCurrentUserCourseInstructor && !studentGroup;
 	$: personalOwnedKeys = courseApiKeys.filter(
-		(key) => key.ownerType === 'person' && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId))
+		(key) =>
+			key.hasHash !== false &&
+			key.ownerType === 'person' &&
+			[normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId))
 	);
 	$: groupOwnedKeys = courseApiKeys.filter(
-		(key) => key.ownerType === 'group' && selectedGroupIds.has(key.ownerId)
+		(key) => key.hasHash !== false && key.ownerType === 'group' && selectedGroupIds.has(key.ownerId)
 	);
+	$: studentVisibleGroups = selectedGroups.filter((group) => groupContainsCurrentUser(group));
+	$: currentUserMember = (selectedDetail?.members || []).find((member) => memberMatchesCurrentUser(member)) || null;
+	$: studentPersonalKeyOwnerId = normalizeIdentifier(currentUserId) || currentUserEmail;
+	$: personalKeyLimit = currentUserMember?.keyLimit && currentUserMember.keyLimit > 0 ? currentUserMember.keyLimit : 1;
+	$: personalKeySlots = buildKeySlots(personalKeyLimit, personalOwnedKeys);
+	$: studentGroupTabs = studentVisibleGroups.map((group) => `group:${group.id}` as CourseTab);
+	$: activeStudentGroup = resolveActiveStudentGroup(activeTab);
+	$: activeStudentGroupKeySlots = activeStudentGroup
+		? buildKeySlots(activeStudentGroup.keyLimit, getGroupOwnedKeys(activeStudentGroup.id))
+		: [];
 	$: canGenerateApiKey = Boolean(
 		selectedCourse &&
 		(isCurrentUserAdmin || (selectedDetail?.members || []).some((member) => memberMatchesCurrentUser(member)))
@@ -229,13 +452,18 @@
 		);
 	$: shouldShowMaskedApiKey = hasExistingApiKey && (isCurrentUserAdmin || currentUserIsApiKeyOwner || currentUserIsApiKeyGroupMember);
 	$: maskedApiKeyPreview = shouldShowMaskedApiKey ? `${API_KEY_PREFIX}${'*'.repeat(17)}` : null;
-	$: showCourseTabBar = canEditCourse || canEditPeopleAndGroups;
+	$: showCourseTabBar = availableTabs.length > 0;
 	$: selectableGroupMembers = (selectedDetail?.members || []).filter((member) => member.role !== 'instructor');
-	$: availableTabs = [
-		'home',
-		...(canEditCourse ? (['edit-course'] as CourseTab[]) : []),
-		...(canEditPeopleAndGroups ? (['edit-roster', 'groups'] as CourseTab[]) : [])
-	] as CourseTab[];
+	$: availableTabs = canEditPeopleAndGroups
+		? ([
+				'home',
+				'students',
+				'groups',
+				'edit-roster',
+				'edit-groups',
+				...(canEditCourse ? (['course-settings'] as CourseTab[]) : [])
+		  ] as CourseTab[])
+		: (['home', ...studentGroupTabs] as CourseTab[]);
 	$: if (!availableTabs.includes(activeTab)) {
 		activeTab = 'home';
 	}
@@ -264,8 +492,7 @@
 	}
 	$: if (selectedCourse?.id && selectedCourse.id !== lastSelectedCourseId) {
 		lastSelectedCourseId = selectedCourse.id;
-		apiKeyActionError = null;
-		previewApiKey = null;
+		clearSensitiveKeyState();
 		newPersonalKeyName = '';
 		newGroupKeyNameByGroupId = {};
 		pendingMemberKeyLimitById = {};
@@ -312,10 +539,54 @@
 				ownerType: (entry.owner_type === 'group' ? 'group' : 'person') as 'person' | 'group',
 				ownerId: entry.owner_id?.trim() || '',
 				keyName: entry.key_name?.trim() || 'key-1',
+				slotIndex:
+					typeof entry.slot_index === 'number' && Number.isInteger(entry.slot_index) && entry.slot_index > 0
+						? entry.slot_index
+						: parseSlotIndexFromKeyName(entry.key_name),
+				apiKeyId: typeof entry.api_key_id === 'number' && Number.isInteger(entry.api_key_id) && entry.api_key_id > 0 ? entry.api_key_id : 0,
 				created: entry.created?.trim() || '',
-				courseId: typeof entry.course_id === 'number' ? entry.course_id : selectedCourse?.id || 0
+				courseId: typeof entry.course_id === 'number' ? entry.course_id : selectedCourse?.id || 0,
+				hasHash: entry.has_hash !== false
 			}))
 			.filter((entry) => entry.ownerId.length > 0 && entry.keyName.length > 0);
+	}
+
+	function upsertGeneratedApiKeySummary(response: NonNullable<Awaited<ReturnType<typeof regenerateCourseApiKey>>>) {
+		const ownerType = (response.owner_type === 'group' ? 'group' : 'person') as 'person' | 'group';
+		const ownerId = response.owner_id?.trim() || '';
+		const keyName = response.key_name?.trim() || 'key-1';
+
+		if (!ownerId || !keyName) {
+			return;
+		}
+
+		const nextSummary: CourseApiKeySummary = {
+			ownerType,
+			ownerId,
+			keyName,
+			slotIndex:
+				typeof response.slot_index === 'number' && Number.isInteger(response.slot_index) && response.slot_index > 0
+					? response.slot_index
+					: parseSlotIndexFromKeyName(response.key_name),
+			apiKeyId:
+				typeof response.api_key_id === 'number' && Number.isInteger(response.api_key_id) && response.api_key_id > 0 ? response.api_key_id : 0,
+			created: response.created?.trim() || '',
+			courseId: typeof response.course_id === 'number' ? response.course_id : selectedCourse?.id || 0,
+			hasHash: true
+		};
+
+		courseApiKeys = [
+			nextSummary,
+			...courseApiKeys.filter(
+				(entry) =>
+					!(
+						entry.ownerType === nextSummary.ownerType &&
+						normalizeIdentifier(entry.ownerId) === normalizeIdentifier(nextSummary.ownerId) &&
+						((entry.slotIndex > 0 && entry.slotIndex === nextSummary.slotIndex) ||
+							normalizeIdentifier(entry.keyName) === normalizeIdentifier(nextSummary.keyName))
+					)
+			)
+		];
 	}
 
 	async function loadCourseApiHistory(courseId: number) {
@@ -666,167 +937,71 @@
 				<div class="course-tab-bar">
 					{#each availableTabs as tab}
 						<button type="button" class="view-btn" class:course-tab-active={activeTab === tab} onclick={() => (activeTab = tab)}>
-							{tab === 'home' ? 'Home' : tab === 'edit-course' ? 'Edit Course' : tab === 'edit-roster' ? 'Edit Roster' : 'Groups'}
+							{getTabLabel(tab)}
 						</button>
 					{/each}
 				</div>
 			{/if}
 
 			{#if activeTab === 'home'}
-				<div class="section-content home-panel-stack">
-					<div class="course-panel">
-						<h3>API Key Workspace</h3>
-						<div class="course-row-split">
-							<div>
-								<p>
-									<strong>Latest Generated Key:</strong>
-									{#if previewApiKey}
-										{previewApiKey}
-									{:else if maskedApiKeyPreview}
-										{maskedApiKeyPreview}
-									{:else}
-										Generate a key to view it once.
-									{/if}
-								</p>
-								{#if previewApiKey}
-									<p>Save this key now! This key will not be saved on reload.</p>
-								{/if}
-								{#if courseApiKeysLoading}
-									<p>Loading key cards...</p>
-								{:else if courseApiKeysError}
-									<p><strong>Error:</strong> {courseApiKeysError}</p>
-								{/if}
-								{#if apiKeyActionError}
-									<p class="course-key-error"><strong>Error:</strong> {apiKeyActionError}</p>
-								{/if}
-							</div>
-							<div class="course-inline-actions">
-									{#if canGenerateApiKey && !isCurrentUserAdmin}
-									<button type="button" class="list-go-btn" onclick={regenerateApiKey}>Generate API Key</button>
-									{/if}
-									{#if isCurrentUserAdmin && hasExistingApiKey}
-										<button type="button" class="list-go-btn" onclick={deleteApiKey}>Delete API Key</button>
-									{/if}
-								{#if previewApiKey}
-									<button type="button" class="list-go-btn" onclick={clearPreviewApiKey}>Hide Key</button>
-								{/if}
-							</div>
-						</div>
+				{#if canEditPeopleAndGroups}
+					<div class="section-content">
+						<p class="section-text">Home content coming soon.</p>
 					</div>
-					<div class="course-panel">
-						<h3>Personal Keys</h3>
-						{#if !currentUserId}
-							<p>Sign in to manage personal keys.</p>
+				{:else}
+					<div class="section-content home-panel-stack">
+						{#if courseApiKeysLoading}
+							<p>Loading key slots...</p>
+						{:else if courseApiKeysError}
+							<p><strong>Error:</strong> {courseApiKeysError}</p>
 						{:else}
-							<div class="course-group-create-row">
-								<input class="text-input" type="text" bind:value={newPersonalKeyName} placeholder="New personal key name" />
-								<button type="button" class="view-btn" onclick={generateNamedPersonalKey}>Generate Personal Key</button>
-							</div>
-							{#if personalOwnedKeys.length === 0}
-								<p>No personal keys yet.</p>
-							{:else}
-								<ul class="course-inline-list">
-									{#each personalOwnedKeys as key}
-										<li><strong>{key.keyName}</strong> · {API_KEY_PREFIX}{'*'.repeat(17)} · {key.created || 'pending timestamp'}</li>
-									{/each}
-								</ul>
-							{/if}
-						{/if}
-					</div>
-					<div class="course-panel">
-						<h3>Group Keys</h3>
-						{#if selectedGroups.filter((group) => group.memberIds.includes(currentUserId)).length === 0}
-							<p>You are not in a course group for this class.</p>
-						{:else}
-							{#each selectedGroups.filter((group) => group.memberIds.includes(currentUserId)) as group}
-								<p><strong>{group.name}</strong></p>
-								<div class="course-group-create-row">
-									<input class="text-input" type="text" bind:value={newGroupKeyNameByGroupId[group.id]} placeholder="New group key name" />
-									<button type="button" class="view-btn" onclick={() => generateNamedGroupKey(group.id)}>Generate Group Key</button>
-								</div>
-								<ul class="course-inline-list">
-									{#each groupOwnedKeys.filter((key) => key.ownerId === group.id) as key}
-										<li><strong>{key.keyName}</strong> · {API_KEY_PREFIX}{'*'.repeat(17)} · {key.created || 'pending timestamp'}</li>
-									{/each}
-								</ul>
+							{#each personalKeySlots as slot (getSlotStateId('person', studentPersonalKeyOwnerId, slot.slotIndex))}
+								{@const slotStateId = getSlotStateId('person', studentPersonalKeyOwnerId, slot.slotIndex)}
+								<CourseKeySlotCard
+									title={`Personal Key ${slot.slotIndex + 1}`}
+									keyName={getSlotKeyName(slotStateId, slot.baseKeyName)}
+									hasExistingKey={slot.hasExistingKey}
+									maskedPreview={`${API_KEY_PREFIX}${'*'.repeat(17)}`}
+									placeholderText="No key exists for this slot yet."
+									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
+									onGenerate={() => generateKeyForSlot('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName)}
+									removeDisabled={!slot.hasExistingKey}
+									onRemove={() => removeKeyForSlot('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName)}
+								/>
 							{/each}
 						{/if}
 					</div>
-					{#if isCurrentUserClient && studentGroup}
-						<div class="course-panel">
-							<h3>Group API Data</h3>
-							<p><strong>{studentGroup.name}</strong></p>
-							<ul class="course-inline-list">
-								{#each studentGroupMembers as member}
-									<li>{getMemberDisplayName(member)} ({member.email}) - API data pending implementation.</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-					{#if canViewManagerApiData}
-						<div class="course-panel">
-							<h3>Student API Data</h3>
-							{#if ungroupedStudentMembers.length}
-								<ul class="course-inline-list">
-									{#each ungroupedStudentMembers as member}
-										<li>{getMemberDisplayName(member)} ({member.email}) - API data pending implementation.</li>
-									{/each}
-								</ul>
-							{:else}
-								<p>No ungrouped students found for this course.</p>
-							{/if}
-						</div>
-						<div class="course-panel">
-							<h3>Group API Data</h3>
-							{#if groupMembershipRows.length}
-								{#each groupMembershipRows as row}
-									<p><strong>{row.group.name}:</strong> {row.members.length ? row.members.map((member) => getMemberDisplayName(member)).join(', ') : 'No student members'} - API data pending implementation.</p>
-								{/each}
-							{:else}
-								<p>No groups found for this course.</p>
-							{/if}
-						</div>
-					{/if}
-					{#if canViewCourseApiHistory}
-						<div class="course-panel">
-							<h3>API History</h3>
-							{#if courseApiHistoryLoading}
-								<p>Loading API history...</p>
-							{:else if courseApiHistoryError}
-								<p><strong>Error:</strong> {courseApiHistoryError}</p>
-							{:else if courseApiHistory.length === 0}
-								<p>No API history has been recorded for this course yet.</p>
-							{:else}
-								<ul class="course-inline-list">
-									{#each courseApiHistory as entry}
-										<li>
-											<strong>{entry.userId}</strong> · {entry.eventType} · {entry.groupName ? `Group: ${entry.groupName}` : 'Ungrouped'} · {entry.created || 'pending timestamp'}
-										</li>
-									{/each}
-								</ul>
-							{/if}
-						</div>
-					{/if}
-					{#if canViewPersonalApiData}
-						<div class="course-panel">
-							<h3>Personal API Data</h3>
-							<p><strong>Status:</strong> Awaiting backend response fields.</p>
-						</div>
-					{/if}
-				</div>
-			{:else if activeTab === 'edit-course' && canEditCourse}
+				{/if}
+			{:else if activeTab === 'students'}
 				<div class="section-content">
-					<CourseEditorCard
-						title="Edit Course"
-						submitLabel="Save Course"
-						idPrefix="edit-course"
-						users={accountUsers}
-						form={editCourseForm}
-						useSemesterPicker={true}
-						semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
-						semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
-						on:submit={saveCourseEdits}
-					/>
+					<p class="section-text">Students content coming soon.</p>
+				</div>
+			{:else if activeTab === 'groups'}
+				<div class="section-content">
+					<p class="section-text">Groups content coming soon.</p>
+				</div>
+			{:else if isGroupTab(activeTab) && !canEditPeopleAndGroups && activeStudentGroup}
+				<div class="section-content home-panel-stack">
+					{#if courseApiKeysLoading}
+						<p>Loading key slots...</p>
+					{:else if courseApiKeysError}
+						<p><strong>Error:</strong> {courseApiKeysError}</p>
+					{:else}
+						{#each activeStudentGroupKeySlots as slot (getSlotStateId('group', activeStudentGroup.id, slot.slotIndex))}
+							{@const slotStateId = getSlotStateId('group', activeStudentGroup.id, slot.slotIndex)}
+							<CourseKeySlotCard
+								title={`${activeStudentGroup.name} Key ${slot.slotIndex + 1}`}
+								keyName={getSlotKeyName(slotStateId, slot.baseKeyName)}
+								hasExistingKey={slot.hasExistingKey}
+								maskedPreview={`${API_KEY_PREFIX}${'*'.repeat(17)}`}
+								placeholderText="No key exists for this slot yet."
+								onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
+								onGenerate={() => generateKeyForSlot('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName)}
+								removeDisabled={!slot.hasExistingKey}
+								onRemove={() => removeKeyForSlot('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName)}
+							/>
+						{/each}
+					{/if}
 				</div>
 			{:else if activeTab === 'edit-roster' && canEditPeopleAndGroups}
 				<div class="section-content">
@@ -863,7 +1038,7 @@
 								{#if selectedDetail?.members.length}
 									{#each selectedDetail.members as member}
 										<tr>
-												<td>{getMemberDisplayName(member)}</td>
+											<td>{getMemberDisplayName(member)}</td>
 											<td>{member.email}</td>
 											<td>{member.role}</td>
 											<td>
@@ -872,19 +1047,19 @@
 														class="text-input"
 														type="number"
 														min="1"
-															value={pendingMemberKeyLimitById[getMemberIdentifier(member)] ?? member.keyLimit}
+														value={pendingMemberKeyLimitById[getMemberIdentifier(member)] ?? member.keyLimit}
 														onchange={(event) => {
 															const target = event.currentTarget as HTMLInputElement;
 															pendingMemberKeyLimitById = {
 																...pendingMemberKeyLimitById,
-																	[getMemberIdentifier(member)]: Math.max(1, Number(target.value) || 1)
+																[getMemberIdentifier(member)]: Math.max(1, Number(target.value) || 1)
 															};
 														}}
 													/>
-															<button type="button" class="list-go-btn" onclick={() => saveMemberKeyLimit(getMemberIdentifier(member))}>Save</button>
+													<button type="button" class="list-go-btn" onclick={() => saveMemberKeyLimit(getMemberIdentifier(member))}>Save</button>
 												</div>
 											</td>
-												<td class="table-actions-cell"><button type="button" class="list-go-btn" onclick={() => removeMember(getMemberIdentifier(member))}>Remove</button></td>
+											<td class="table-actions-cell"><button type="button" class="list-go-btn" onclick={() => removeMember(getMemberIdentifier(member))}>Remove</button></td>
 										</tr>
 									{/each}
 								{:else}
@@ -896,7 +1071,7 @@
 						</table>
 					</div>
 				</div>
-			{:else}
+			{:else if activeTab === 'edit-groups' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
 						<div class="course-group-create-row">
@@ -929,9 +1104,9 @@
 												{#if group.memberIds.length}
 													<ul class="course-inline-list">
 														{#each group.memberIds as memberId}
-																{@const member = resolveMemberByIdentifier(memberId)}
+															{@const member = resolveMemberByIdentifier(memberId)}
 															<li>
-																	{member ? getMemberDisplayName(member) : memberId} ({memberId})
+																{member ? getMemberDisplayName(member) : memberId} ({memberId})
 																<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, memberId)}>Remove</button>
 															</li>
 														{/each}
@@ -989,6 +1164,20 @@
 							</tbody>
 						</table>
 					</div>
+				</div>
+			{:else if activeTab === 'course-settings' && canEditCourse}
+				<div class="section-content">
+					<CourseEditorCard
+						title="Course Settings"
+						submitLabel="Save Course"
+						idPrefix="course-settings"
+						users={accountUsers}
+						form={editCourseForm}
+						useSemesterPicker={true}
+						semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
+						semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
+						on:submit={saveCourseEdits}
+					/>
 				</div>
 			{/if}
 

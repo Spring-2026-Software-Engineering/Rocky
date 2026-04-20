@@ -90,8 +90,11 @@ export type CourseApiKeySummary = {
 	ownerType: 'person' | 'group';
 	ownerId: string;
 	keyName: string;
+	slotIndex: number;
+	apiKeyId: number;
 	created: string;
 	courseId: number;
+	hasHash: boolean;
 };
 
 function normalizeSemester(rawSemester?: string | null): string {

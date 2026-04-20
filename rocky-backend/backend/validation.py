@@ -271,6 +271,23 @@ def validate_api_key_payload(payload: Any):
     c_id = payload.get("c_id")
     key_hash = normalize_str(payload.get("hash"))
     expire = payload.get("expire")
+    key_name = normalize_str(payload.get("key_name") or "key-1")[:64].strip() or "key-1"
+    slot_index_raw = payload.get("slot_index")
+    try:
+        slot_index = int(slot_index_raw)
+    except (TypeError, ValueError):
+        slot_index = 0
+    if slot_index < 1:
+        slot_match = re.fullmatch(r"key-(\d+)", key_name)
+        slot_index = int(slot_match.group(1)) if slot_match else 1
+
+    api_key_id_raw = payload.get("api_key_id")
+    try:
+        api_key_id = int(api_key_id_raw)
+    except (TypeError, ValueError):
+        api_key_id = 0
+    if api_key_id < 0:
+        api_key_id = 0
 
     if owner_type not in {"person", "group"}:
         return None, "owner_type must be either person or group."
@@ -297,6 +314,9 @@ def validate_api_key_payload(payload: Any):
         "owner_id": owner_id,
         "u_id": owner_id if owner_type == "person" else None,
         "group_created_by": normalize_str(payload.get("group_created_by")).lower() or None,
+        "key_name": key_name,
+        "slot_index": slot_index,
+        "api_key_id": api_key_id,
         "course_id": course_id,
         "c_id": normalize_str(c_id) if isinstance(c_id, str) else None,
         "hash": key_hash,

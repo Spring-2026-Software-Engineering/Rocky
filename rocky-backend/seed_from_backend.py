@@ -133,6 +133,7 @@ def seed_from_backend() -> dict[str, int]:
     courses_inserted = 0
     api_keys_inserted = 0
     api_history_inserted = 0
+    next_api_key_id = 1
 
     for raw in raw_users:
         email = (raw.get("email") or "").strip().lower()
@@ -293,6 +294,8 @@ def seed_from_backend() -> dict[str, int]:
                 "owner_id": seeded_owner_id,
                 "group_created_by": seeded_group_created_by,
                 "key_name": "key-1",
+                "slot_index": 1,
+                "api_key_id": next_api_key_id,
                 "course_id": course_doc["id"],
                 "hash": generated_hash,
                 "expire": None,
@@ -300,6 +303,7 @@ def seed_from_backend() -> dict[str, int]:
             }
             main.api_keys.insert_one(key_doc)
             api_keys_inserted += 1
+            next_api_key_id += 1
 
     for raw in raw_api_history:
         history_doc = {

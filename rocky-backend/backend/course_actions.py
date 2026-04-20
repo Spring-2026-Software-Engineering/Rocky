@@ -492,6 +492,13 @@ def regenerate_course_api_key(
     owner_id = normalize_str(ownership_payload.get("owner_id") or ownership_payload.get("subject_id")).lower()
     key_name = normalize_str(ownership_payload.get("key_name") or ownership_payload.get("name") or "key-1")
     key_name = key_name[:64].strip() or "key-1"
+    slot_index_raw = ownership_payload.get("slot_index")
+    try:
+        slot_index = int(slot_index_raw)
+    except (TypeError, ValueError):
+        slot_index = 0
+    if slot_index < 1:
+        slot_index = 1
     if owner_type == "group":
         if not owner_id:
             raise ValueError("group owner requires owner_id.")
@@ -518,7 +525,7 @@ def regenerate_course_api_key(
     lookup_filter: dict[str, Any] = {
         "owner_type": owner_type,
         "owner_id": owner_id,
-        "key_name": key_name,
+        "slot_index": slot_index,
     }
     if course_numeric_id is not None:
         lookup_filter["course_id"] = course_numeric_id
@@ -526,6 +533,30 @@ def regenerate_course_api_key(
         lookup_filter["c_id"] = course_code
 
     existing = api_keys_collection.find_one(lookup_filter)
+    if existing is None:
+        existing = api_keys_collection.find_one(
+            {
+                **{k: v for k, v in lookup_filter.items() if k != "slot_index"},
+                "key_name": key_name,
+            }
+        )
+
+    max_api_key_id = 0
+    for entry in api_keys_collection.find():
+        if not isinstance(entry, dict):
+            continue
+        existing_id = entry.get("api_key_id")
+        if isinstance(existing_id, int) and existing_id > max_api_key_id:
+            max_api_key_id = existing_id
+
+    next_api_key_id = max_api_key_id + 1
+    api_key_id = existing.get("api_key_id") if isinstance(existing, dict) else None
+    if not isinstance(api_key_id, int) or api_key_id < 1:
+        api_key_id = next_api_key_id
+
+    key_doc["slot_index"] = slot_index
+    key_doc["api_key_id"] = api_key_id
+
     if existing is None:
         api_keys_collection.insert_one(key_doc)
     else:
@@ -538,6 +569,8 @@ def regenerate_course_api_key(
         "owner_id": key_doc["owner_id"],
         "group_created_by": key_doc["group_created_by"],
         "key_name": key_doc["key_name"],
+        "slot_index": key_doc.get("slot_index"),
+        "api_key_id": key_doc.get("api_key_id"),
         "course_id": key_doc["course_id"],
         "created": key_doc["created"],
     }

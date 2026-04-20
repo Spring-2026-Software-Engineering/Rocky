@@ -95,6 +95,8 @@ export type RegenerateCourseApiKeyResponse = Partial<{
 	owner_id: string;
 	group_created_by: string | null;
 	key_name: string;
+	slot_index: number;
+	api_key_id: number;
 	course_id: number;
 	created: string;
 }>;
@@ -103,8 +105,11 @@ export type CourseApiKeySummaryResponse = Partial<{
 	owner_type: 'person' | 'group';
 	owner_id: string;
 	key_name: string;
+	slot_index: number;
+	api_key_id: number;
 	created: string;
 	course_id: number;
+	has_hash: boolean;
 }>;
 
 export type RegenerateCourseApiKeyInput = {
@@ -112,6 +117,7 @@ export type RegenerateCourseApiKeyInput = {
 	ownerId?: string;
 	groupId?: string;
 	keyName?: string;
+	slotIndex?: number;
 };
 
 export async function createCourse(input: CreateCourseInput): Promise<Course> {
@@ -273,14 +279,42 @@ export async function regenerateCourseApiKey(
 	}
 }
 
-export async function deleteCourseApiKey(courseId: string | number): Promise<void> {
+export type DeleteCourseApiKeyInput = {
+	ownerType?: 'person' | 'group';
+	ownerId?: string;
+	groupId?: string;
+	keyName?: string;
+	slotIndex?: number;
+};
+
+export type DeleteCourseApiKeyResponse = Partial<{
+	message: string;
+	deleted: number;
+	key: Partial<{
+		owner_type: 'person' | 'group';
+		owner_id: string;
+		key_name: string;
+		slot_index: number;
+		api_key_id: number;
+		created: string;
+		course_id: number;
+		has_hash: boolean;
+	}>;
+}>;
+
+export async function deleteCourseApiKey(
+	courseId: string | number,
+	input: DeleteCourseApiKeyInput = {}
+): Promise<DeleteCourseApiKeyResponse> {
 	try {
-		await fetchJson(`/api/backend/courses/${courseId}/api-key`, {
+		const response = await fetchJson<DeleteCourseApiKeyResponse>(`/api/backend/courses/${courseId}/api-key`, {
 			method: 'DELETE',
-			headers: jsonHeaders()
+			headers: jsonHeaders(),
+			body: JSON.stringify(input)
 		});
 
 		showSuccessFeedback('API key deleted successfully.');
+		return response;
 	} catch (err) {
 		const message = getErrorMessage(err, 'Unable to delete API key.');
 		showErrorFeedback(message);
