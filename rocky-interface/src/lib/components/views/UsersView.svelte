@@ -24,6 +24,8 @@
 	let whitelistError: string | null = null;
 	let whitelistMessage: string | null = null;
 	let isSavingWhitelist = false;
+	let searchQuery = '';
+	let sortByName = false;
 
 	let firstName = '';
 	let lastName = '';
@@ -121,8 +123,18 @@
 				<p><strong>Error:</strong> {error}</p>
 			</div>
 		{:else}
+		
 			<section class="section">
+
 				<div class="user-tab-bar" role="tablist" aria-label="User email categories">
+					
+					<input
+					type="text"
+					placeholder="Search users"
+					bind:value={searchQuery}
+					class="view-btn"
+					/>
+
 					<button type="button" class="view-btn user-tab-btn" class:user-tab-active={activeTab === 'kent'} onclick={() => (activeTab = 'kent')}>
 						Kent Emails
 					</button>
@@ -130,6 +142,7 @@
 						Whitelist Emails
 					</button>
 				</div>
+
 
 				{#if activeTab === 'kent'}
 					<div class="table-container">
@@ -144,7 +157,12 @@
 							</colgroup>
 							<thead>
 								<tr>
-									<th>Name</th>
+									<th
+										style="cursor: pointer; user-select: none;"
+										onclick={() => (sortByName = !sortByName)} 
+									>
+										Name {sortByName ? '▲' : '▼'}
+									</th>
 									<th>Email</th>
 									<th>ID</th>
 									<th>Admin</th>
@@ -158,7 +176,14 @@
 										<td colspan="6">No Kent email users found.</td>
 									</tr>
 								{:else}
-									{#each kentUsers as user}
+									{#each kentUsers.filter((user) =>
+										user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+									)
+									.sort((a, b) =>
+										sortByName
+											? (a.displayName ?? '').localeCompare(b.displayName ?? '')
+											: 0
+									) as user}
 										<tr>
 											<td>{user.displayName}</td>
 											<td>{user.email}</td>
