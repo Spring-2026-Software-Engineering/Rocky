@@ -1,5 +1,6 @@
 <script lang="ts">
-  import '$lib/styles/components/course-card.css';
+  import '$lib/styles/components/modules/course-card.css';
+  import '$lib/styles/components/modules/view-controls.css';
   import { createEventDispatcher } from 'svelte';
   
   export let course: {
@@ -11,6 +12,7 @@
     color: string;
   };
   export let mode: 'card' | 'list' = 'card';
+  export let isInstructor = false;
 
   const dispatch = createEventDispatcher<{ open: { courseId: number } }>();
 
@@ -26,7 +28,11 @@
 
 {#if mode === 'card'}
   <div class="course-card" role="button" tabindex="0" on:click={openCourse} on:keydown={(event) => (event.key === 'Enter' || event.key === ' ' ? openCourse() : null)}>
-    <div class="card-banner" style={`background-color: ${courseHexColor};`}></div>
+    <div class="card-banner" style={`background-color: ${courseHexColor};`}>
+      {#if isInstructor}
+        <p class="course-role-tag course-role-tag-banner">Instructor</p>
+      {/if}
+    </div>
     <div class="card-body">
       <p class="course-name">{course.name}</p>
       {#if courseMetaLabel}
@@ -46,7 +52,10 @@
     <div class="list-info">
       <p class="list-course-name">{course.name}</p>
       {#if courseMetaLabel}
-        <p class="list-course-meta">{courseMetaLabel}</p>
+      <p class="list-course-meta">{courseMetaLabel}</p>
+      {/if}
+      {#if isInstructor}
+        <p class="course-role-tag course-role-tag-list">Instructor</p>
       {/if}
     </div>
     <button type="button" class="list-go-btn" on:click|stopPropagation={openCourse}>Go →</button>

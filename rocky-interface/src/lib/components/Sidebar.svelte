@@ -1,5 +1,5 @@
 	<script lang="ts">
-	import '$lib/styles/components/sidebar.css';
+	import '$lib/styles/components/modules/sidebar.css';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 	import { onDestroy, onMount } from 'svelte';
@@ -22,6 +22,13 @@
 
 	const frames = Object.keys(frameMap) as FrameName[];
 	const isAdmin = $derived(Boolean(page.data.currentUser?.isAdmin));
+	const currentUserDisplayName = $derived(page.data.currentUser?.displayName?.trim() || '');
+	const currentUserFirstName = $derived(page.data.currentUser?.firstName?.trim() || '');
+	const currentUserLastName = $derived(page.data.currentUser?.lastName?.trim() || '');
+	const currentUserFullName = $derived(
+		[currentUserFirstName, currentUserLastName].filter((value) => value.length > 0).join(' ').trim()
+	);
+	const currentUserEmail = $derived(page.data.currentUser?.email?.trim().toLowerCase() || '');
 	const allowedFrames = $derived(framesForRole(isAdmin));
 	const primaryFrames = $derived(allowedFrames.filter((frame) => frame !== 'help'));
 	const coursesFrameIndex = $derived(primaryFrames.indexOf('courses'));
@@ -182,6 +189,19 @@
 	function iconForFrame(frame: FrameName): string {
 		return frameIcons[frame];
 	}
+
+	function isCourseInstructor(course: Course): boolean {
+		const instructorLabel = course.instructor?.trim().toLowerCase() || '';
+		if (!instructorLabel) {
+			return false;
+		}
+
+		const candidates = [currentUserDisplayName, currentUserFullName, currentUserEmail]
+			.map((value) => value.trim().toLowerCase())
+			.filter((value) => value.length > 0);
+
+		return candidates.includes(instructorLabel);
+	}
 </script>
 
 {#if $sidebarOpen}
@@ -224,6 +244,9 @@
 									<span class="course-item-name">{course.name}</span>
 									{#if course.code?.trim()}
 										<span class="course-item-meta">{course.code}</span>
+									{/if}
+									{#if isCourseInstructor(course)}
+										<span class="course-role-tag course-role-tag-popout">Instructor</span>
 									{/if}
 								</span>
 							</button>

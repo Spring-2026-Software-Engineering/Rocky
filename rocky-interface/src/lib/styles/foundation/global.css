@@ -14,5 +14,5 @@
 /* Layout and grid system */
 @import '../layout/layout.css';
 
-/* View-level extracted styles */
-@import '../routes/views.css';
+/* Route and view-level extracted styles */
+@import '../routes/routes.css';

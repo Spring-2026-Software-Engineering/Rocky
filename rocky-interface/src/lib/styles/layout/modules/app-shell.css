@@ -1,0 +1,42 @@
+/* App shell layout */
+.app-shell {
+	display: flex;
+	height: calc(100vh - var(--size-topbar-height));
+	min-height: 0;
+	gap: 0;
+}
+
+.app-content {
+	flex: 1;
+	min-height: 0;
+	height: 100%;
+	overflow-y: auto;
+	background: var(--color-bg-tertiary);
+	padding: var(--space-2xl);
+	box-sizing: border-box;
+}
+
+.page-layout {
+	display: flex;
+	min-height: 100%;
+	width: 100%;
+	align-items: stretch;
+	gap: var(--space-lg);
+}
+
+.main-content {
+	flex: 1;
+	overflow: visible;
+	min-width: 0;
+}
+
+@media (max-width: 768px) {
+	.app-content {
+		padding: var(--space-lg);
+		overflow-x: hidden;
+	}
+
+	.page-layout {
+		flex-direction: column;
+	}
+}

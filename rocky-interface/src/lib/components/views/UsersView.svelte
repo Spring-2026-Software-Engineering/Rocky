@@ -10,7 +10,7 @@
 	} from '$lib/api/users';
 	import type { User } from '$lib/types/user';
 	import ViewShell from '$lib/components/ViewShell.svelte';
-	import '$lib/styles/routes/users.css';
+	import '$lib/styles/routes/modules/users-view.css';
 
 	type UserTab = 'kent' | 'whitelist';
 

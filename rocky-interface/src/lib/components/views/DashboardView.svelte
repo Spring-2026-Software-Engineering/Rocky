@@ -17,6 +17,24 @@
 	let error: string | null = null;
 
 	$: canCreateCourse = Boolean($page.data.currentUser?.isAdmin);
+	$: currentUserDisplayName = $page.data.currentUser?.displayName?.trim() || '';
+	$: currentUserFirstName = $page.data.currentUser?.firstName?.trim() || '';
+	$: currentUserLastName = $page.data.currentUser?.lastName?.trim() || '';
+	$: currentUserFullName = [currentUserFirstName, currentUserLastName].filter((value) => value.length > 0).join(' ').trim();
+	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
+
+	function isCourseInstructor(course: Course): boolean {
+		const instructorLabel = course.instructor?.trim().toLowerCase() || '';
+		if (!instructorLabel) {
+			return false;
+		}
+
+		const candidates = [currentUserDisplayName, currentUserFullName, currentUserEmail]
+			.map((value) => value.trim().toLowerCase())
+			.filter((value) => value.length > 0);
+
+		return candidates.includes(instructorLabel);
+	}
 
 	function scrollToTopOfApp() {
 		if (!browser) {
@@ -126,13 +144,13 @@
 		{:else if viewMode === 'card'}
 				<div class="grid grid-3">
 					{#each courses as course}
-						<CourseCard {course} mode="card" on:open={handleOpenCourse} />
+						<CourseCard {course} mode="card" isInstructor={isCourseInstructor(course)} on:open={handleOpenCourse} />
 					{/each}
 				</div>
 			{:else}
 				<div class="grid grid-1">
 					{#each courses as course}
-						<CourseCard {course} mode="list" on:open={handleOpenCourse} />
+						<CourseCard {course} mode="list" isInstructor={isCourseInstructor(course)} on:open={handleOpenCourse} />
 					{/each}
 				</div>
 		{/if}

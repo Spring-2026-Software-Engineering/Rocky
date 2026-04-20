@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { User } from '$lib/types/user';
-	import '$lib/styles/components/topbar.css';
+	import '$lib/styles/components/modules/topbar.css';
 	import  {sidebarOpen} from '$lib/stores/sidebarStore';
 
 	let { user = null }: { user: User | null } = $props();

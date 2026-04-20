@@ -1,4 +1,4 @@
-@import '../components/components.css';
+@import '../../components/components.css';
 
 .login-background {
 	min-height: 100vh;
@@ -268,4 +268,3 @@
 		grid-template-columns: 1fr;
 	}
 }
-

@@ -1,7 +1,7 @@
-/* Analytics styles - Import consolidated design system */
-@import '../components/components.css';
-@import '../layout/layout.css';
-/* Additional analytics-specific styles */
+/* Analytics view */
+@import '../../components/components.css';
+@import '../../layout/layout.css';
+
 .analytics-page {
 	padding: 0;
 	color: var(--color-text-primary);

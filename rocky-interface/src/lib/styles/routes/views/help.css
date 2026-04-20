@@ -1,0 +1,111 @@
+/* Help route-specific styles */
+
+.help-section {
+	margin-top: var(--space-xl);
+}
+
+.help-resource-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--space-md);
+	margin-top: var(--space-lg);
+	margin-bottom: var(--space-lg);
+}
+
+.help-resource-card {
+	display: block;
+	text-decoration: none;
+	color: inherit;
+	border: 1px solid var(--color-gray-200);
+	background: var(--color-bg-primary);
+	border-radius: var(--radius-md);
+	padding: var(--space-lg);
+	transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.help-resource-card:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-sm);
+	border-color: var(--color-gray-400);
+}
+
+.help-resource-label {
+	margin: 0 0 var(--space-sm) 0;
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+}
+
+.help-resource-description {
+	display: block;
+	font-size: var(--font-size-base);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-normal);
+	margin-bottom: var(--space-md);
+}
+
+.help-resource-action {
+	font-size: var(--font-size-sm);
+	color: var(--color-accent);
+	font-weight: var(--font-weight-semibold);
+}
+
+.help-callout {
+	border: 1px dashed var(--color-gray-300);
+	background: var(--color-bg-secondary);
+	border-radius: var(--radius-md);
+	padding: var(--space-2xl) var(--space-xl);
+	text-align: center;
+}
+
+.help-callout-title {
+	margin: 0 0 var(--space-sm) 0;
+	font-size: var(--font-size-xl);
+	font-weight: var(--font-weight-semibold);
+	color: var(--color-text-primary);
+}
+
+.help-callout-text {
+	margin: 0 0 var(--space-lg) 0;
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+}
+
+.help-doc-link {
+	color: var(--color-accent);
+	text-decoration: none;
+	font-weight: var(--font-weight-semibold);
+}
+
+.help-doc-link:hover {
+	text-decoration: underline;
+}
+
+.help-status-pill {
+	display: inline-block;
+	padding: 2px var(--space-sm);
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.help-status-new {
+	background: #dcfce7;
+	color: #166534;
+}
+
+.help-status-updated {
+	background: #dbeafe;
+	color: #1e40af;
+}
+
+.help-status-current {
+	background: var(--color-bg-secondary);
+	color: var(--color-text-secondary);
+}
+
+@media (max-width: 900px) {
+	.help-resource-grid {
+		grid-template-columns: 1fr;
+	}
+}

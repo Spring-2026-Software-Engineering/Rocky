@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import { ENABLE_MICROSOFT_OAUTH, ENABLE_PREVIEW_AUTH, MICROSOFT_OAUTH } from '$lib/config/env';
-  import '$lib/styles/routes/login.css';
+  import '$lib/styles/routes/modules/login-view.css';
 
   type MsalClaims = Record<string, unknown>;
 

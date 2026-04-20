@@ -40,6 +40,10 @@
 	};
 	const API_KEY_PREFIX = 'sk_kent_';
 
+	function buildMaskedApiKeyPreview(maskLength: number): string {
+		return `${API_KEY_PREFIX}${'*'.repeat(maskLength)}`;
+	}
+
 	let allCourses: Course[] = [];
 	let allUsers: User[] = [];
 	let baseVisibleCourses: Course[] = [];
@@ -458,7 +462,7 @@
 			selectedGroups.some((group) => group.id === selectedCourse.apiKeyOwnerId && group.memberIds.map(normalizeIdentifier).some((id) => [normalizeIdentifier(currentUserId), currentUserEmail].includes(id)))
 		);
 	$: shouldShowMaskedApiKey = hasExistingApiKey && (isCurrentUserAdmin || currentUserIsApiKeyOwner || currentUserIsApiKeyGroupMember);
-	$: maskedApiKeyPreview = shouldShowMaskedApiKey ? `${API_KEY_PREFIX}${'*'.repeat(17)}` : null;
+	$: maskedApiKeyPreview = shouldShowMaskedApiKey ? buildMaskedApiKeyPreview(30) : null;
 	$: showCourseTabBar = availableTabs.length > 0;
 	$: selectableGroupMembers = (selectedDetail?.members || []).filter((member) => member.role !== 'instructor');
 	$: availableTabs = canEditPeopleAndGroups
@@ -968,7 +972,7 @@
 									title={`Personal Key ${slot.slotIndex + 1}`}
 									keyName={getSlotKeyName(slotStateId, slot.baseKeyName)}
 									hasExistingKey={slot.hasExistingKey}
-									maskedPreview={`${API_KEY_PREFIX}${'*'.repeat(17)}`}
+									maskedPreview={maskedApiKeyPreview ?? buildMaskedApiKeyPreview(30)}
 									placeholderText="No key exists for this slot yet."
 									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
 									onGenerate={() => generateKeyForSlot('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName)}
@@ -1000,7 +1004,7 @@
 								title={`${activeStudentGroup.name} Key ${slot.slotIndex + 1}`}
 								keyName={getSlotKeyName(slotStateId, slot.baseKeyName)}
 								hasExistingKey={slot.hasExistingKey}
-								maskedPreview={`${API_KEY_PREFIX}${'*'.repeat(17)}`}
+								maskedPreview={maskedApiKeyPreview ?? buildMaskedApiKeyPreview(30)}
 								placeholderText="No key exists for this slot yet."
 								onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
 								onGenerate={() => generateKeyForSlot('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName)}

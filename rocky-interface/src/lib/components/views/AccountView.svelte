@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import ViewShell from '$lib/components/ViewShell.svelte';
 	import { setThemePreference } from '$lib/stores/themeStore';
-	import '$lib/styles/routes/account.css';
+	import '$lib/styles/routes/modules/account-view.css';
 
 	let isDarkMode = $state(page.data.themePreference === 'dark');
 	let currentUser = $derived(page.data.currentUser);
