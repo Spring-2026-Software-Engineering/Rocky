@@ -109,6 +109,13 @@
 			return member.name;
 		}
 
+		if (member.role === 'instructor') {
+			const fallbackInstructorName = selectedCourse?.instructor?.trim() || '';
+			if (fallbackInstructorName && normalizeIdentifier(fallbackInstructorName) !== 'unknown instructor') {
+				return fallbackInstructorName;
+			}
+		}
+
 		const email = member.email.trim();
 		return email ? 'Pending user' : 'Unknown user';
 	}

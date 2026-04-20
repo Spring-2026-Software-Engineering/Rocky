@@ -6,6 +6,65 @@ from typing import Any
 from flask import jsonify, request
 
 
+def _build_user_identity_maps(users_collection, normalize_str):
+    users_by_id: dict[str, dict[str, Any]] = {}
+    users_by_email: dict[str, dict[str, Any]] = {}
+    for user in users_collection.find():
+        if not isinstance(user, dict):
+            continue
+        user_id = normalize_str(user.get("id")).lower()
+        user_email = normalize_str(user.get("email")).lower()
+        if user_id:
+            users_by_id[user_id] = user
+        if user_email:
+            users_by_email[user_email] = user
+    return users_by_id, users_by_email
+
+
+def _resolve_user_display_name(user: dict[str, Any], normalize_str) -> str:
+    if not isinstance(user, dict):
+        return ""
+    first_name = normalize_str(user.get("first_name"))
+    last_name = normalize_str(user.get("last_name"))
+    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
+    if full_name:
+        return full_name
+    fallback_name = normalize_str(user.get("name"))
+    if fallback_name:
+        return fallback_name
+    return ""
+
+
+def _with_resolved_member_names(course: dict[str, Any], users_by_id: dict[str, dict[str, Any]], users_by_email: dict[str, dict[str, Any]], normalize_str):
+    result = dict(course)
+    members = course.get("members") if isinstance(course.get("members"), list) else []
+    resolved_members: list[dict[str, Any]] = []
+
+    for member in members:
+        if not isinstance(member, dict):
+            continue
+        current_member = dict(member)
+        existing_name = normalize_str(current_member.get("name"))
+        if existing_name:
+            resolved_members.append(current_member)
+            continue
+
+        member_id = normalize_str(current_member.get("id")).lower()
+        member_email = normalize_str(current_member.get("email") or current_member.get("accountEmail")).lower()
+        matched_user = users_by_id.get(member_id) if member_id else None
+        if matched_user is None and member_email:
+            matched_user = users_by_email.get(member_email)
+
+        resolved_name = _resolve_user_display_name(matched_user or {}, normalize_str)
+        if resolved_name:
+            current_member["name"] = resolved_name
+
+        resolved_members.append(current_member)
+
+    result["members"] = resolved_members
+    return result
+
+
 def create_course(deps: dict[str, Any]):
     require_admin = deps["require_admin"]
     validate_course_payload = deps["validate_course_payload"]
@@ -36,16 +95,24 @@ def get_courses(deps: dict[str, Any]):
     require_requester_identity = deps["require_requester_identity"]
     _resolve_requester_user_id = deps["_resolve_requester_user_id"]
     courses = deps["courses"]
+    users = deps["users"]
     _attach_course_key_state = deps["_attach_course_key_state"]
     _serialize_value = deps["_serialize_value"]
     filter_visible_courses = deps["filter_visible_courses"]
+    normalize_str = deps["normalize_str"]
 
     identity = require_requester_identity()
     if identity[0] is None:
         return jsonify(identity[1][0]), identity[1][1]
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
-    result = [_attach_course_key_state(_serialize_value(course)) for course in courses.find()]
+    users_by_id, users_by_email = _build_user_identity_maps(users, normalize_str)
+    result = [
+        _attach_course_key_state(
+            _with_resolved_member_names(_serialize_value(course), users_by_id, users_by_email, normalize_str)
+        )
+        for course in courses.find()
+    ]
     return jsonify(filter_visible_courses(result, requester_id or email, is_admin))
 
 
@@ -53,10 +120,12 @@ def get_course(deps: dict[str, Any], course_id: str):
     require_requester_identity = deps["require_requester_identity"]
     _resolve_requester_user_id = deps["_resolve_requester_user_id"]
     courses = deps["courses"]
+    users = deps["users"]
     get_course_record = deps["get_course_record"]
     _attach_course_key_state = deps["_attach_course_key_state"]
     _serialize_value = deps["_serialize_value"]
     filter_visible_courses = deps["filter_visible_courses"]
+    normalize_str = deps["normalize_str"]
 
     identity = require_requester_identity()
     if identity[0] is None:
@@ -67,7 +136,10 @@ def get_course(deps: dict[str, Any], course_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
-    serialized = _attach_course_key_state(_serialize_value(course))
+    users_by_id, users_by_email = _build_user_identity_maps(users, normalize_str)
+    serialized = _attach_course_key_state(
+        _with_resolved_member_names(_serialize_value(course), users_by_id, users_by_email, normalize_str)
+    )
     visible = filter_visible_courses([serialized], requester_id or email, is_admin)
     if not visible:
         return jsonify({"error": "Not found"}), 404
