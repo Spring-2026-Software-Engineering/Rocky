@@ -155,6 +155,17 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
         normalize_str(course.get("instructor_id")).lower(),
         normalize_str(course.get("instructor_email")).lower(),
     }
+    instructor_identifiers.update(
+        normalize_str(identifier).lower()
+        for identifier in (course.get("ta_ids") if isinstance(course.get("ta_ids"), list) else [])
+        if normalize_str(identifier)
+    )
+    instructor_identifiers.update(
+        normalize_str(identifier).lower()
+        for identifier in (course.get("ta_emails") if isinstance(course.get("ta_emails"), list) else [])
+        if normalize_str(identifier)
+    )
+    instructor_identifiers.discard("")
     if normalized_owner_id in instructor_identifiers:
         instructor_key_limit = course.get("instructor_key_limit")
         return instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit > 0 else 2

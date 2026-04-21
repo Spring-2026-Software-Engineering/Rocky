@@ -13,6 +13,21 @@ from backend.validation import EMAIL_RE, normalize_str, parse_semester
 GROUP_ID_RE = re.compile(r"[^a-z0-9]+")
 
 
+def _normalize_identifier_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+
+    normalized_values: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized_value = normalize_str(value).lower()
+        if not normalized_value or normalized_value in seen:
+            continue
+        seen.add(normalized_value)
+        normalized_values.append(normalized_value)
+    return normalized_values
+
+
 def _member_email(member: dict[str, Any]) -> str:
     return normalize_str(member.get("email")).lower()
 
@@ -89,6 +104,16 @@ def _set_course_member_lists(course: dict[str, Any]) -> None:
     course["instructor_email"] = instructor_email or None
     instructor_name = normalize_str(course.get("instructor"))
     course["instructor"] = instructor_name or "Unknown Instructor"
+    course["ta_ids"] = _normalize_identifier_list(course.get("ta_ids"))
+    course["ta_emails"] = _normalize_identifier_list(course.get("ta_emails"))
+
+    instructor_identifiers = {
+        normalize_str(course.get("instructor_id")).lower(),
+        normalize_str(course.get("instructor_email")).lower(),
+    }
+    instructor_identifiers.discard("")
+    course["ta_ids"] = [identifier for identifier in course["ta_ids"] if identifier not in instructor_identifiers]
+    course["ta_emails"] = [identifier for identifier in course["ta_emails"] if identifier not in instructor_identifiers]
 
     instructor_key_limit = course.get("instructor_key_limit")
     if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
@@ -106,6 +131,13 @@ def _lookup_user(users_collection, identifier: str):
     user = users_collection.find_one({"id": normalized_identifier})
     if user:
         return user
+    normalized_identifier_lower = normalized_identifier.lower()
+    for candidate in users_collection.find():
+        if not isinstance(candidate, dict):
+            continue
+        candidate_id = normalize_str(candidate.get("id")).lower()
+        if candidate_id and candidate_id == normalized_identifier_lower:
+            return candidate
     if EMAIL_RE.match(normalized_identifier.lower()):
         return users_collection.find_one({"email": normalized_identifier.lower()})
     return None
@@ -127,8 +159,18 @@ def _is_course_instructor(course: dict[str, Any], requester_identifier: str) -> 
     return normalized_identifier in instructor_identifiers
 
 
+def _is_course_ta(course: dict[str, Any], requester_identifier: str) -> bool:
+    normalized_identifier = requester_identifier.lower()
+    if not normalized_identifier:
+        return False
+
+    ta_identifiers = set(_normalize_identifier_list(course.get("ta_ids")))
+    ta_identifiers.update(_normalize_identifier_list(course.get("ta_emails")))
+    return normalized_identifier in ta_identifiers
+
+
 def can_manage_people(course: dict[str, Any], requester_identifier: str, requester_is_admin: bool) -> bool:
-    return _is_course_admin(requester_is_admin) or _is_course_instructor(course, requester_identifier)
+    return _is_course_admin(requester_is_admin) or _is_course_instructor(course, requester_identifier) or _is_course_ta(course, requester_identifier)
 
 
 def can_manage_metadata(requester_is_admin: bool) -> bool:
@@ -146,7 +188,7 @@ def can_request_api_key(course: dict[str, Any], requester_identifier: str, reque
 def course_is_visible_to_requester(course: dict[str, Any], requester_identifier: str, requester_is_admin: bool) -> bool:
     if _is_course_admin(requester_is_admin):
         return True
-    return _is_course_instructor(course, requester_identifier) or any(
+    return _is_course_instructor(course, requester_identifier) or _is_course_ta(course, requester_identifier) or any(
         _member_matches_identifier(member, requester_identifier)
         for member in course.get("members", [])
         if isinstance(member, dict)
@@ -168,6 +210,9 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
     color = payload.get("color")
     instructor_id = normalize_str(payload.get("instructorId") or payload.get("instructor_id"))
     instructor_email = normalize_str(payload.get("instructorEmail")).lower()
+    ta_ids_payload = payload.get("taIds")
+    if ta_ids_payload is None:
+        ta_ids_payload = payload.get("ta_ids")
 
     if name is not None:
         course["name"] = normalize_str(name) or course.get("name", "Untitled Course")
@@ -194,6 +239,36 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
             course["instructor"] = instructor_name
             course["instructor_id"] = resolved_id or None
             course["instructor_email"] = resolved_email or None
+
+    if ta_ids_payload is not None:
+        if not isinstance(ta_ids_payload, list):
+            raise ValueError("taIds must be a list.")
+
+        resolved_ta_ids: list[str] = []
+        resolved_ta_emails: list[str] = []
+        seen_ta_ids: set[str] = set()
+        seen_ta_emails: set[str] = set()
+        for ta_identifier in ta_ids_payload:
+            normalized_ta_identifier = normalize_str(ta_identifier)
+            if not normalized_ta_identifier:
+                continue
+
+            ta_user = _lookup_user(users_collection, normalized_ta_identifier)
+            if not ta_user:
+                raise ValueError("Each teacher assistant must match an existing user.")
+
+            resolved_ta_id = normalize_str(ta_user.get("id")).lower()
+            resolved_ta_email = normalize_str(ta_user.get("email")).lower()
+
+            if resolved_ta_id and resolved_ta_id not in seen_ta_ids:
+                seen_ta_ids.add(resolved_ta_id)
+                resolved_ta_ids.append(resolved_ta_id)
+            if resolved_ta_email and resolved_ta_email not in seen_ta_emails:
+                seen_ta_emails.add(resolved_ta_email)
+                resolved_ta_emails.append(resolved_ta_email)
+
+        course["ta_ids"] = resolved_ta_ids
+        course["ta_emails"] = resolved_ta_emails
 
     _set_course_member_lists(course)
     return course

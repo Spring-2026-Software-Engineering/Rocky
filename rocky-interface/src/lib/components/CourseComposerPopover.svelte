@@ -21,7 +21,8 @@
 		code: '',
 		semester: '',
 		color: randomCourseEditorColor(),
-		instructorId: ''
+		instructorId: '',
+		taIds: [] as string[]
 	};
 
 	onMount(async () => {
@@ -34,14 +35,15 @@
 		}
 	});
 
-	$: accountUsers = users.filter((user) => user.email && user.email.trim() && user.email !== 'N/A');
+	$: accountUsers = users.filter((user) => !user.isAdmin && user.email && user.email.trim() && user.email !== 'N/A');
 	$: if ($courseComposerState.isOpen) {
 		form = {
 			name: '',
 			code: '',
 			semester: '',
 			color: randomCourseEditorColor(),
-			instructorId: ''
+			instructorId: '',
+			taIds: []
 		};
 	}
 
@@ -53,12 +55,14 @@
 		}
 
 		const normalizedInstructorId = form.instructorId.trim();
+		const normalizedTaIds = form.taIds.filter((id) => id !== normalizedInstructorId);
 		const created = await createCourse({
 			name: courseName,
 			code: form.code.trim(),
 			semester: form.semester.trim() || '',
 			color: form.color.trim() || randomCourseEditorColor(),
 			instructorId: normalizedInstructorId,
+			taIds: normalizedTaIds,
 			instructorName: accountUsers.find((user) => user.id === normalizedInstructorId)?.displayName
 		});
 

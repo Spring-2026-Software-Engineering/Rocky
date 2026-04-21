@@ -7,6 +7,8 @@ export type ApiCourse = Partial<{
 	instructor: string;
 	instructor_id: string | null;
 	instructor_email: string | null;
+	ta_ids: string[];
+	ta_emails: string[];
 	semester: string | null;
 	color: string;
 	instructor_handout_limit: number;
@@ -27,6 +29,8 @@ export type Course = {
 	instructor: string;
 	instructorId: string | null;
 	instructorEmail: string | null;
+	taIds: string[];
+	taEmails: string[];
 	semester: string;
 	color: string;
 	instructorKeyLimit: number;
@@ -127,6 +131,12 @@ export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 		instructor,
 		instructorId: raw.instructor_id?.trim() || null,
 		instructorEmail: raw.instructor_email?.trim().toLowerCase() || null,
+		taIds: Array.isArray(raw.ta_ids)
+			? raw.ta_ids.map((id) => id?.trim().toLowerCase() || '').filter((id) => id.length > 0)
+			: [],
+		taEmails: Array.isArray(raw.ta_emails)
+			? raw.ta_emails.map((email) => email?.trim().toLowerCase() || '').filter((email) => email.length > 0)
+			: [],
 		semester: normalizeSemester(raw.semester),
 		color: raw.color?.trim() || COURSE_EDITOR_DEFAULT_COLOR,
 		instructorKeyLimit:

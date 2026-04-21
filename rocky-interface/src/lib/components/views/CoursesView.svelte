@@ -42,6 +42,7 @@
 	};
 	type RosterEntry = CourseDetail['members'][number] & {
 		isInstructor: boolean;
+		isTeacherAssistant: boolean;
 	};
 	const API_KEY_PREFIX = 'sk_kent_';
 
@@ -63,7 +64,8 @@
 		code: '',
 		semester: '',
 		color: COURSE_EDITOR_DEFAULT_COLOR,
-		instructorId: ''
+		instructorId: '',
+		taIds: [] as string[]
 	};
 	let newGroupName = '';
 	let pendingGroupMemberIdByGroupId: Record<string, string> = {};
@@ -145,40 +147,124 @@
 		};
 	}
 
+	function getCourseTeacherAssistantRosterEntries(): RosterEntry[] {
+		if (!selectedCourse) {
+			return [];
+		}
+
+		const courseTaIdentifiers = [...(selectedCourse.taIds || []), ...(selectedCourse.taEmails || [])]
+			.map(normalizeIdentifier)
+			.filter(Boolean);
+		if (!courseTaIdentifiers.length) {
+			return [];
+		}
+
+		const entries: RosterEntry[] = [];
+		for (const identifier of courseTaIdentifiers) {
+			const matchedUser = allUsers.find((user) => {
+				const userIdentifiers = [normalizeIdentifier(user.id), normalizeIdentifier(user.email)].filter(Boolean);
+				return userIdentifiers.includes(identifier);
+			});
+			const matchedMember = (selectedDetail?.members || []).find((member) => {
+				const memberIdentifiers = [normalizeIdentifier(member.id), normalizeIdentifier(member.email)].filter(Boolean);
+				return memberIdentifiers.includes(identifier);
+			});
+
+			const email = matchedUser?.email || matchedMember?.email || '';
+			if (!email) {
+				continue;
+			}
+
+			entries.push({
+				id: matchedUser?.id || matchedMember?.id || null,
+				name: matchedUser?.displayName || matchedMember?.name || null,
+				email,
+				keyLimit: selectedCourse.instructorKeyLimit || 2,
+				isInstructor: false,
+				isTeacherAssistant: true
+			});
+		}
+
+		const seen = new Set<string>();
+		return entries.filter((entry) => {
+			const key = normalizeIdentifier(entry.email) || normalizeIdentifier(entry.id);
+			if (!key || seen.has(key)) {
+				return false;
+			}
+			seen.add(key);
+			return true;
+		});
+	}
+
 	function getRosterEntries(): RosterEntry[] {
 		const instructorEntry = getCourseInstructorRosterEntry();
+		const teacherAssistantEntries = getCourseTeacherAssistantRosterEntries();
 		const members = selectedDetail?.members || [];
+		const teacherAssistantIdentifiers = new Set(
+			teacherAssistantEntries
+				.flatMap((entry) => [normalizeIdentifier(entry.id), normalizeIdentifier(entry.email)])
+				.filter(Boolean)
+		);
 		if (!instructorEntry) {
-			return members.map((member) => ({ ...member, isInstructor: false }));
+			return [
+				...teacherAssistantEntries,
+				...members
+					.filter((member) => {
+						const memberIdentifiers = [normalizeIdentifier(member.id), normalizeIdentifier(member.email)].filter(Boolean);
+						return !memberIdentifiers.some((identifier) => teacherAssistantIdentifiers.has(identifier));
+					})
+					.map((member) => ({ ...member, isInstructor: false, isTeacherAssistant: false }))
+			];
 		}
 
 		return [
 			{
 				...instructorEntry,
-				isInstructor: true
+				isInstructor: true,
+				isTeacherAssistant: false
 			},
-			...members.map((member) => ({
-				...member,
-				isInstructor: false
-			}))
+			...teacherAssistantEntries,
+			...members
+				.filter((member) => {
+					const memberIdentifiers = [normalizeIdentifier(member.id), normalizeIdentifier(member.email)].filter(Boolean);
+					return !memberIdentifiers.some((identifier) => teacherAssistantIdentifiers.has(identifier));
+				})
+				.map((member) => ({
+					...member,
+					isInstructor: false,
+					isTeacherAssistant: false
+				}))
 		];
 	}
 
 	function getRosterRole(entry: RosterEntry): string {
-		return entry.isInstructor ? 'Instructor' : 'Student';
+		if (entry.isInstructor) {
+			return 'Instructor';
+		}
+		if (entry.isTeacherAssistant) {
+			return 'Teacher Assistant';
+		}
+		return 'Student';
 	}
 
 	function getRosterKeyLimit(entry: RosterEntry): number {
-		return entry.isInstructor ? (selectedCourse?.instructorKeyLimit || entry.keyLimit || 2) : entry.keyLimit;
+		if (entry.isInstructor || entry.isTeacherAssistant) {
+			return selectedCourse?.instructorKeyLimit || entry.keyLimit || 2;
+		}
+		return entry.keyLimit;
 	}
 
-	function currentUserMatchesCourseInstructor(): boolean {
+	function currentUserMatchesCourseManager(): boolean {
 		if (!selectedCourse) {
 			return false;
 		}
 		const instructorIdentifiers = [selectedCourse.instructorId, selectedCourse.instructorEmail].map(normalizeIdentifier).filter(Boolean);
+		const teacherAssistantIdentifiers = [...(selectedCourse.taIds || []), ...(selectedCourse.taEmails || [])]
+			.map(normalizeIdentifier)
+			.filter(Boolean);
+		const managerIdentifiers = [...instructorIdentifiers, ...teacherAssistantIdentifiers];
 		const currentIdentifiers = [currentUserId, currentUserEmail].map(normalizeIdentifier).filter(Boolean);
-		return currentIdentifiers.some((identifier) => instructorIdentifiers.includes(identifier));
+		return currentIdentifiers.some((identifier) => managerIdentifiers.includes(identifier));
 	}
 
 	function memberMatchesCurrentUser(member: CourseDetail['members'][number]): boolean {
@@ -447,15 +533,17 @@
 	$: selectedGroups = selectedCourse ? groupsByCourseId[selectedCourse.id] || [] : [];
 	$: selectedGroupIds = new Set(selectedGroups.map((group) => group.id));
 	$: nonAdminUsers = allUsers.filter((user) => !user.isAdmin);
-	$: accountUsers = allUsers.filter((user) => user.email && user.email.trim() && user.email !== 'N/A');
+	$: accountUsers = allUsers.filter((user) => !user.isAdmin && user.email && user.email.trim() && user.email !== 'N/A');
 	$: currentUserId = $page.data.currentUser?.id?.trim() || '';
 	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
 	$: isCurrentUserAdmin = Boolean($page.data.currentUser?.isAdmin);
 	$: baseVisibleCourses = isCurrentUserAdmin
 		? allCourses
 		: allCourses.filter((course) => {
-				const instructorIdentifiers = [course.instructorId, course.instructorEmail].map(normalizeIdentifier).filter(Boolean);
-				if (instructorIdentifiers.includes(normalizeIdentifier(currentUserId)) || instructorIdentifiers.includes(currentUserEmail)) {
+				const managerIdentifiers = [course.instructorId, course.instructorEmail, ...(course.taIds || []), ...(course.taEmails || [])]
+					.map(normalizeIdentifier)
+					.filter(Boolean);
+				if (managerIdentifiers.includes(normalizeIdentifier(currentUserId)) || managerIdentifiers.includes(currentUserEmail)) {
 					return true;
 				}
 				const members = detailsByCourseId[course.id]?.members || [];
@@ -467,13 +555,19 @@
 		  });
 	$: isCurrentUserCourseInstructor = Boolean(
 		selectedCourse &&
-		[normalizeIdentifier(selectedCourse.instructorId), normalizeIdentifier(selectedCourse.instructorEmail)].filter(Boolean).some(
-			(identifier) => identifier === normalizeIdentifier(currentUserId) || identifier === currentUserEmail
-		)
+		[normalizeIdentifier(selectedCourse.instructorId), normalizeIdentifier(selectedCourse.instructorEmail)]
+			.filter(Boolean)
+			.some((identifier) => identifier === normalizeIdentifier(currentUserId) || identifier === currentUserEmail)
+	);
+	$: isCurrentUserCourseTeacherAssistant = Boolean(
+		selectedCourse &&
+		[...(selectedCourse.taIds || []).map(normalizeIdentifier), ...(selectedCourse.taEmails || []).map(normalizeIdentifier)]
+			.filter(Boolean)
+			.some((identifier) => identifier === normalizeIdentifier(currentUserId) || identifier === currentUserEmail)
 	);
 	$: isCurrentUserClient = !isCurrentUserAdmin;
 	$: canEditCourse = isCurrentUserAdmin;
-	$: canEditPeopleAndGroups = isCurrentUserAdmin || isCurrentUserCourseInstructor;
+	$: canEditPeopleAndGroups = isCurrentUserAdmin || isCurrentUserCourseInstructor || isCurrentUserCourseTeacherAssistant;
 	$: studentGroup = selectedGroups.find((group) => groupContainsCurrentUser(group)) || null;
 	$: studentMembers = selectedDetail?.members || [];
 	$: groupedStudentIdSet = new Set(
@@ -509,9 +603,9 @@
 			.map((id) => memberByIdentifier.get(normalizeIdentifier(id)))
 			.filter((member): member is NonNullable<typeof member> => Boolean(member))
 	}));
-	$: canViewManagerApiData = isCurrentUserAdmin || isCurrentUserCourseInstructor;
+	$: canViewManagerApiData = isCurrentUserAdmin || isCurrentUserCourseInstructor || isCurrentUserCourseTeacherAssistant;
 	$: canViewCourseApiHistory = isCurrentUserAdmin;
-	$: canViewPersonalApiData = isCurrentUserClient && !isCurrentUserCourseInstructor && !studentGroup;
+	$: canViewPersonalApiData = isCurrentUserClient && !isCurrentUserCourseInstructor && !isCurrentUserCourseTeacherAssistant && !studentGroup;
 	$: personalOwnedKeys = courseApiKeys.filter(
 		(key) =>
 			key.hasHash !== false &&
@@ -547,7 +641,7 @@
 		: [];
 	$: currentUserMember = (selectedDetail?.members || []).find((member) => memberMatchesCurrentUser(member)) || null;
 	$: studentPersonalKeyOwnerId = normalizeIdentifier(currentUserId) || currentUserEmail;
-	$: personalKeyLimit = currentUserMatchesCourseInstructor()
+	$: personalKeyLimit = currentUserMatchesCourseManager()
 		? Math.max(1, selectedCourse?.instructorKeyLimit ?? 2)
 		: currentUserMember?.keyLimit && currentUserMember.keyLimit > 0
 			? currentUserMember.keyLimit
@@ -564,7 +658,12 @@
 	}
 	$: canGenerateApiKey = Boolean(
 		selectedCourse &&
-		(isCurrentUserAdmin || (selectedDetail?.members || []).some((member) => memberMatchesCurrentUser(member)))
+		(
+			isCurrentUserAdmin ||
+			isCurrentUserCourseInstructor ||
+			isCurrentUserCourseTeacherAssistant ||
+			(selectedDetail?.members || []).some((member) => memberMatchesCurrentUser(member))
+		)
 	);
 	$: hasExistingApiKey = Boolean(selectedCourse?.hasApiKey);
 	$: currentUserIsApiKeyOwner = selectedCourse?.apiKeyOwnerType === 'person' && Boolean(selectedCourse?.apiKeyOwnerId && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(selectedCourse.apiKeyOwnerId)));
@@ -599,12 +698,22 @@
 		const matchingUserByEmail = selectedCourse.instructorEmail
 			? allUsers.find((user) => normalizeIdentifier(user.email) === normalizeIdentifier(selectedCourse.instructorEmail))
 			: undefined;
+		const normalizedCourseTaIds = (selectedCourse.taIds || []).map(normalizeIdentifier).filter(Boolean);
+		const normalizedCourseTaEmails = (selectedCourse.taEmails || []).map(normalizeIdentifier).filter(Boolean);
+		const matchedTaIds = allUsers
+			.filter((user) => {
+				const userId = normalizeIdentifier(user.id);
+				const userEmail = normalizeIdentifier(user.email);
+				return normalizedCourseTaIds.includes(userId) || normalizedCourseTaEmails.includes(userEmail);
+			})
+			.map((user) => user.id);
 		editCourseForm = {
 			name: selectedCourse.name,
 			code: selectedCourse.code,
 			semester: selectedCourse.semester,
 			color: selectedCourse.color,
-			instructorId: selectedCourse.instructorId || matchingUserByEmail?.id || matchingUserByName?.id || ''
+			instructorId: selectedCourse.instructorId || matchingUserByEmail?.id || matchingUserByName?.id || '',
+			taIds: [...new Set(matchedTaIds)]
 		};
 	}
 	$: if (selectedCourse && canViewCourseApiHistory && loadedCourseApiHistoryForId !== selectedCourse.id) {
@@ -773,6 +882,11 @@
 		if (!email) {
 			return;
 		}
+		const matchingAccount = allUsers.find((user) => normalizeIdentifier(user.email) === normalizeIdentifier(email));
+		if (matchingAccount?.isAdmin) {
+			showErrorFeedback('Admins cannot be added to course lists.');
+			return;
+		}
 		try {
 			await addCourseMembers(selectedCourse.id, [{ email }]);
 			await refreshAfterWrite();
@@ -795,7 +909,14 @@
 		const csvText = await file.text();
 		const idMatches = csvText.match(/(?:KSUID|WLID)\d{9}/gi) || [];
 		const parsedIds = [...new Set(idMatches.map((value) => value.trim()))];
-		if (parsedIds.length === 0) {
+		const nonAdminIds = parsedIds.filter((id) => {
+			const matchingUser = allUsers.find((user) => normalizeIdentifier(user.id) === normalizeIdentifier(id));
+			return !matchingUser?.isAdmin;
+		});
+		if (nonAdminIds.length !== parsedIds.length) {
+			showErrorFeedback('Admin accounts were excluded from the imported course list.');
+		}
+		if (nonAdminIds.length === 0) {
 			target.value = '';
 			return;
 		}
@@ -803,7 +924,7 @@
 		try {
 			await addCourseMembers(
 				selectedCourse.id,
-				parsedIds.map((id) => ({ id }))
+				nonAdminIds.map((id) => ({ id }))
 			);
 			await refreshAfterWrite();
 		} catch {
@@ -837,7 +958,8 @@
 				code: editCourseForm.code.trim() || selectedCourse.code,
 				semester: editCourseForm.semester.trim() || selectedCourse.semester,
 				color: editCourseForm.color.trim() || selectedCourse.color,
-				instructorId: normalizedInstructorId || currentInstructorId
+				instructorId: normalizedInstructorId || currentInstructorId,
+				taIds: editCourseForm.taIds.filter((id) => id !== (normalizedInstructorId || currentInstructorId))
 			});
 			await refreshAfterWrite();
 		} catch {
@@ -1002,7 +1124,7 @@
 		}
 		const courseKeyLimit = Math.max(1, selectedCourse.instructorKeyLimit ?? 2);
 		if (instructorHandoutLimit > courseKeyLimit) {
-			showErrorFeedback(`Instructor handout max keys cannot exceed the course key limit (${courseKeyLimit}).`);
+			showErrorFeedback(`Max Student Keys cannot exceed the course key limit (${courseKeyLimit}).`);
 			pendingInstructorHandoutLimit = courseKeyLimit;
 			return;
 		}
@@ -1129,7 +1251,7 @@
 				</div>
 			{/if}
 
-			{#if activeTab === 'home'}
+			{#if activeTab === 'home' && !canEditPeopleAndGroups}
 				<div class="section-content home-panel-stack">
 					{#if courseApiKeysLoading}
 						<p>Loading key slots...</p>
@@ -1153,9 +1275,6 @@
 							{/each}
 						{:else}
 							<p class="section-text">No personal keys are configured for this course member.</p>
-						{/if}
-						{#if canEditPeopleAndGroups}
-							<p class="section-text">Course management tabs are available above.</p>
 						{/if}
 					{/if}
 				</div>
@@ -1329,9 +1448,11 @@
 															/>
 															<button type="button" class="list-go-btn" onclick={saveInstructorKeyLimit}>Save</button>
 															</div>
-														{:else}
-															<span class="section-text">{getRosterKeyLimit(entry)}</span>
-														{/if}
+													{:else}
+														<span class="section-text">{getRosterKeyLimit(entry)}</span>
+													{/if}
+												{:else if entry.isTeacherAssistant}
+													<span class="section-text">{getRosterKeyLimit(entry)}</span>
 												{:else}
 													{#if canEditPeopleAndGroups}
 														<div class="course-group-add-row">
@@ -1360,6 +1481,8 @@
 											<td class="table-actions-cell">
 												{#if entry.isInstructor}
 													<span class="section-text">Root instructor</span>
+												{:else if entry.isTeacherAssistant}
+													<span class="section-text">Teacher assistant</span>
 												{:else if canEditPeopleAndGroups}
 													<button type="button" class="list-go-btn" onclick={() => removeMember(memberIdentifier)}>Remove</button>
 												{:else}
@@ -1488,7 +1611,7 @@
 					/>
 					{#if isCurrentUserAdmin}
 						<div class="course-panel">
-							<h3>Instructor Handout Max Keys</h3>
+							<h3>Max Student Keys</h3>
 							<p class="section-text">Applies to all instructors in this course.</p>
 							<div class="course-group-add-row">
 								<input

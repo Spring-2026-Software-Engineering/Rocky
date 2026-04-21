@@ -96,6 +96,7 @@ def create_course(deps: dict[str, Any]):
             {
                 "instructorId": cleaned.get("instructor_id") or "",
                 "instructorEmail": cleaned.get("instructor_email") or "",
+                "taIds": cleaned.get("ta_ids") or [],
             },
         )
     except ValueError as exc:
@@ -615,6 +616,7 @@ def list_course_api_keys_route(deps: dict[str, Any], course_id: str):
     get_course_record = deps["get_course_record"]
     courses = deps["courses"]
     can_request_api_key = deps["can_request_api_key"]
+    can_manage_people = deps["can_manage_people"]
     _iter_course_api_keys = deps["_iter_course_api_keys"]
     _serialize_api_key_summary = deps["_serialize_api_key_summary"]
     _serialize_value = deps["_serialize_value"]
@@ -631,6 +633,7 @@ def list_course_api_keys_route(deps: dict[str, Any], course_id: str):
         return jsonify({"error": "Course not found"}), 404
     if not can_request_api_key(course, requester_id or email, is_admin):
         return jsonify({"error": "Course access is required."}), 403
+    can_manage_course_people = can_manage_people(course, requester_id or email, is_admin)
 
     normalized_requester = normalize_str(requester_id or email).lower()
     requester_group_ids = {
@@ -647,7 +650,7 @@ def list_course_api_keys_route(deps: dict[str, Any], course_id: str):
     for entry in _iter_course_api_keys(course):
         owner_type = normalize_str(entry.get("owner_type")).lower() or "person"
         owner_id = normalize_str(entry.get("owner_id")).lower()
-        if not is_admin:
+        if not is_admin and not can_manage_course_people:
             if owner_type == "person" and owner_id != normalized_requester:
                 continue
             if owner_type == "group" and owner_id not in requester_group_ids:

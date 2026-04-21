@@ -191,26 +191,22 @@
 		return frameIcons[frame];
 	}
 
-	function isCourseInstructor(course: Course): boolean {
+	function getCourseRoleTag(course: Course): string {
 		const instructorIdentifiers = [course.instructorId, course.instructorEmail]
+			.map((value) => value?.trim().toLowerCase() || '')
+			.filter((value) => value.length > 0);
+		const teacherAssistantIdentifiers = [...(course.taIds || []), ...(course.taEmails || [])]
 			.map((value) => value?.trim().toLowerCase() || '')
 			.filter((value) => value.length > 0);
 
 		const currentIdentifiers = [currentUserId, currentUserEmail].filter((value) => value.length > 0);
 		if (currentIdentifiers.some((identifier) => instructorIdentifiers.includes(identifier))) {
-			return true;
+			return 'Instructor';
 		}
-
-		const instructorLabel = course.instructor?.trim().toLowerCase() || '';
-		if (!instructorLabel) {
-			return false;
+		if (currentIdentifiers.some((identifier) => teacherAssistantIdentifiers.includes(identifier))) {
+			return 'Teacher Assistant';
 		}
-
-		const candidates = [currentUserDisplayName, currentUserFullName, currentUserEmail]
-			.map((value) => value.trim().toLowerCase())
-			.filter((value) => value.length > 0);
-
-		return candidates.includes(instructorLabel);
+		return '';
 	}
 </script>
 
@@ -255,8 +251,8 @@
 									{#if course.code?.trim()}
 										<span class="course-item-meta">{course.code}</span>
 									{/if}
-									{#if isCourseInstructor(course)}
-										<span class="course-role-tag course-role-tag-popout">Instructor</span>
+									{#if getCourseRoleTag(course)}
+										<span class="course-role-tag course-role-tag-popout">{getCourseRoleTag(course)}</span>
 									{/if}
 								</span>
 							</button>

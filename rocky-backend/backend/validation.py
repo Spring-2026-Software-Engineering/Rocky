@@ -250,6 +250,15 @@ def validate_course_payload(payload: Any):
     if instructor_email and not EMAIL_RE.match(instructor_email):
         return None, "instructor_email must be valid when provided."
 
+    ta_ids_payload = payload.get("ta_ids")
+    if ta_ids_payload is None:
+        ta_ids_payload = payload.get("taIds")
+    if ta_ids_payload is None:
+        ta_ids_payload = []
+    if not isinstance(ta_ids_payload, list):
+        return None, "ta_ids must be a list of non-empty strings."
+    ta_ids = [normalize_str(value) for value in ta_ids_payload if normalize_str(value)]
+
     instructor_key_limit = payload.get("instructor_key_limit")
     if instructor_key_limit is None:
         instructor_key_limit = payload.get("instructorKeyLimit")
@@ -278,6 +287,7 @@ def validate_course_payload(payload: Any):
         "name": name,
         "instructor_id": instructor_id,
         "instructor_email": instructor_email or None,
+        "ta_ids": ta_ids,
         "student_ids": [v.strip() for v in student_ids],
         "semester": parsed_semester["display"],
         "semester_obj": None if parsed_semester["term"] == "none" else {"year": parsed_semester["year"], "term": parsed_semester["term"]},

@@ -24,26 +24,22 @@
 	$: currentUserFullName = [currentUserFirstName, currentUserLastName].filter((value) => value.length > 0).join(' ').trim();
 	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
 
-	function isCourseInstructor(course: Course): boolean {
+	function getCourseRoleTag(course: Course): string {
 		const instructorIdentifiers = [course.instructorId, course.instructorEmail]
+			.map((value) => value?.trim().toLowerCase() || '')
+			.filter((value) => value.length > 0);
+		const teacherAssistantIdentifiers = [...(course.taIds || []), ...(course.taEmails || [])]
 			.map((value) => value?.trim().toLowerCase() || '')
 			.filter((value) => value.length > 0);
 
 		const currentIdentifiers = [currentUserId, currentUserEmail].filter((value) => value.length > 0);
 		if (currentIdentifiers.some((identifier) => instructorIdentifiers.includes(identifier))) {
-			return true;
+			return 'Instructor';
 		}
-
-		const instructorLabel = course.instructor?.trim().toLowerCase() || '';
-		if (!instructorLabel) {
-			return false;
+		if (currentIdentifiers.some((identifier) => teacherAssistantIdentifiers.includes(identifier))) {
+			return 'Teacher Assistant';
 		}
-
-		const candidates = [currentUserDisplayName, currentUserFullName, currentUserEmail]
-			.map((value) => value.trim().toLowerCase())
-			.filter((value) => value.length > 0);
-
-		return candidates.includes(instructorLabel);
+		return '';
 	}
 
 	function scrollToTopOfApp() {
@@ -154,13 +150,13 @@
 		{:else if viewMode === 'card'}
 				<div class="grid grid-3">
 					{#each courses as course}
-						<CourseCard {course} mode="card" isInstructor={isCourseInstructor(course)} on:open={handleOpenCourse} />
+						<CourseCard {course} mode="card" roleTag={getCourseRoleTag(course)} on:open={handleOpenCourse} />
 					{/each}
 				</div>
 			{:else}
 				<div class="grid grid-1">
 					{#each courses as course}
-						<CourseCard {course} mode="list" isInstructor={isCourseInstructor(course)} on:open={handleOpenCourse} />
+						<CourseCard {course} mode="list" roleTag={getCourseRoleTag(course)} on:open={handleOpenCourse} />
 					{/each}
 				</div>
 		{/if}

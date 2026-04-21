@@ -13,6 +13,7 @@
 		semester: string;
 		color: string;
 		instructorId: string;
+		taIds: string[];
 	};
 
 	export let title = 'Course';
@@ -28,6 +29,12 @@
 	let selectedSemesterTerm = 'none';
 	let selectedSemesterYear = COURSE_EDITOR_SEMESTER_YEAR_MIN;
 	let lastParsedSemester = '';
+
+	$: availableTeacherAssistants = users.filter((user) => user.id !== form.instructorId);
+	$: normalizedTaIds = [...new Set(form.taIds.filter((id) => id && id !== form.instructorId))];
+	$: if (normalizedTaIds.length !== form.taIds.length) {
+		form.taIds = normalizedTaIds;
+	}
 
 	const dispatch = createEventDispatcher<{ submit: void }>();
 
@@ -109,6 +116,18 @@
 		}
 		dispatch('submit');
 	}
+
+	function isTeacherAssistantSelected(userId: string): boolean {
+		return form.taIds.includes(userId);
+	}
+
+	function toggleTeacherAssistant(userId: string) {
+		if (form.taIds.includes(userId)) {
+			form.taIds = form.taIds.filter((id) => id !== userId);
+			return;
+		}
+		form.taIds = [...form.taIds, userId];
+	}
 </script>
 
 <div class="course-panel">
@@ -173,6 +192,28 @@
 				bind:value={form.color}
 				aria-label="Course Color"
 			/>
+		</div>
+		<div class="form-group">
+			<label class="form-label" for={`${idPrefix}-ta-dropdown`}>Teacher Assistant</label>
+			<details id={`${idPrefix}-ta-dropdown`} class="course-ta-dropdown">
+				<summary class="course-ta-summary">{form.taIds.length} selected</summary>
+				<div class="course-ta-list" role="listbox" aria-multiselectable="true">
+					{#if availableTeacherAssistants.length === 0}
+						<p class="course-ta-empty">No available users.</p>
+					{:else}
+						{#each availableTeacherAssistants as user}
+							<label class="course-ta-item">
+								<input
+									type="checkbox"
+									checked={isTeacherAssistantSelected(user.id)}
+									onchange={() => toggleTeacherAssistant(user.id)}
+								/>
+								<span>{user.displayName}</span>
+							</label>
+						{/each}
+					{/if}
+				</div>
+			</details>
 		</div>
 	</div>
 	<div class="course-edit-actions">

@@ -47,6 +47,7 @@ export type CreateCourseInput = {
 	semester: string;
 	color: string;
 	instructorId: string;
+	taIds: string[];
 	instructorName?: string;
 };
 
@@ -56,6 +57,7 @@ export type UpdateCourseMetadataInput = {
 	semester: string;
 	color: string;
 	instructorId: string;
+	taIds: string[];
 };
 
 export type CourseMemberInput = {
@@ -127,6 +129,7 @@ export async function createCourse(input: CreateCourseInput): Promise<Course> {
 			color: input.color.trim(),
 			instructor: input.instructorName?.trim() || '',
 			instructor_id: input.instructorId.trim(),
+			ta_ids: input.taIds,
 			student_ids: [],
 			members: [],
 			groups: []
@@ -157,7 +160,8 @@ export async function updateCourseMetadata(courseId: string | number, input: Upd
 				code: input.code.trim(),
 				semester: serializeSemester(input.semester),
 				color: input.color.trim(),
-				instructorId: input.instructorId.trim()
+				instructorId: input.instructorId.trim(),
+				taIds: input.taIds
 			})
 		});
 
