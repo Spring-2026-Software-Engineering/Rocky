@@ -12,11 +12,9 @@
 <header class="topbar">
 		<button class="hamburger" aria-label="Toggle menu" onclick={() => sidebarOpen.update(open => !open)}>
 			{#if isHamburgerDay}
-				<img src="/hamburger.svg" alt="Menu" class="hamburger-icon" />
+				<img src="/hamburger.svg" alt="Menu" class="hamburger-icon"/>
 			{:else}
-				<span class="hamburger-line"></span>
-				<span class="hamburger-line"></span>
-				<span class="hamburger-line"></span>
+				<img src="/navbar.svg" alt="Menu"/>
 			{/if}
 		</button>
 
