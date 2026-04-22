@@ -112,6 +112,11 @@
 	flex: 1;
 }
 
+@media (max-width: 768px) {
+	.spacer {
+		flex: 0;
+	}
+}
 /* Overlay for mobile sidebar */
 @media (max-width: 768px) {
 	.sidebar {
@@ -248,6 +253,29 @@
 	color: var(--color-text-secondary);
 }
 
+/*  Mobile View for Courses Sidebar */
+@media (max-width: 768px) {
+	.course-popout {
+		position: static;
+		width: 100%;
+		height: auto;
+		max-height: 400px;
+		border-radius: 0;
+		border-left: none;
+		border-right: none;
+		box-shadow: none;
+		border-top: 1px solid var(--color-gray-200);
+		border-bottom: 1px solid var(--color-gray-200);
+		overflow-y: auto;
+	}
+}
+
+@media (max-width: 768px) {
+    .course-popout-header {
+        display: none;
+    }
+}
+
 /* ========== WIDGET PANEL ========== */
 .widget-panel {
     width: var(--size-widget-panel-width);
@@ -265,10 +293,7 @@
 
 @media (max-width: 768px) {
     .widget-panel {
-        width: 100%;
-        min-width: 0;
-        height: auto;
-        border-top: 1px solid var(--color-gray-300);
+        display:none;
     }
 }
 
