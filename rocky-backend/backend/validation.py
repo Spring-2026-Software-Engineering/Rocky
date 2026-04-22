@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Any
 
@@ -353,8 +352,14 @@ def validate_api_key_payload(payload: Any):
     except (TypeError, ValueError):
         slot_index = 0
     if slot_index < 1:
-        slot_match = re.fullmatch(r"key-(\d+)", key_name)
-        slot_index = int(slot_match.group(1)) if slot_match else 1
+        if key_name.startswith("key-"):
+            slot_suffix = key_name[4:]
+            if slot_suffix.isdigit():
+                slot_index = int(slot_suffix)
+            else:
+                slot_index = 1
+        else:
+            slot_index = 1
 
     api_key_id_raw = payload.get("api_key_id")
     try:

@@ -4,14 +4,13 @@ from datetime import datetime, timedelta, timezone
 import importlib.util
 import logging
 import random
-import re
 import sys
 from typing import Any
 from pathlib import Path
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from backend.authz import require_admin, require_requester_identity
@@ -196,8 +195,10 @@ def _serialize_api_key_summary(entry: dict[str, Any]) -> dict[str, Any]:
     slot_index = entry.get("slot_index") if isinstance(entry.get("slot_index"), int) else None
     if slot_index is None or slot_index < 1:
         key_name = normalize_str(entry.get("key_name"))
-        match = re.fullmatch(r"key-(\d+)", key_name)
-        slot_index = int(match.group(1)) if match else 0
+        if key_name.startswith("key-") and key_name[4:].isdigit():
+            slot_index = int(key_name[4:])
+        else:
+            slot_index = 0
 
     api_key_id = entry.get("api_key_id") if isinstance(entry.get("api_key_id"), int) else 0
 

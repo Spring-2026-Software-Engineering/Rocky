@@ -1232,10 +1232,9 @@ def update_course_api_key_status_route(deps: dict[str, Any], course_id: str):
             bool(raw_is_active),
         )
     except ValueError as exc:
-        message = str(exc)
-        if message == "API key not found.":
-            return jsonify({"error": message}), 404
-        return _bad_request(message)
+        if str(exc) == "API key not found.":
+            return jsonify({"error": "API key not found."}), 404
+        return _bad_request("Unable to update API key status.")
 
     return jsonify(_serialize_value({"message": "API key status updated", "key": updated_key}))
 

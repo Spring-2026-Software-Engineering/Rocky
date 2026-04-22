@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from html import escape as html_escape
 from typing import Any
 
 from flask import jsonify, render_template
@@ -17,6 +18,8 @@ def _redact_inspector_value(value: Any):
         return redacted
     if isinstance(value, list):
         return [_redact_inspector_value(item) for item in value]
+    if isinstance(value, str):
+        return html_escape(value)
     return value
 
 
