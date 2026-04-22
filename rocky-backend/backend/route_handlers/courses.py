@@ -65,6 +65,16 @@ def _with_resolved_member_names(course: dict[str, Any], users_by_id: dict[str, d
     return result
 
 
+def _course_is_active(course: dict[str, Any]) -> bool:
+    return bool(course.get("is_active", True))
+
+
+def _reject_if_course_closed(course: dict[str, Any]):
+    if _course_is_active(course):
+        return None
+    return jsonify({"error": "Course is closed. Reopen it to make changes."}), 403
+
+
 def create_course(deps: dict[str, Any]):
     require_admin = deps["require_admin"]
     validate_course_payload = deps["validate_course_payload"]
@@ -187,8 +197,44 @@ def patch_course_metadata(deps: dict[str, Any], course_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     try:
         updated = apply_course_metadata_patch(course, users, data)
+    except ValueError as exc:
+        return _bad_request(str(exc))
+
+    courses.replace_one({"_id": course["_id"]}, updated)
+    return jsonify(_serialize_value(updated))
+
+
+def update_course_status_route(deps: dict[str, Any], course_id: str):
+    require_admin = deps["require_admin"]
+    get_course_record = deps["get_course_record"]
+    courses = deps["courses"]
+    api_keys = deps["api_keys"]
+    set_course_active_state = deps["set_course_active_state"]
+    _bad_request = deps["_bad_request"]
+    _serialize_value = deps["_serialize_value"]
+
+    ok, err = require_admin()
+    if not ok:
+        return jsonify(err[0]), err[1]
+
+    course = get_course_record(courses, course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or set(data.keys()) != {"is_active"}:
+        return _bad_request("Only is_active may be updated through this endpoint.")
+    if not isinstance(data.get("is_active"), bool):
+        return _bad_request("is_active must be a boolean.")
+
+    try:
+        updated = set_course_active_state(course, api_keys, bool(data.get("is_active")))
     except ValueError as exc:
         return _bad_request(str(exc))
 
@@ -238,6 +284,10 @@ def add_course_members_route(deps: dict[str, Any], course_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
 
@@ -283,6 +333,10 @@ def remove_course_member_route(deps: dict[str, Any], course_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
 
@@ -319,6 +373,10 @@ def create_course_group_route(deps: dict[str, Any], course_id: str):
     course = get_course_record(courses, course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 404
+
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
 
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
@@ -370,6 +428,10 @@ def add_group_member_route(deps: dict[str, Any], course_id: str, group_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
 
@@ -411,6 +473,10 @@ def remove_group_member_route(deps: dict[str, Any], course_id: str, group_id: st
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
 
@@ -447,6 +513,10 @@ def update_member_key_limit_route(deps: dict[str, Any], course_id: str, member_i
     course = get_course_record(courses, course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 404
+
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
 
@@ -511,6 +581,10 @@ def update_instructor_handout_limit_route(deps: dict[str, Any], course_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return _bad_request("Request body must be a JSON object.")
@@ -554,6 +628,10 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return _bad_request("Request body must be a JSON object.")
@@ -590,6 +668,10 @@ def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id:
     course = get_course_record(courses, course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 404
+
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
     if not can_manage_people(course, requester_id or email, is_admin):
         return jsonify({"error": "Instructor or admin access is required."}), 403
 
@@ -765,6 +847,10 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
     course = get_course_record(courses, course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 404
+
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
 
     requester_id = _resolve_requester_user_id(email)
     if not can_request_api_key(course, requester_id or email, is_admin):
@@ -956,6 +1042,10 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
     if not course:
         return jsonify({"error": "Course not found"}), 404
 
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
     data = request.get_json(silent=True)
     if data is None:
         data = {}
@@ -1043,6 +1133,7 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
 
         updated_key = dict(existing_key)
         updated_key["hash"] = ""
+        updated_key["is_active"] = False
         updated_key["deleted_at"] = datetime.now(timezone.utc).isoformat()
         api_keys.replace_one({"_id": existing_key.get("_id")}, updated_key)
 
@@ -1080,6 +1171,73 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
     return jsonify({"message": "API keys deleted", "deleted": deleted_count})
 
 
+def update_course_api_key_status_route(deps: dict[str, Any], course_id: str):
+    require_requester_identity = deps["require_requester_identity"]
+    _resolve_requester_user_id = deps["_resolve_requester_user_id"]
+    get_course_record = deps["get_course_record"]
+    courses = deps["courses"]
+    api_keys = deps["api_keys"]
+    can_manage_people = deps["can_manage_people"]
+    set_course_api_key_active_state = deps["set_course_api_key_active_state"]
+    _bad_request = deps["_bad_request"]
+    _serialize_value = deps["_serialize_value"]
+    normalize_str = deps["normalize_str"]
+
+    identity = require_requester_identity()
+    if identity[0] is None:
+        return jsonify(identity[1][0]), identity[1][1]
+    email, is_admin = identity
+    requester_id = _resolve_requester_user_id(email)
+
+    course = get_course_record(courses, course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
+
+    if not is_admin and not can_manage_people(course, requester_id or email, is_admin):
+        return jsonify({"error": "Instructor or admin access is required."}), 403
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return _bad_request("Request body must be a JSON object.")
+
+    owner_type = normalize_str(data.get("ownerType") or data.get("owner_type")).lower() or "person"
+    owner_id = normalize_str(data.get("ownerId") or data.get("owner_id") or data.get("groupId") or data.get("group_id")).lower()
+    key_name = normalize_str(data.get("keyName") or data.get("key_name") or "key-1")[:64].strip() or "key-1"
+    slot_index_raw = data.get("slotIndex") or data.get("slot_index")
+    try:
+        slot_index = int(slot_index_raw)
+    except (TypeError, ValueError):
+        slot_index = 0
+    if slot_index < 1:
+        slot_index = 1
+
+    raw_is_active = data.get("isActive") if "isActive" in data else data.get("is_active")
+    if not isinstance(raw_is_active, bool):
+        return _bad_request("isActive must be a boolean.")
+
+    try:
+        updated_key = set_course_api_key_active_state(
+            course,
+            api_keys,
+            owner_type,
+            owner_id,
+            key_name,
+            slot_index,
+            bool(raw_is_active),
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if message == "API key not found.":
+            return jsonify({"error": message}), 404
+        return _bad_request(message)
+
+    return jsonify(_serialize_value({"message": "API key status updated", "key": updated_key}))
+
+
 def append_course_api_history(deps: dict[str, Any], course_id: str):
     require_requester_identity = deps["require_requester_identity"]
     _resolve_requester_user_id = deps["_resolve_requester_user_id"]
@@ -1100,6 +1258,10 @@ def append_course_api_history(deps: dict[str, Any], course_id: str):
     course = get_course_record(courses, course_id)
     if not course:
         return jsonify({"error": "Course not found"}), 404
+
+    closed_response = _reject_if_course_closed(course)
+    if closed_response is not None:
+        return closed_response
 
     visible = filter_visible_courses([_serialize_value(course)], requester_id or email, is_admin)
     if not visible:

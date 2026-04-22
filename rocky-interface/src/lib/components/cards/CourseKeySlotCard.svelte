@@ -9,10 +9,15 @@
 	export let generateDisabled = false;
 	export let hideDisabled = false;
 	export let removeDisabled = false;
+	export let toggleActiveDisabled = false;
+	export let showToggleActive = false;
+	export let isKeyActive = true;
+	export let readOnly = false;
 	export let onKeyNameChange: (value: string) => void = () => {};
 	export let onGenerate: () => Promise<string | null> | string | null = () => null;
 	export let onHide: () => void = () => {};
 	export let onRemove: () => void = () => {};
+	export let onToggleActive: () => void = () => {};
 
 	let visibleKey: string | null = null;
 
@@ -31,6 +36,10 @@
 		onRemove();
 	}
 
+	function handleToggleActive() {
+		onToggleActive();
+	}
+
 	onDestroy(() => {
 		visibleKey = null;
 	});
@@ -38,15 +47,19 @@
 
 <div class="course-panel">
 	<h3>{title}</h3>
-	<div class="course-group-create-row">
-		<input
-			class="text-input"
-			type="text"
-			value={keyName}
-			placeholder="Key name"
-			oninput={(event) => onKeyNameChange((event.currentTarget as HTMLInputElement).value)}
-		/>
-	</div>
+	{#if readOnly}
+		<p><strong>Key Name:</strong> {keyName}</p>
+	{:else}
+		<div class="course-group-create-row">
+			<input
+				class="text-input"
+				type="text"
+				value={keyName}
+				placeholder="Key name"
+				oninput={(event) => onKeyNameChange((event.currentTarget as HTMLInputElement).value)}
+			/>
+		</div>
+	{/if}
 	<p>
 		<strong>Key:</strong>
 		{#if visibleKey}
@@ -57,13 +70,22 @@
 			{placeholderText}
 		{/if}
 	</p>
-	<div class="course-inline-actions">
-		<button type="button" class="list-go-btn" onclick={handleGenerate} disabled={generateDisabled}>Generate Key</button>
-        {#if hasExistingKey || visibleKey}
-            <button type="button" class="list-go-btn" onclick={handleRemove} disabled={removeDisabled}>Remove Key</button>
-        {/if}
-		{#if visibleKey}
-			<button type="button" class="list-go-btn" onclick={handleHide} disabled={hideDisabled}>Hide Key</button>
-		{/if}
-	</div>
+	{#if readOnly}
+		<p class="section-text">Course is closed. Key actions are unavailable.</p>
+	{:else}
+		<div class="course-inline-actions">
+			<button type="button" class="list-go-btn" onclick={handleGenerate} disabled={generateDisabled}>Generate Key</button>
+			{#if hasExistingKey || visibleKey}
+				<button type="button" class="list-go-btn" onclick={handleRemove} disabled={removeDisabled}>Remove Key</button>
+				{#if showToggleActive}
+					<button type="button" class="list-go-btn" onclick={handleToggleActive} disabled={toggleActiveDisabled}>
+						{isKeyActive ? 'Deactivate Key' : 'Activate Key'}
+					</button>
+				{/if}
+			{/if}
+			{#if visibleKey}
+				<button type="button" class="list-go-btn" onclick={handleHide} disabled={hideDisabled}>Hide Key</button>
+			{/if}
+		</div>
+	{/if}
 </div>

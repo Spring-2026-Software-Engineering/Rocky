@@ -11,6 +11,8 @@
 		removeCourseMember,
 		removeGroupMember as removeCourseGroupMember,
 		regenerateCourseApiKey,
+		updateCourseActiveStatus,
+		updateCourseApiKeyStatus,
 		updateCourseGroupKeyLimit,
 		updateCourseInstructorKeyLimit,
 		updateCourseInstructorHandoutLimit,
@@ -38,6 +40,7 @@
 		slotIndex: number;
 		baseKeyName: string;
 		hasExistingKey: boolean;
+		isActive: boolean;
 		key: CourseApiKeySummary | null;
 	};
 	type RosterEntry = CourseDetail['members'][number] & {
@@ -49,6 +52,23 @@
 	function buildMaskedApiKeyPreview(maskLength: number): string {
 		return `${API_KEY_PREFIX}${'*'.repeat(maskLength)}`;
 	}
+
+	function isSelectedCourseActive(): boolean {
+		return selectedCourse?.isActive !== false;
+	}
+
+	function ensureCourseIsEditable(): boolean {
+		if (isSelectedCourseActive()) {
+			return true;
+		}
+		showErrorFeedback('Course is closed. Reopen it to make changes.');
+		return false;
+	}
+
+	let isSelectedCourseClosed = false;
+	let courseStatusActionPending = false;
+	let pendingCourseStatusValue: boolean | null = null;
+	let courseStatusPendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	let allCourses: Course[] = [];
 	let allUsers: User[] = [];
@@ -367,6 +387,7 @@
 				slotIndex,
 				baseKeyName: existing?.keyName || `key-${slotIndex + 1}`,
 				hasExistingKey: existing ? existing.hasHash !== false : false,
+				isActive: existing ? existing.isActive !== false : true,
 				key: existing || null
 			};
 		});
@@ -393,6 +414,9 @@
 		slotIndex: number,
 		fallbackKeyName: string
 	): Promise<string | null> {
+		if (!ensureCourseIsEditable()) {
+			return null;
+		}
 		if (!selectedCourse) {
 			return null;
 		}
@@ -429,6 +453,9 @@
 		slotIndex: number,
 		fallbackKeyName: string
 	) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -456,12 +483,57 @@
 				entry.ownerType === responseOwnerType
 					? {
 						...entry,
-						hasHash: false
+						hasHash: false,
+						isActive: false
 					}
 					: entry
 			);
 		} catch (err) {
 			apiKeyActionError = err instanceof Error ? err.message : 'Unable to remove key.';
+		}
+	}
+
+	async function setSlotActiveState(
+		ownerType: 'person' | 'group',
+		ownerId: string,
+		slotIndex: number,
+		fallbackKeyName: string,
+		nextIsActive: boolean
+	) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
+		if (!selectedCourse) {
+			return;
+		}
+
+		const slotStateId = getSlotStateId(ownerType, ownerId, slotIndex);
+		const keyName = getSlotKeyName(slotStateId, fallbackKeyName).trim() || fallbackKeyName;
+
+		try {
+			apiKeyActionError = null;
+			await updateCourseApiKeyStatus(selectedCourse.id, {
+				ownerType,
+				ownerId: ownerType === 'person' ? ownerId : undefined,
+				groupId: ownerType === 'group' ? ownerId : undefined,
+				keyName,
+				slotIndex: slotIndex + 1,
+				isActive: nextIsActive
+			});
+
+			courseApiKeys = courseApiKeys.map((entry) =>
+				entry.ownerType === ownerType &&
+				normalizeIdentifier(entry.ownerId) === normalizeIdentifier(ownerId) &&
+				((entry.slotIndex > 0 && entry.slotIndex === slotIndex + 1) ||
+					normalizeIdentifier(entry.keyName) === normalizeIdentifier(keyName))
+					? {
+						...entry,
+						isActive: nextIsActive
+					}
+					: entry
+			);
+		} catch (err) {
+			apiKeyActionError = err instanceof Error ? err.message : 'Unable to update API key status.';
 		}
 	}
 
@@ -525,6 +597,10 @@
 
 	onDestroy(() => {
 		clearSensitiveKeyState();
+		if (courseStatusPendingTimeoutId) {
+			clearTimeout(courseStatusPendingTimeoutId);
+			courseStatusPendingTimeoutId = null;
+		}
 	});
 
 	$: visibleCourses = baseVisibleCourses;
@@ -732,6 +808,7 @@
 		pendingInstructorHandoutLimit = 2;
 		pendingGroupKeyLimitById = {};
 	}
+	$: isSelectedCourseClosed = selectedCourse?.isActive === false;
 	$: {
 		selectedCourse;
 		selectedDetail;
@@ -785,7 +862,8 @@
 				apiKeyId: typeof entry.api_key_id === 'number' && Number.isInteger(entry.api_key_id) && entry.api_key_id > 0 ? entry.api_key_id : 0,
 				created: entry.created?.trim() || '',
 				courseId: typeof entry.course_id === 'number' ? entry.course_id : selectedCourse?.id || 0,
-				hasHash: entry.has_hash !== false
+				hasHash: entry.has_hash !== false,
+				isActive: entry.is_active !== false
 			}))
 			.filter((entry) => entry.ownerId.length > 0 && entry.keyName.length > 0);
 	}
@@ -811,7 +889,8 @@
 				typeof response.api_key_id === 'number' && Number.isInteger(response.api_key_id) && response.api_key_id > 0 ? response.api_key_id : 0,
 			created: response.created?.trim() || '',
 			courseId: typeof response.course_id === 'number' ? response.course_id : selectedCourse?.id || 0,
-			hasHash: true
+			hasHash: true,
+			isActive: true
 		};
 
 		courseApiKeys = [
@@ -860,6 +939,9 @@
 	}
 
 	async function removeMember(memberId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
@@ -873,6 +955,9 @@
 	}
 
 	async function addMemberByEmailPrompt() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
@@ -896,6 +981,9 @@
 	}
 
 	async function importPeopleFromCanvasCsv(event: Event) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
@@ -939,6 +1027,9 @@
 	}
 
 	async function saveCourseEdits() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -968,6 +1059,9 @@
 	}
 
 	async function createGroup() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -987,6 +1081,9 @@
 	}
 
 	async function addGroupMember(groupId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1009,6 +1106,9 @@
 	}
 
 	async function removeGroupMember(groupId: string, id: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1022,6 +1122,9 @@
 	}
 
 	async function regenerateApiKey() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1047,6 +1150,9 @@
 	}
 
 	async function generateNamedPersonalKey() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse || !currentUserId) {
 			return;
 		}
@@ -1067,6 +1173,9 @@
 	}
 
 	async function generateNamedGroupKey(groupId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1090,6 +1199,9 @@
 	}
 
 	async function saveMemberKeyLimit(memberId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1115,6 +1227,9 @@
 	}
 
 	async function saveInstructorHandoutLimit() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1137,6 +1252,9 @@
 	}
 
 	async function saveInstructorKeyLimit() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1153,6 +1271,9 @@
 	}
 
 	async function saveGroupKeyLimit(groupId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1182,6 +1303,9 @@
 	}
 
 	async function deleteApiKey() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1203,6 +1327,68 @@
 
 	function getAvailableMembersForGroup(group: CourseGroup) {
 		return selectableGroupMembers.filter((member) => !group.memberIds.map(normalizeIdentifier).includes(getMemberIdentifier(member)));
+	}
+
+	function getCourseStatusActionLabel(): string {
+		if (courseStatusActionPending) {
+			return pendingCourseStatusValue ? 'Opening...' : 'Closing...';
+		}
+		return isSelectedCourseClosed ? 'Open Course' : 'Close Course';
+	}
+
+	async function toggleSelectedCourseActiveStatus() {
+		if (!selectedCourse || !isCurrentUserAdmin || courseStatusActionPending) {
+			return;
+		}
+
+		const targetCourseId = selectedCourse.id;
+		const nextIsActive = !isSelectedCourseActive();
+		const previousCourses = allCourses;
+		const previousKeys = courseApiKeys;
+
+		courseStatusActionPending = true;
+		pendingCourseStatusValue = nextIsActive;
+		if (courseStatusPendingTimeoutId) {
+			clearTimeout(courseStatusPendingTimeoutId);
+		}
+		courseStatusPendingTimeoutId = setTimeout(() => {
+			courseStatusActionPending = false;
+			pendingCourseStatusValue = null;
+			courseStatusPendingTimeoutId = null;
+		}, 8000);
+
+		allCourses = allCourses.map((course) =>
+			course.id === targetCourseId
+				? {
+						...course,
+						isActive: nextIsActive
+				  }
+				: course
+		);
+		courseApiKeys = courseApiKeys.map((entry) =>
+			entry.courseId === targetCourseId
+				? {
+						...entry,
+						isActive: nextIsActive
+				  }
+				: entry
+		);
+
+		try {
+			await updateCourseActiveStatus(targetCourseId, nextIsActive);
+				void refreshAfterWrite();
+		} catch {
+			allCourses = previousCourses;
+			courseApiKeys = previousKeys;
+			// API layer already shows user-facing feedback.
+		} finally {
+			if (courseStatusPendingTimeoutId) {
+				clearTimeout(courseStatusPendingTimeoutId);
+				courseStatusPendingTimeoutId = null;
+			}
+			courseStatusActionPending = false;
+			pendingCourseStatusValue = null;
+		}
 	}
 </script>
 
@@ -1229,7 +1415,7 @@
 			</div>
 		</section>
 	{:else}
-		<section class="section course-workspace">
+		<section class="section course-workspace" class:course-locked={isSelectedCourseClosed}>
 			<div class="section-header course-header">
 				<div>
 					<h2>{selectedCourse.name}</h2>
@@ -1267,9 +1453,11 @@
 									hasExistingKey={slot.hasExistingKey}
 									maskedPreview={maskedApiKeyPreview ?? buildMaskedApiKeyPreview(30)}
 									placeholderText="No key exists for this slot yet."
+									readOnly={isSelectedCourseClosed}
+									generateDisabled={isSelectedCourseClosed}
 									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
 									onGenerate={() => generateKeyForSlot('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName)}
-									removeDisabled={!slot.hasExistingKey}
+									removeDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 									onRemove={() => removeKeyForSlot('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName)}
 								/>
 							{/each}
@@ -1312,13 +1500,19 @@
 									hasExistingKey={slot.hasExistingKey}
 									maskedPreview={buildMaskedApiKeyPreview(30)}
 									placeholderText="No key exists for this slot yet."
-									generateDisabled={!selectedInstructorStudentOwnerId}
+									readOnly={isSelectedCourseClosed}
+									generateDisabled={!selectedInstructorStudentOwnerId || isSelectedCourseClosed}
 									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
 									onGenerate={() =>
 										generateKeyForSlot('person', selectedInstructorStudentOwnerId, slot.slotIndex, slot.baseKeyName)}
-									removeDisabled={!slot.hasExistingKey}
+									removeDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 									onRemove={() =>
 										removeKeyForSlot('person', selectedInstructorStudentOwnerId, slot.slotIndex, slot.baseKeyName)}
+									showToggleActive={true}
+									isKeyActive={slot.isActive}
+									toggleActiveDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
+									onToggleActive={() =>
+										setSlotActiveState('person', selectedInstructorStudentOwnerId, slot.slotIndex, slot.baseKeyName, !slot.isActive)}
 								/>
 							{/each}
 						{/if}
@@ -1356,13 +1550,19 @@
 									hasExistingKey={slot.hasExistingKey}
 									maskedPreview={buildMaskedApiKeyPreview(30)}
 									placeholderText="No key exists for this slot yet."
-									generateDisabled={!selectedInstructorGroupId}
+									readOnly={isSelectedCourseClosed}
+									generateDisabled={!selectedInstructorGroupId || isSelectedCourseClosed}
 									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
 									onGenerate={() =>
 										generateKeyForSlot('group', selectedInstructorGroupId, slot.slotIndex, slot.baseKeyName)}
-									removeDisabled={!slot.hasExistingKey}
+									removeDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 									onRemove={() =>
 										removeKeyForSlot('group', selectedInstructorGroupId, slot.slotIndex, slot.baseKeyName)}
+									showToggleActive={true}
+									isKeyActive={slot.isActive}
+									toggleActiveDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
+									onToggleActive={() =>
+										setSlotActiveState('group', selectedInstructorGroupId, slot.slotIndex, slot.baseKeyName, !slot.isActive)}
 								/>
 							{/each}
 						{/if}
@@ -1383,9 +1583,11 @@
 								hasExistingKey={slot.hasExistingKey}
 								maskedPreview={maskedApiKeyPreview ?? buildMaskedApiKeyPreview(30)}
 								placeholderText="No key exists for this slot yet."
+								readOnly={isSelectedCourseClosed}
+								generateDisabled={isSelectedCourseClosed}
 								onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
 								onGenerate={() => generateKeyForSlot('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName)}
-								removeDisabled={!slot.hasExistingKey}
+								removeDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 								onRemove={() => removeKeyForSlot('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName)}
 							/>
 						{/each}
@@ -1395,15 +1597,19 @@
 				<div class="section-content">
 					{#if canEditPeopleAndGroups}
 						<div class="course-people-actions">
-							<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>
-							<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
-							<input
-								class="course-hidden-input"
-								type="file"
-								accept=".csv,text/csv"
-								bind:this={importCsvInput}
-								onchange={importPeopleFromCanvasCsv}
-							/>
+							{#if isSelectedCourseClosed}
+								<p class="section-text">Course is closed. Roster changes are read-only.</p>
+							{:else}
+								<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
+								<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>
+								<input
+									class="course-hidden-input"
+									type="file"
+									accept=".csv,text/csv"
+									bind:this={importCsvInput}
+									onchange={importPeopleFromCanvasCsv}
+								/>
+							{/if}
 						</div>
 					{/if}
 					<div class="table-container">
@@ -1436,17 +1642,23 @@
 												{#if entry.isInstructor}
 													{#if isCurrentUserAdmin}
 														<div class="course-group-add-row">
-															<input
-																class="text-input"
-																type="number"
-																min="1"
-																value={pendingInstructorKeyLimit}
-																onchange={(event) => {
-																	const target = event.currentTarget as HTMLInputElement;
-																	pendingInstructorKeyLimit = Math.max(1, Number(target.value) || 2);
-																}}
-															/>
-															<button type="button" class="list-go-btn" onclick={saveInstructorKeyLimit}>Save</button>
+																{#if isSelectedCourseClosed}
+																	<div class="text-input course-locked-field">{pendingInstructorKeyLimit}</div>
+																{:else}
+																	<input
+																		class="text-input"
+																		type="number"
+																		min="1"
+																		value={pendingInstructorKeyLimit}
+																		onchange={(event) => {
+																			const target = event.currentTarget as HTMLInputElement;
+																			pendingInstructorKeyLimit = Math.max(1, Number(target.value) || 2);
+																		}}
+																	/>
+																{/if}
+																	{#if !isSelectedCourseClosed}
+																		<button type="button" class="list-go-btn" onclick={saveInstructorKeyLimit}>Save</button>
+																	{/if}
 															</div>
 													{:else}
 														<span class="section-text">{getRosterKeyLimit(entry)}</span>
@@ -1456,22 +1668,28 @@
 												{:else}
 													{#if canEditPeopleAndGroups}
 														<div class="course-group-add-row">
-															<input
-																class="text-input"
-																type="number"
-																min="1"
-																max={Math.max(1, selectedCourse?.instructorKeyLimit ?? 2)}
-																value={pendingMemberKeyLimitById[memberIdentifier] ?? entry.keyLimit}
-																onchange={(event) => {
-																	const target = event.currentTarget as HTMLInputElement;
-																	const courseKeyLimit = Math.max(1, selectedCourse?.instructorKeyLimit ?? 2);
-																	pendingMemberKeyLimitById = {
-																		...pendingMemberKeyLimitById,
-																		[memberIdentifier]: Math.min(courseKeyLimit, Math.max(1, Number(target.value) || 1))
-																	};
-																}}
-															/>
-															<button type="button" class="list-go-btn" onclick={() => saveMemberKeyLimit(memberIdentifier)}>Save</button>
+																{#if isSelectedCourseClosed}
+																	<div class="text-input course-locked-field">{pendingMemberKeyLimitById[memberIdentifier] ?? entry.keyLimit}</div>
+																{:else}
+																	<input
+																		class="text-input"
+																		type="number"
+																		min="1"
+																		max={Math.max(1, selectedCourse?.instructorKeyLimit ?? 2)}
+																		value={pendingMemberKeyLimitById[memberIdentifier] ?? entry.keyLimit}
+																		onchange={(event) => {
+																			const target = event.currentTarget as HTMLInputElement;
+																			const courseKeyLimit = Math.max(1, selectedCourse?.instructorKeyLimit ?? 2);
+																			pendingMemberKeyLimitById = {
+																				...pendingMemberKeyLimitById,
+																				[memberIdentifier]: Math.min(courseKeyLimit, Math.max(1, Number(target.value) || 1))
+																			};
+																		}}
+																	/>
+																{/if}
+																	{#if !isSelectedCourseClosed}
+																		<button type="button" class="list-go-btn" onclick={() => saveMemberKeyLimit(memberIdentifier)}>Save</button>
+																	{/if}
 														</div>
 													{:else}
 														<span class="section-text">{entry.keyLimit}</span>
@@ -1484,7 +1702,11 @@
 												{:else if entry.isTeacherAssistant}
 													<span class="section-text">Teacher assistant</span>
 												{:else if canEditPeopleAndGroups}
-													<button type="button" class="list-go-btn" onclick={() => removeMember(memberIdentifier)}>Remove</button>
+														{#if isSelectedCourseClosed}
+															<span class="section-text">Read-only</span>
+														{:else}
+															<button type="button" class="list-go-btn" onclick={() => removeMember(memberIdentifier)}>Remove</button>
+														{/if}
 												{:else}
 													<span class="section-text">Member</span>
 												{/if}
@@ -1504,8 +1726,14 @@
 				<div class="section-content">
 					<div class="course-people-actions">
 						<div class="course-group-create-row">
-							<input class="text-input" type="text" bind:value={newGroupName} placeholder="New group name" />
-							<button type="button" class="view-btn" onclick={createGroup}>Create Group</button>
+							{#if isSelectedCourseClosed}
+								<div class="text-input course-locked-field">{newGroupName || 'New group name'}</div>
+							{:else}
+								<input class="text-input" type="text" bind:value={newGroupName} placeholder="New group name" />
+							{/if}
+							{#if !isSelectedCourseClosed}
+								<button type="button" class="view-btn" onclick={createGroup}>Create Group</button>
+							{/if}
 						</div>
 					</div>
 					<div class="table-container">
@@ -1536,7 +1764,9 @@
 															{@const member = resolveMemberByIdentifier(memberId)}
 															<li>
 																{member ? getMemberDisplayName(member) : 'Unknown user'}
-																<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, memberId)}>Remove</button>
+																{#if !isSelectedCourseClosed}
+																	<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, memberId)}>Remove</button>
+																{/if}
 															</li>
 														{/each}
 													</ul>
@@ -1546,43 +1776,57 @@
 											</td>
 											<td>
 												<div class="course-group-add-row">
-													<input
-														class="text-input"
-														type="number"
-														min="1"
+													{#if isSelectedCourseClosed}
+														<div class="text-input course-locked-field">{pendingGroupKeyLimitById[group.id] ?? group.keyLimit}</div>
+													{:else}
+														<input
+															class="text-input"
+															type="number"
+															min="1"
 															max={Math.max(1, selectedCourse?.instructorKeyLimit ?? 2)}
-														value={pendingGroupKeyLimitById[group.id] ?? group.keyLimit}
-														onchange={(event) => {
-															const target = event.currentTarget as HTMLInputElement;
+															value={pendingGroupKeyLimitById[group.id] ?? group.keyLimit}
+															onchange={(event) => {
+																const target = event.currentTarget as HTMLInputElement;
 																const courseKeyLimit = Math.max(1, selectedCourse?.instructorKeyLimit ?? 2);
-															pendingGroupKeyLimitById = {
-																...pendingGroupKeyLimitById,
+																pendingGroupKeyLimitById = {
+																	...pendingGroupKeyLimitById,
 																	[group.id]: Math.min(courseKeyLimit, Math.max(1, Number(target.value) || 1))
-															};
-														}}
-													/>
-													<button type="button" class="list-go-btn" onclick={() => saveGroupKeyLimit(group.id)}>Save</button>
+																};
+															}}
+														/>
+													{/if}
+															{#if !isSelectedCourseClosed}
+																<button type="button" class="list-go-btn" onclick={() => saveGroupKeyLimit(group.id)}>Save</button>
+															{/if}
 												</div>
 											</td>
 											<td>
 												<div class="course-group-add-row">
-													<select
-														class="text-input"
-														value={pendingGroupMemberIdByGroupId[group.id] || ''}
-														onchange={(event) => {
-															const target = event.currentTarget as HTMLSelectElement;
-															pendingGroupMemberIdByGroupId = {
-																...pendingGroupMemberIdByGroupId,
-																[group.id]: target.value
-															};
-														}}
-													>
-														<option value="">Select course member</option>
-														{#each getAvailableMembersForGroup(group) as member}
-															<option value={getMemberIdentifier(member)}>{getMemberDisplayName(member)}</option>
-														{/each}
-													</select>
-													<button type="button" class="list-go-btn" onclick={() => addGroupMember(group.id)}>Add</button>
+													{#if isSelectedCourseClosed}
+														<div class="text-input course-locked-field">
+															{pendingGroupMemberIdByGroupId[group.id] || 'Select course member'}
+														</div>
+													{:else}
+														<select
+															class="text-input"
+															value={pendingGroupMemberIdByGroupId[group.id] || ''}
+															onchange={(event) => {
+																const target = event.currentTarget as HTMLSelectElement;
+																pendingGroupMemberIdByGroupId = {
+																	...pendingGroupMemberIdByGroupId,
+																	[group.id]: target.value
+																};
+															}}
+														>
+															<option value="">Select course member</option>
+															{#each getAvailableMembersForGroup(group) as member}
+																<option value={getMemberIdentifier(member)}>{getMemberDisplayName(member)}</option>
+															{/each}
+														</select>
+													{/if}
+													{#if !isSelectedCourseClosed}
+														<button type="button" class="list-go-btn" onclick={() => addGroupMember(group.id)}>Add</button>
+													{/if}
 												</div>
 											</td>
 										</tr>
@@ -1604,29 +1848,43 @@
 						idPrefix="course-settings"
 						users={accountUsers}
 						form={editCourseForm}
+						readOnly={isSelectedCourseClosed}
 						useSemesterPicker={true}
 						semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
 						semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
 						on:submit={saveCourseEdits}
 					/>
+					<div class="course-panel">
+						<h3>Course Status</h3>
+						<p class="section-text">Closing a course makes it read-only until reopened.</p>
+						{#if isCurrentUserAdmin}
+							<button type="button" class="view-btn" onclick={toggleSelectedCourseActiveStatus} disabled={courseStatusActionPending}>
+								{getCourseStatusActionLabel()}
+							</button>
+						{/if}
+					</div>
 					{#if isCurrentUserAdmin}
 						<div class="course-panel">
 							<h3>Max Student Keys</h3>
 							<p class="section-text">Applies to all instructors in this course.</p>
 							<div class="course-group-add-row">
-								<input
-									class="text-input"
-									type="number"
-									min="1"
-									value={pendingInstructorHandoutLimit}
-									max={Math.max(1, selectedCourse?.instructorKeyLimit ?? 2)}
-									onchange={(event) => {
-										const target = event.currentTarget as HTMLInputElement;
-										const courseKeyLimit = Math.max(1, selectedCourse?.instructorKeyLimit ?? 2);
-										pendingInstructorHandoutLimit = Math.min(courseKeyLimit, Math.max(1, Number(target.value) || 2));
-									}}
-								/>
-								<button type="button" class="list-go-btn" onclick={saveInstructorHandoutLimit}>Save</button>
+								{#if isSelectedCourseClosed}
+									<div class="text-input course-locked-field">{pendingInstructorHandoutLimit}</div>
+								{:else}
+									<input
+										class="text-input"
+										type="number"
+										min="1"
+										value={pendingInstructorHandoutLimit}
+										max={Math.max(1, selectedCourse?.instructorKeyLimit ?? 2)}
+										onchange={(event) => {
+											const target = event.currentTarget as HTMLInputElement;
+											const courseKeyLimit = Math.max(1, selectedCourse?.instructorKeyLimit ?? 2);
+											pendingInstructorHandoutLimit = Math.min(courseKeyLimit, Math.max(1, Number(target.value) || 2));
+										}}
+									/>
+									<button type="button" class="list-go-btn" onclick={saveInstructorHandoutLimit}>Save</button>
+								{/if}
 							</div>
 						</div>
 					{/if}

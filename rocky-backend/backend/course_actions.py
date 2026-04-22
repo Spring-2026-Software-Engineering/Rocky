@@ -123,6 +123,9 @@ def _set_course_member_lists(course: dict[str, Any]) -> None:
     if not isinstance(course_handout_limit, int) or course_handout_limit < 1:
         course["instructor_handout_limit"] = 2
 
+    if not isinstance(course.get("is_active"), bool):
+        course["is_active"] = True
+
 
 def _lookup_user(users_collection, identifier: str):
     normalized_identifier = normalize_str(identifier)
@@ -627,6 +630,7 @@ def regenerate_course_api_key(
         "key_name": key_name,
         "course_id": course_numeric_id,
         "hash": generated_hash,
+        "is_active": True,
         "expire": None,
         "created": datetime.now(timezone.utc).isoformat(),
     }
@@ -703,3 +707,86 @@ def delete_course_api_keys(course: dict[str, Any], api_keys_collection) -> int:
     deleted_by_course_code = api_keys_collection.delete_many({"c_id": course_code})
     deleted_count += int(getattr(deleted_by_course_code, "deleted_count", 0))
     return deleted_count
+
+
+def set_course_active_state(course: dict[str, Any], api_keys_collection, is_active: bool) -> dict[str, Any]:
+    if not isinstance(is_active, bool):
+        raise ValueError("is_active must be a boolean.")
+
+    course["is_active"] = is_active
+
+    course_numeric_id = course.get("id") if isinstance(course.get("id"), int) else None
+    course_code = normalize_str(course.get("code"))
+    key_filters: list[dict[str, Any]] = []
+    if course_numeric_id is not None:
+        key_filters.append({"course_id": course_numeric_id})
+    if course_code:
+        key_filters.append({"c_id": course_code})
+
+    seen_ids: set[Any] = set()
+    for lookup in key_filters:
+        for key_entry in api_keys_collection.find(lookup):
+            if not isinstance(key_entry, dict):
+                continue
+            key_entry_id = key_entry.get("_id")
+            if key_entry_id in seen_ids:
+                continue
+            seen_ids.add(key_entry_id)
+            updated_entry = dict(key_entry)
+            updated_entry["is_active"] = is_active
+            api_keys_collection.replace_one({"_id": key_entry_id}, updated_entry)
+
+    return course
+
+
+def set_course_api_key_active_state(
+    course: dict[str, Any],
+    api_keys_collection,
+    owner_type: str,
+    owner_id: str,
+    key_name: str,
+    slot_index: int,
+    is_active: bool,
+) -> dict[str, Any]:
+    normalized_owner_type = normalize_str(owner_type).lower() or "person"
+    if normalized_owner_type not in {"person", "group"}:
+        raise ValueError("owner_type must be either 'person' or 'group'.")
+
+    normalized_owner_id = normalize_str(owner_id).lower()
+    if not normalized_owner_id:
+        raise ValueError("owner_id is required.")
+
+    normalized_key_name = normalize_str(key_name)[:64].strip() or "key-1"
+    if not isinstance(slot_index, int) or slot_index < 1:
+        slot_index = 1
+    if not isinstance(is_active, bool):
+        raise ValueError("is_active must be a boolean.")
+
+    course_numeric_id = course.get("id") if isinstance(course.get("id"), int) else None
+    course_code = normalize_str(course.get("code"))
+    if course_numeric_id is None and not course_code:
+        raise ValueError("Course code is required for API key management.")
+
+    lookup_filter: dict[str, Any] = {
+        "owner_type": normalized_owner_type,
+        "owner_id": normalized_owner_id,
+        "slot_index": slot_index,
+    }
+    if course_numeric_id is not None:
+        lookup_filter["course_id"] = course_numeric_id
+    else:
+        lookup_filter["c_id"] = course_code
+
+    target_key = api_keys_collection.find_one(lookup_filter)
+    if target_key is None:
+        fallback_filter = dict(lookup_filter)
+        fallback_filter.pop("slot_index", None)
+        fallback_filter["key_name"] = normalized_key_name
+        target_key = api_keys_collection.find_one(fallback_filter)
+    if target_key is None:
+        raise ValueError("API key not found.")
+
+    updated_key = dict(target_key)
+    updated_key["is_active"] = is_active
+    api_keys_collection.replace_one({"_id": target_key.get("_id")}, updated_key)
+    return updated_key

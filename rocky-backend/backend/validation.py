@@ -259,6 +259,14 @@ def validate_course_payload(payload: Any):
         return None, "ta_ids must be a list of non-empty strings."
     ta_ids = [normalize_str(value) for value in ta_ids_payload if normalize_str(value)]
 
+    raw_is_active = payload.get("is_active") if "is_active" in payload else payload.get("isActive")
+    if raw_is_active is None:
+        is_active = True
+    elif isinstance(raw_is_active, bool):
+        is_active = raw_is_active
+    else:
+        return None, "is_active must be a boolean."
+
     instructor_key_limit = payload.get("instructor_key_limit")
     if instructor_key_limit is None:
         instructor_key_limit = payload.get("instructorKeyLimit")
@@ -288,6 +296,7 @@ def validate_course_payload(payload: Any):
         "instructor_id": instructor_id,
         "instructor_email": instructor_email or None,
         "ta_ids": ta_ids,
+        "is_active": is_active,
         "student_ids": [v.strip() for v in student_ids],
         "semester": parsed_semester["display"],
         "semester_obj": None if parsed_semester["term"] == "none" else {"year": parsed_semester["year"], "term": parsed_semester["term"]},
@@ -341,6 +350,14 @@ def validate_api_key_payload(payload: Any):
     if api_key_id < 0:
         api_key_id = 0
 
+    raw_is_active = payload.get("is_active") if "is_active" in payload else payload.get("isActive")
+    if raw_is_active is None:
+        is_active = True
+    elif isinstance(raw_is_active, bool):
+        is_active = raw_is_active
+    else:
+        return None, "is_active must be a boolean."
+
     if owner_type not in {"person", "group"}:
         return None, "owner_type must be either person or group."
     if not owner_id:
@@ -372,5 +389,6 @@ def validate_api_key_payload(payload: Any):
         "course_id": course_id,
         "c_id": normalize_str(c_id) if isinstance(c_id, str) else None,
         "hash": key_hash,
+        "is_active": is_active,
         "expire": expire,
     }, None

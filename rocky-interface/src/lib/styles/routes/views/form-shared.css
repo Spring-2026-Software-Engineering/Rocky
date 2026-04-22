@@ -35,6 +35,14 @@ select.text-input option {
 	cursor: not-allowed;
 }
 
+.course-locked-field {
+	background: #f1f3f5;
+	border-color: #c7ccd1;
+	color: #5b6570;
+	cursor: not-allowed;
+	user-select: none;
+}
+
 .account-summary {
 	display: grid;
 	grid-template-columns: auto 1fr;

@@ -31,6 +31,8 @@ from backend.course_actions import (
     remove_group_member,
     regenerate_course_api_key,
     reconcile_course_members_for_user,
+    set_course_active_state,
+    set_course_api_key_active_state,
     update_course_group_key_limit,
     update_course_instructor_key_limit,
     update_course_instructor_handout_limit,
@@ -130,7 +132,11 @@ def _iter_course_api_keys(course: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _get_active_course_api_key(course: dict[str, Any]):
-    keys = [entry for entry in _iter_course_api_keys(course) if normalize_str(entry.get("hash"))]
+    keys = [
+        entry
+        for entry in _iter_course_api_keys(course)
+        if normalize_str(entry.get("hash")) and bool(entry.get("is_active", True))
+    ]
     if not keys:
         return None
     return max(keys, key=lambda entry: normalize_str(entry.get("created")))
@@ -204,6 +210,7 @@ def _serialize_api_key_summary(entry: dict[str, Any]) -> dict[str, Any]:
         "created": entry.get("created"),
         "course_id": entry.get("course_id"),
         "has_hash": bool(normalize_str(entry.get("hash"))),
+        "is_active": bool(entry.get("is_active", True)),
     }
 
 
@@ -712,6 +719,8 @@ def _route_deps() -> dict[str, Any]:
         "delete_course_api_keys": delete_course_api_keys,
         "regenerate_course_api_key": regenerate_course_api_key,
         "reconcile_course_members_for_user": reconcile_course_members_for_user,
+        "set_course_active_state": set_course_active_state,
+        "set_course_api_key_active_state": set_course_api_key_active_state,
         "_get_owner_key_limit": _get_owner_key_limit,
         "_iter_course_api_keys": _iter_course_api_keys,
         "_serialize_api_key_summary": _serialize_api_key_summary,
@@ -806,6 +815,11 @@ def patch_course_metadata(course_id):
     return course_handlers.patch_course_metadata(_route_deps(), course_id)
 
 
+@app.route("/courses/<course_id>/status", methods=["PATCH"])
+def update_course_status_route(course_id):
+    return course_handlers.update_course_status_route(_route_deps(), course_id)
+
+
 @app.route("/courses/<course_id>", methods=["DELETE"])
 def delete_course(course_id):
     return course_handlers.delete_course(_route_deps(), course_id)
@@ -869,6 +883,11 @@ def regenerate_course_api_key_route(course_id):
 @app.route("/courses/<course_id>/api-key", methods=["DELETE"])
 def delete_course_api_key_route(course_id):
     return course_handlers.delete_course_api_key_route(_route_deps(), course_id)
+
+
+@app.route("/courses/<course_id>/api-key/status", methods=["PATCH"])
+def update_course_api_key_status_route(course_id):
+    return course_handlers.update_course_api_key_status_route(_route_deps(), course_id)
 
 
 @app.route("/user-settings", methods=["GET"])

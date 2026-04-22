@@ -286,6 +286,7 @@ def seed_from_backend() -> dict[str, int]:
             "instructor_key_limit": instructor_key_limit,
             "semester": semester_raw,
             "color": (raw.get("color") or "#1a4a8a").strip(),
+            "is_active": True,
             "members": normalized_members,
             "groups": normalized_groups,
             # Fields expected by backend create/update shape
@@ -322,6 +323,7 @@ def seed_from_backend() -> dict[str, int]:
                 "api_key_id": next_api_key_id,
                 "course_id": course_doc["id"],
                 "hash": generated_hash,
+                "is_active": True,
                 "expire": None,
                 "created": (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
             }

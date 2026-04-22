@@ -74,6 +74,27 @@
 	background: var(--color-bg-primary);
 }
 
+.course-workspace.course-locked .text-input:disabled,
+.course-workspace.course-locked select.text-input:disabled,
+.course-workspace.course-locked textarea.text-input:disabled {
+	background: #eceff3;
+	border-color: #c8cfd7;
+	color: #7d8894;
+	cursor: not-allowed;
+	opacity: 1;
+}
+
+.course-workspace.course-locked .view-btn:disabled,
+.course-workspace.course-locked .list-go-btn:disabled {
+	background: #eceff3;
+	border-color: #c8cfd7;
+	color: #7d8894;
+	cursor: not-allowed;
+	box-shadow: none;
+	filter: grayscale(0.2);
+	opacity: 1;
+}
+
 .course-panel h3 {
 	margin: 0 0 var(--space-md) 0;
 	font-size: var(--font-size-base);

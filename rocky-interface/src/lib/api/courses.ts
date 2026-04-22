@@ -110,7 +110,17 @@ export type CourseApiKeySummaryResponse = Partial<{
 	created: string;
 	course_id: number;
 	has_hash: boolean;
+	is_active: boolean;
 }>;
+
+export type UpdateCourseApiKeyStatusInput = {
+	ownerType: 'person' | 'group';
+	ownerId?: string;
+	groupId?: string;
+	keyName?: string;
+	slotIndex?: number;
+	isActive: boolean;
+};
 
 export type RegenerateCourseApiKeyInput = {
 	ownerType?: 'person' | 'group';
@@ -334,6 +344,42 @@ export async function fetchCourseApiHistory(courseId: string | number): Promise<
 
 export async function fetchCourseApiKeys(courseId: string | number): Promise<CourseApiKeySummaryResponse[]> {
 	return fetchJson<CourseApiKeySummaryResponse[]>(`/api/backend/courses/${courseId}/api-keys`);
+}
+
+export async function updateCourseActiveStatus(courseId: string | number, isActive: boolean): Promise<Course> {
+	try {
+		const rawCourse = await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/status`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify({ is_active: isActive })
+		});
+
+		showSuccessFeedback(isActive ? 'Course reopened successfully.' : 'Course closed successfully.');
+		return normalizeCourse(rawCourse);
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update course status.');
+		showErrorFeedback(message);
+		throw err;
+	}
+}
+
+export async function updateCourseApiKeyStatus(
+	courseId: string | number,
+	input: UpdateCourseApiKeyStatusInput
+): Promise<void> {
+	try {
+		await fetchJson<{ message: string }>(`/api/backend/courses/${courseId}/api-key/status`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify(input)
+		});
+
+		showSuccessFeedback(input.isActive ? 'API key activated successfully.' : 'API key deactivated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update API key status.');
+		showErrorFeedback(message);
+		throw err;
+	}
 }
 
 export async function updateCourseMemberKeyLimit(courseId: string | number, memberId: string, keyLimit: number): Promise<void> {

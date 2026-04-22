@@ -10,6 +10,7 @@ export type ApiCourse = Partial<{
 	ta_ids: string[];
 	ta_emails: string[];
 	semester: string | null;
+	is_active: boolean;
 	color: string;
 	instructor_handout_limit: number;
 	has_api_key: boolean;
@@ -32,6 +33,7 @@ export type Course = {
 	taIds: string[];
 	taEmails: string[];
 	semester: string;
+	isActive: boolean;
 	color: string;
 	instructorKeyLimit: number;
 	instructorHandoutLimit: number;
@@ -98,6 +100,7 @@ export type CourseApiKeySummary = {
 	created: string;
 	courseId: number;
 	hasHash: boolean;
+	isActive: boolean;
 };
 
 function normalizeSemester(rawSemester?: string | null): string {
@@ -138,6 +141,7 @@ export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 			? raw.ta_emails.map((email) => email?.trim().toLowerCase() || '').filter((email) => email.length > 0)
 			: [],
 		semester: normalizeSemester(raw.semester),
+		isActive: raw.is_active !== false,
 		color: raw.color?.trim() || COURSE_EDITOR_DEFAULT_COLOR,
 		instructorKeyLimit:
 			typeof raw.instructor_key_limit === 'number' && Number.isFinite(raw.instructor_key_limit) && raw.instructor_key_limit > 0
