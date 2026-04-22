@@ -19,7 +19,16 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 		throw new Error(USER_SAFE_ACTION_FAILURE);
 	}
 
-	return (await response.json()) as T;
+	if (response.status === 204) {
+		return undefined as T;
+	}
+
+	const body = await response.text();
+	if (!body.trim()) {
+		return undefined as T;
+	}
+
+	return JSON.parse(body) as T;
 }
 
 function jsonHeaders(): HeadersInit {

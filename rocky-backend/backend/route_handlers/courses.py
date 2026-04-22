@@ -110,7 +110,7 @@ def create_course(deps: dict[str, Any]):
             },
         )
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to process course metadata.")
 
     courses.insert_one(cleaned)
     return jsonify(_serialize_value(cleaned)), 201
@@ -204,7 +204,7 @@ def patch_course_metadata(deps: dict[str, Any], course_id: str):
     try:
         updated = apply_course_metadata_patch(course, users, data)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to update course metadata.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -236,7 +236,7 @@ def update_course_status_route(deps: dict[str, Any], course_id: str):
     try:
         updated = set_course_active_state(course, api_keys, bool(data.get("is_active")))
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to update course status.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -298,7 +298,7 @@ def add_course_members_route(deps: dict[str, Any], course_id: str):
     try:
         updated = add_course_members(course, users, members_payload, is_admin)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to add course members.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -343,7 +343,7 @@ def remove_course_member_route(deps: dict[str, Any], course_id: str):
     try:
         updated = remove_course_member(course, target_member_id, is_admin)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to remove course member.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -397,7 +397,7 @@ def create_course_group_route(deps: dict[str, Any], course_id: str):
     try:
         updated = create_course_group(course, data.get("name", ""), global_group_ids)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to create course group.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -442,7 +442,7 @@ def add_group_member_route(deps: dict[str, Any], course_id: str, group_id: str):
     try:
         updated = add_group_member(course, group_id, target_member_id)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to add group member.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -487,7 +487,7 @@ def remove_group_member_route(deps: dict[str, Any], course_id: str, group_id: st
     try:
         updated = remove_group_member(course, group_id, target_member_id)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to remove group member.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -553,7 +553,7 @@ def update_member_key_limit_route(deps: dict[str, Any], course_id: str, member_i
     try:
         updated = update_course_member_key_limit(course, member_id, key_limit)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to update member key limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -603,7 +603,7 @@ def update_instructor_handout_limit_route(deps: dict[str, Any], course_id: str):
         return _bad_request("Unable to update instructor handout limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify({"message": "Instructor handout limit updated successfully."})
+    return "", 204
 
 
 def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
@@ -646,7 +646,7 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
         return _bad_request("Unable to update instructor key limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify({"message": "Instructor key limit updated successfully."})
+    return "", 204
 
 
 def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id: str):
@@ -686,7 +686,7 @@ def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id:
     try:
         updated = update_course_group_key_limit(course, group_id, key_limit)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to update group key limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -999,7 +999,7 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
     try:
         key_doc = regenerate_course_api_key(course, api_keys, requester_id or email, ownership)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to generate API key.")
 
     history_doc = _build_api_history_entry(
         course,
@@ -1174,7 +1174,7 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
     try:
         deleted_count = delete_course_api_keys(course, api_keys)
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return _bad_request("Unable to delete API keys.")
 
     return jsonify({"message": "API keys deleted", "deleted": deleted_count})
 
@@ -1242,7 +1242,7 @@ def update_course_api_key_status_route(deps: dict[str, Any], course_id: str):
             return jsonify({"error": "API key not found."}), 404
         return _bad_request("Unable to update API key status.")
 
-    return jsonify({"message": "API key status updated"})
+    return "", 204
 
 
 def append_course_api_history(deps: dict[str, Any], course_id: str):
