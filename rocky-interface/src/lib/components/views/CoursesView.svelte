@@ -64,10 +64,29 @@
 	let newGroupKeyNameByGroupId: Record<string, string> = {};
 	let pendingMemberKeyLimitById: Record<string, number> = {};
 	let pendingGroupKeyLimitById: Record<string, number> = {};
+	let searchQuery = '';
+	let sortByName = false;
 
 	function normalizeIdentifier(value: string | null | undefined): string {
 		return value?.trim().toLowerCase() || '';
 	}
+
+	$: filteredMembers =
+		(selectedDetail?.members || []).filter((member) => {
+			const q = searchQuery.toLowerCase().trim();
+
+			return (
+				getMemberDisplayName(member)?.toLowerCase().includes(q) ||
+				member.email?.toLowerCase().includes(q)
+			);
+		}) || [];
+
+	$: sortedMembers = sortByName
+		? [...filteredMembers].sort((a, b) =>
+				getMemberDisplayName(a).localeCompare(getMemberDisplayName(b))
+	  	)
+		: filteredMembers;
+
 
 	function getMemberIdentifier(member: CourseDetail['members'][number]): string {
 		return normalizeIdentifier(member.id) || normalizeIdentifier(member.email);
@@ -818,6 +837,7 @@
 			{:else if activeTab === 'edit-roster' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
+						<input type="text" placeholder="Search users" bind:value={searchQuery} class="view-btn"/>
 						<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>
 						<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
 						<input
@@ -828,6 +848,8 @@
 							onchange={importPeopleFromCanvasCsv}
 						/>
 					</div>
+
+
 					<div class="table-container">
 						<table class="data-table course-people-table">
 							<colgroup>
@@ -839,7 +861,7 @@
 							</colgroup>
 							<thead>
 								<tr>
-									<th>Name</th>
+									<th style="cursor: pointer; user-select: none;" onclick={() => (sortByName = !sortByName)} >Name {sortByName ? '▲' : '▼'}</th>
 									<th>Email</th>
 									<th>Role</th>
 									<th>Keys</th>
@@ -847,8 +869,8 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#if selectedDetail?.members.length}
-									{#each selectedDetail.members as member}
+								{#if filteredMembers.length}
+									{#each sortedMembers as member}
 										<tr>
 												<td>{getMemberDisplayName(member)}</td>
 											<td>{member.email}</td>

@@ -157,12 +157,7 @@
 							</colgroup>
 							<thead>
 								<tr>
-									<th
-										style="cursor: pointer; user-select: none;"
-										onclick={() => (sortByName = !sortByName)} 
-									>
-										Name {sortByName ? '▲' : '▼'}
-									</th>
+									<th style="cursor: pointer; user-select: none;" onclick={() => (sortByName = !sortByName)} >Name {sortByName ? '▲' : '▼'}</th>
 									<th>Email</th>
 									<th>ID</th>
 									<th>Admin</th>
@@ -177,7 +172,7 @@
 									</tr>
 								{:else}
 									{#each kentUsers.filter((user) =>
-										user.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+										user.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) || user.email?.toLowerCase().includes(searchQuery.toLowerCase())
 									)
 									.sort((a, b) =>
 										sortByName
