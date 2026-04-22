@@ -14,12 +14,38 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 	}
 
 	if (!response.ok) {
-		const body = await response.text();
+		let body = '';
+		if (typeof response.text === 'function') {
+			body = await response.text();
+		} else if (typeof response.json === 'function') {
+			try {
+				body = JSON.stringify(await response.json());
+			} catch {
+				body = '';
+			}
+		}
 		console.error('[courses api] request failed', { url, status: response.status, raw: body });
 		throw new Error(USER_SAFE_ACTION_FAILURE);
 	}
 
-	return (await response.json()) as T;
+	if (response.status === 204) {
+		return undefined as T;
+	}
+
+	if (typeof response.text === 'function') {
+		const body = await response.text();
+		if (!body.trim()) {
+			return undefined as T;
+		}
+
+		return JSON.parse(body) as T;
+	}
+
+	if (typeof response.json === 'function') {
+		return (await response.json()) as T;
+	}
+
+	return undefined as T;
 }
 
 function jsonHeaders(): HeadersInit {
@@ -33,11 +59,21 @@ function getErrorMessage(err: unknown, fallback: string): string {
 	return err instanceof Error && err.message.trim() ? err.message : fallback;
 }
 
+function serializeSemester(value: string): string | null {
+	const normalized = value.trim().toLowerCase();
+	if (!normalized || normalized === 'none') {
+		return null;
+	}
+	return value.trim();
+}
+
 export type CreateCourseInput = {
 	name: string;
 	code: string;
 	semester: string;
+	color: string;
 	instructorId: string;
+	taIds: string[];
 	instructorName?: string;
 };
 
@@ -45,14 +81,14 @@ export type UpdateCourseMetadataInput = {
 	name: string;
 	code: string;
 	semester: string;
+	color: string;
 	instructorId: string;
+	taIds: string[];
 };
 
 export type CourseMemberInput = {
 	id?: string;
 	email?: string;
-	accountEmail?: string;
-	role?: 'student' | 'instructor';
 };
 
 export type ApiCourseHistoryEntry = Partial<{
@@ -85,6 +121,8 @@ export type RegenerateCourseApiKeyResponse = Partial<{
 	owner_id: string;
 	group_created_by: string | null;
 	key_name: string;
+	slot_index: number;
+	api_key_id: number;
 	course_id: number;
 	created: string;
 }>;
@@ -93,15 +131,29 @@ export type CourseApiKeySummaryResponse = Partial<{
 	owner_type: 'person' | 'group';
 	owner_id: string;
 	key_name: string;
+	slot_index: number;
+	api_key_id: number;
 	created: string;
 	course_id: number;
+	has_hash: boolean;
+	is_active: boolean;
 }>;
+
+export type UpdateCourseApiKeyStatusInput = {
+	ownerType: 'person' | 'group';
+	ownerId?: string;
+	groupId?: string;
+	keyName?: string;
+	slotIndex?: number;
+	isActive: boolean;
+};
 
 export type RegenerateCourseApiKeyInput = {
 	ownerType?: 'person' | 'group';
 	ownerId?: string;
 	groupId?: string;
 	keyName?: string;
+	slotIndex?: number;
 };
 
 export async function createCourse(input: CreateCourseInput): Promise<Course> {
@@ -109,18 +161,13 @@ export async function createCourse(input: CreateCourseInput): Promise<Course> {
 		const payload = {
 			name: input.name.trim(),
 			code: input.code.trim(),
-			semester: input.semester.trim(),
+			semester: serializeSemester(input.semester),
+			color: input.color.trim(),
 			instructor: input.instructorName?.trim() || '',
-			instructor_ids: input.instructorId ? [input.instructorId.trim()] : [],
+			instructor_id: input.instructorId.trim(),
+			ta_ids: input.taIds,
 			student_ids: [],
-			members: input.instructorId
-				? [
-						{
-							id: input.instructorId.trim(),
-							role: 'instructor'
-						}
-					]
-				: [],
+			members: [],
 			groups: []
 		};
 
@@ -147,8 +194,10 @@ export async function updateCourseMetadata(courseId: string | number, input: Upd
 			body: JSON.stringify({
 				name: input.name.trim(),
 				code: input.code.trim(),
-				semester: input.semester.trim(),
-				instructorId: input.instructorId.trim()
+				semester: serializeSemester(input.semester),
+				color: input.color.trim(),
+				instructorId: input.instructorId.trim(),
+				taIds: input.taIds
 			})
 		});
 
@@ -261,14 +310,42 @@ export async function regenerateCourseApiKey(
 	}
 }
 
-export async function deleteCourseApiKey(courseId: string | number): Promise<void> {
+export type DeleteCourseApiKeyInput = {
+	ownerType?: 'person' | 'group';
+	ownerId?: string;
+	groupId?: string;
+	keyName?: string;
+	slotIndex?: number;
+};
+
+export type DeleteCourseApiKeyResponse = Partial<{
+	message: string;
+	deleted: number;
+	key: Partial<{
+		owner_type: 'person' | 'group';
+		owner_id: string;
+		key_name: string;
+		slot_index: number;
+		api_key_id: number;
+		created: string;
+		course_id: number;
+		has_hash: boolean;
+	}>;
+}>;
+
+export async function deleteCourseApiKey(
+	courseId: string | number,
+	input: DeleteCourseApiKeyInput = {}
+): Promise<DeleteCourseApiKeyResponse> {
 	try {
-		await fetchJson(`/api/backend/courses/${courseId}/api-key`, {
+		const response = await fetchJson<DeleteCourseApiKeyResponse>(`/api/backend/courses/${courseId}/api-key`, {
 			method: 'DELETE',
-			headers: jsonHeaders()
+			headers: jsonHeaders(),
+			body: JSON.stringify(input)
 		});
 
 		showSuccessFeedback('API key deleted successfully.');
+		return response;
 	} catch (err) {
 		const message = getErrorMessage(err, 'Unable to delete API key.');
 		showErrorFeedback(message);
@@ -295,6 +372,42 @@ export async function fetchCourseApiKeys(courseId: string | number): Promise<Cou
 	return fetchJson<CourseApiKeySummaryResponse[]>(`/api/backend/courses/${courseId}/api-keys`);
 }
 
+export async function updateCourseActiveStatus(courseId: string | number, isActive: boolean): Promise<Course> {
+	try {
+		const rawCourse = await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/status`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify({ is_active: isActive })
+		});
+
+		showSuccessFeedback(isActive ? 'Course reopened successfully.' : 'Course closed successfully.');
+		return normalizeCourse(rawCourse);
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update course status.');
+		showErrorFeedback(message);
+		throw err;
+	}
+}
+
+export async function updateCourseApiKeyStatus(
+	courseId: string | number,
+	input: UpdateCourseApiKeyStatusInput
+): Promise<void> {
+	try {
+		await fetchJson<{ message: string }>(`/api/backend/courses/${courseId}/api-key/status`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify(input)
+		});
+
+		showSuccessFeedback(input.isActive ? 'API key activated successfully.' : 'API key deactivated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update API key status.');
+		showErrorFeedback(message);
+		throw err;
+	}
+}
+
 export async function updateCourseMemberKeyLimit(courseId: string | number, memberId: string, keyLimit: number): Promise<void> {
 	try {
 		await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/members/${memberId}/key-limit`, {
@@ -306,6 +419,41 @@ export async function updateCourseMemberKeyLimit(courseId: string | number, memb
 		showSuccessFeedback('Member key limit updated successfully.');
 	} catch (err) {
 		const message = getErrorMessage(err, 'Unable to update member key limit.');
+		showErrorFeedback(message);
+		throw err;
+	}
+}
+
+export async function updateCourseInstructorHandoutLimit(
+	courseId: string | number,
+	instructorHandoutLimit: number
+): Promise<void> {
+	try {
+		await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/instructor-handout-limit`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify({ instructorHandoutLimit })
+		});
+
+		showSuccessFeedback('Instructor handout limit updated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update instructor handout limit.');
+		showErrorFeedback(message);
+		throw err;
+	}
+}
+
+export async function updateCourseInstructorKeyLimit(courseId: string | number, instructorKeyLimit: number): Promise<void> {
+	try {
+		await fetchJson<ApiCourse>(`/api/backend/courses/${courseId}/instructor-key-limit`, {
+			method: 'PATCH',
+			headers: jsonHeaders(),
+			body: JSON.stringify({ instructorKeyLimit })
+		});
+
+		showSuccessFeedback('Instructor key limit updated successfully.');
+	} catch (err) {
+		const message = getErrorMessage(err, 'Unable to update instructor key limit.');
 		showErrorFeedback(message);
 		throw err;
 	}

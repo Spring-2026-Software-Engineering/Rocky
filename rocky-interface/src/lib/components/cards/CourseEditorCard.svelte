@@ -11,7 +11,9 @@
 		name: string;
 		code: string;
 		semester: string;
+		color: string;
 		instructorId: string;
+		taIds: string[];
 	};
 
 	export let title = 'Course';
@@ -20,6 +22,7 @@
 	export let users: User[] = [];
 	export let idPrefix = 'course-editor';
 	export let useSemesterPicker = false;
+	export let readOnly = false;
 	export let semesterYearMin = COURSE_EDITOR_SEMESTER_YEAR_MIN;
 	export let semesterYearMax = COURSE_EDITOR_SEMESTER_YEAR_MAX;
 	export let semesterTerms: string[] = COURSE_EDITOR_SEMESTER_TERMS;
@@ -27,6 +30,12 @@
 	let selectedSemesterTerm = 'none';
 	let selectedSemesterYear = COURSE_EDITOR_SEMESTER_YEAR_MIN;
 	let lastParsedSemester = '';
+
+	$: availableTeacherAssistants = users.filter((user) => user.id !== form.instructorId);
+	$: normalizedTaIds = [...new Set(form.taIds.filter((id) => id && id !== form.instructorId))];
+	$: if (normalizedTaIds.length !== form.taIds.length) {
+		form.taIds = normalizedTaIds;
+	}
 
 	const dispatch = createEventDispatcher<{ submit: void }>();
 
@@ -56,6 +65,9 @@
 		if (!normalized) {
 			return { term: 'none', year: fallbackYear };
 		}
+		if (normalized.toLowerCase() === 'none') {
+			return { term: 'none', year: fallbackYear };
+		}
 
 		const [termRaw, yearRaw] = normalized.split(/\s+/, 2);
 		const term = (termRaw || '').trim().toLowerCase();
@@ -69,6 +81,12 @@
 
 	function updateSemesterFromControls() {
 		if (!useSemesterPicker) {
+			return;
+		}
+
+		if (selectedSemesterTerm === 'none') {
+			form.semester = 'None';
+			lastParsedSemester = form.semester;
 			return;
 		}
 
@@ -89,11 +107,27 @@
 		updateSemesterFromControls();
 	}
 
+	$: if (useSemesterPicker && selectedSemesterTerm === 'none') {
+		selectedSemesterYear = clampSemesterYear(selectedSemesterYear);
+	}
+
 	function submitForm() {
 		if (useSemesterPicker) {
 			updateSemesterFromControls();
 		}
 		dispatch('submit');
+	}
+
+	function isTeacherAssistantSelected(userId: string): boolean {
+		return form.taIds.includes(userId);
+	}
+
+	function toggleTeacherAssistant(userId: string) {
+		if (form.taIds.includes(userId)) {
+			form.taIds = form.taIds.filter((id) => id !== userId);
+			return;
+		}
+		form.taIds = [...form.taIds, userId];
 	}
 </script>
 
@@ -102,54 +136,130 @@
 	<div class="course-edit-grid">
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-name-input`}>Course Name</label>
-			<input id={`${idPrefix}-name-input`} class="text-input" type="text" bind:value={form.name} />
+			{#if readOnly}
+				<div class="text-input course-locked-field">{form.name || 'N/A'}</div>
+			{:else}
+				<input id={`${idPrefix}-name-input`} class="text-input" type="text" bind:value={form.name} required />
+			{/if}
 		</div>
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-code-input`}>Course ID</label>
-			<input id={`${idPrefix}-code-input`} class="text-input" type="text" bind:value={form.code} placeholder="Optional" />
+			{#if readOnly}
+				<div class="text-input course-locked-field">{form.code || 'N/A'}</div>
+			{:else}
+				<input id={`${idPrefix}-code-input`} class="text-input" type="text" bind:value={form.code} placeholder="Optional" />
+			{/if}
 		</div>
 		{#if useSemesterPicker}
 			<div class="form-group">
 				<label class="form-label" for={`${idPrefix}-semester-term-select`}>Semester</label>
-				<div class="course-semester-row">
-					<select
-						id={`${idPrefix}-semester-term-select`}
-						class="text-input"
-						bind:value={selectedSemesterTerm}
-						onchange={updateSemesterFromControls}
-					>
-						{#each semesterTerms as term}
-							<option value={term}>{toSemesterTitle(term)}</option>
-						{/each}
-					</select>
-					<input
-						id={`${idPrefix}-semester-year-input`}
-						class="text-input"
-						type="number"
-						min={semesterYearMin}
-						max={semesterYearMax}
-						bind:value={selectedSemesterYear}
-						onchange={updateSemesterFromControls}
-					/>
-				</div>
+				{#if readOnly}
+					<div class="text-input course-locked-field">{form.semester || 'None'}</div>
+				{:else}
+					<div class="course-semester-row">
+						<select
+							id={`${idPrefix}-semester-term-select`}
+							class="text-input"
+							bind:value={selectedSemesterTerm}
+							onchange={updateSemesterFromControls}
+						>
+							{#each semesterTerms as term}
+								<option value={term}>{toSemesterTitle(term)}</option>
+							{/each}
+						</select>
+						<input
+							id={`${idPrefix}-semester-year-input`}
+							class="text-input"
+							type="number"
+							min={semesterYearMin}
+							max={semesterYearMax}
+							bind:value={selectedSemesterYear}
+							disabled={selectedSemesterTerm === 'none'}
+							class:is-disabled={selectedSemesterTerm === 'none'}
+							onchange={updateSemesterFromControls}
+						/>
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<div class="form-group">
 				<label class="form-label" for={`${idPrefix}-semester-input`}>Semester</label>
-				<input id={`${idPrefix}-semester-input`} class="text-input" type="text" bind:value={form.semester} />
+				{#if readOnly}
+					<div class="text-input course-locked-field">{form.semester || 'None'}</div>
+				{:else}
+					<input id={`${idPrefix}-semester-input`} class="text-input" type="text" bind:value={form.semester} />
+				{/if}
 			</div>
 		{/if}
 		<div class="form-group">
 			<label class="form-label" for={`${idPrefix}-instructor-select`}>Instructor</label>
-			<select id={`${idPrefix}-instructor-select`} class="text-input" bind:value={form.instructorId}>
-				<option value="">None</option>
-				{#each users as user}
-					<option value={user.id}>{user.displayName} ({user.id})</option>
-				{/each}
-			</select>
+			{#if readOnly}
+				<div class="text-input course-locked-field">
+					{users.find((user) => user.id === form.instructorId)?.displayName || 'None'}
+				</div>
+			{:else}
+				<select id={`${idPrefix}-instructor-select`} class="text-input" bind:value={form.instructorId}>
+					<option value="">None</option>
+					{#each users as user}
+						<option value={user.id}>{user.displayName}</option>
+					{/each}
+				</select>
+			{/if}
+		</div>
+		<div class="form-group">
+			<label class="form-label" for={`${idPrefix}-color-input`}>Course Color</label>
+			{#if readOnly}
+				<div class="text-input course-locked-field">{form.color || 'N/A'}</div>
+			{:else}
+				<input
+					id={`${idPrefix}-color-input`}
+					class="text-input course-color-input"
+					type="color"
+					bind:value={form.color}
+					aria-label="Course Color"
+				/>
+			{/if}
+		</div>
+		<div class="form-group">
+			<label class="form-label" for={`${idPrefix}-ta-dropdown`}>Teacher Assistant</label>
+			{#if readOnly}
+				<div class="text-input course-locked-field">
+					{#if normalizedTaIds.length === 0}
+						None
+					{:else}
+						{normalizedTaIds
+							.map((taId) => users.find((user) => user.id === taId)?.displayName || taId)
+							.join(', ')}
+					{/if}
+				</div>
+			{:else}
+				<details id={`${idPrefix}-ta-dropdown`} class="course-ta-dropdown">
+					<summary class="course-ta-summary">{form.taIds.length} selected</summary>
+					<div class="course-ta-list" role="listbox" aria-multiselectable="true">
+						{#if availableTeacherAssistants.length === 0}
+							<p class="course-ta-empty">No available users.</p>
+						{:else}
+							{#each availableTeacherAssistants as user}
+								<label class="course-ta-item">
+									<input
+										type="checkbox"
+										checked={isTeacherAssistantSelected(user.id)}
+										onchange={() => toggleTeacherAssistant(user.id)}
+									/>
+									<span>{user.displayName}</span>
+								</label>
+							{/each}
+						{/if}
+					</div>
+				</details>
+			{/if}
 		</div>
 	</div>
 	<div class="course-edit-actions">
-		<button type="button" class="view-btn" onclick={submitForm}>{submitLabel}</button>
+		{#if readOnly}
+			<p class="section-text">Course is closed. Settings are read-only.</p>
+		{:else}
+			<button type="button" class="view-btn" onclick={submitForm}>{submitLabel}</button>
+		{/if}
 	</div>
 </div>

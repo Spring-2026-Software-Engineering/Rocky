@@ -13,7 +13,7 @@ def get_user_settings(deps: dict[str, Any]):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
 
     email, is_admin = identity
     user_record = _resolve_user_record(request.args.get("userId"), request.args.get("email") or email)
@@ -38,7 +38,7 @@ def patch_user_settings(deps: dict[str, Any]):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
 
     email, is_admin = identity
     data = request.get_json(silent=True)
@@ -74,7 +74,7 @@ def patch_user_setting(deps: dict[str, Any], setting_key: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
 
     email, is_admin = identity
     data = request.get_json(silent=True)

@@ -17,6 +17,30 @@
 	let error: string | null = null;
 
 	$: canCreateCourse = Boolean($page.data.currentUser?.isAdmin);
+	$: currentUserDisplayName = $page.data.currentUser?.displayName?.trim() || '';
+	$: currentUserFirstName = $page.data.currentUser?.firstName?.trim() || '';
+	$: currentUserLastName = $page.data.currentUser?.lastName?.trim() || '';
+	$: currentUserId = $page.data.currentUser?.id?.trim().toLowerCase() || '';
+	$: currentUserFullName = [currentUserFirstName, currentUserLastName].filter((value) => value.length > 0).join(' ').trim();
+	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
+
+	function getCourseRoleTag(course: Course): string {
+		const instructorIdentifiers = [course.instructorId, course.instructorEmail]
+			.map((value) => value?.trim().toLowerCase() || '')
+			.filter((value) => value.length > 0);
+		const teacherAssistantIdentifiers = [...(course.taIds || []), ...(course.taEmails || [])]
+			.map((value) => value?.trim().toLowerCase() || '')
+			.filter((value) => value.length > 0);
+
+		const currentIdentifiers = [currentUserId, currentUserEmail].filter((value) => value.length > 0);
+		if (currentIdentifiers.some((identifier) => instructorIdentifiers.includes(identifier))) {
+			return 'Instructor';
+		}
+		if (currentIdentifiers.some((identifier) => teacherAssistantIdentifiers.includes(identifier))) {
+			return 'Teacher Assistant';
+		}
+		return '';
+	}
 
 	function scrollToTopOfApp() {
 		if (!browser) {
@@ -126,13 +150,13 @@
 		{:else if viewMode === 'card'}
 				<div class="grid grid-3">
 					{#each courses as course}
-						<CourseCard {course} mode="card" on:open={handleOpenCourse} />
+						<CourseCard {course} mode="card" roleTag={getCourseRoleTag(course)} on:open={handleOpenCourse} />
 					{/each}
 				</div>
 			{:else}
 				<div class="grid grid-1">
 					{#each courses as course}
-						<CourseCard {course} mode="list" on:open={handleOpenCourse} />
+						<CourseCard {course} mode="list" roleTag={getCourseRoleTag(course)} on:open={handleOpenCourse} />
 					{/each}
 				</div>
 		{/if}

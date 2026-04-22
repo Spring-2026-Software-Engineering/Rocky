@@ -1,0 +1,210 @@
+/* Sidebar */
+.sidebar {
+	width: var(--size-sidebar-width);
+	height: 100%;
+	min-height: 100%;
+	background-color: var(--color-bg-sidebar);
+	display: flex;
+	flex-direction: column;
+	padding-top: var(--space-lg);
+	flex-shrink: 0;
+}
+
+.nav-link {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	display: flex;
+	align-items: center;
+	gap: var(--space-sm);
+	text-align: left;
+	color: var(--color-text-inverse);
+	padding: 14px var(--space-lg);
+	width: 100%;
+	cursor: pointer;
+	font-size: var(--font-size-base);
+	font-weight: var(--font-weight-semibold);
+	transition: background-color var(--transition-base);
+	border-left: 4px solid transparent;
+}
+
+.nav-link-icon {
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+	filter: brightness(0) invert(1);
+	opacity: 0.92;
+}
+
+.nav-link-label {
+	line-height: 1;
+}
+
+.nav-link:hover {
+	background-color: rgba(255, 255, 255, 0.12);
+}
+
+.nav-link.active {
+	background: rgba(255, 255, 255, 0.22);
+	border-left-color: var(--color-highlight-gold);
+}
+
+.spacer {
+	flex: 1;
+}
+
+@media (max-width: 768px) {
+	.sidebar {
+		position: fixed;
+		top: var(--size-topbar-height);
+		left: 0;
+		height: calc(100% - var(--size-topbar-height));
+		transform: translateX(-100%);
+		transition: transform 0.25s ease;
+		z-index: 200;
+	}
+
+	.sidebar.open {
+		transform: translateX(0);
+	}
+}
+
+.sidebar-backdrop {
+	display: none;
+}
+
+@media (max-width: 768px) {
+	.sidebar-backdrop {
+		display: block;
+		position: fixed;
+		inset: var(--size-topbar-height) 0 0 0;
+		background: rgba(0, 0, 0, 0.4);
+		z-index: 199;
+	}
+}
+
+.course-tab-group {
+	position: relative;
+}
+
+.course-popout {
+	position: fixed;
+	left: calc(var(--size-sidebar-width) + var(--space-sm));
+	top: calc(var(--size-topbar-height) + var(--space-md));
+	bottom: var(--space-md);
+	width: 320px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	background: var(--color-bg-primary);
+	border-top: 1px solid var(--color-gray-300);
+	border-right: 1px solid var(--color-gray-300);
+	border-bottom: 1px solid var(--color-gray-300);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	z-index: 30;
+}
+
+.course-popout-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--space-sm);
+	padding: var(--space-md) var(--space-lg);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	border-bottom: 1px solid var(--color-gray-200);
+	background: var(--color-bg-secondary);
+}
+
+.course-popout-create-btn {
+	padding: 4px var(--space-sm);
+}
+
+.course-popout-state {
+	margin: 0;
+	padding: var(--space-lg);
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+}
+
+.course-popout-list {
+	flex: 1;
+	overflow-y: auto;
+	scrollbar-width: none;
+}
+
+.course-popout-list::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+}
+
+.course-popout-item {
+	appearance: none;
+	width: 100%;
+	border: 0;
+	background: transparent;
+	display: flex;
+	align-items: center;
+	gap: var(--space-md);
+	padding: var(--space-md) var(--space-lg);
+	cursor: pointer;
+	text-align: left;
+	transition: background var(--transition-fast);
+}
+
+.course-popout-item:hover {
+	background: var(--color-bg-secondary);
+}
+
+.course-popout-item.active {
+	background: var(--color-accent-light);
+}
+
+.course-dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 999px;
+	flex-shrink: 0;
+}
+
+.course-item-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.course-item-name {
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	color: var(--color-text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.course-item-meta {
+	font-size: var(--font-size-xs);
+	color: var(--color-text-secondary);
+}
+
+.course-role-tag {
+	display: inline-flex;
+	align-items: center;
+	width: fit-content;
+	font-size: 0.65rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: #0f172a;
+	background: #dbeafe;
+	border: 1px solid #93c5fd;
+	border-radius: 9999px;
+	padding: 0.08rem 0.35rem;
+	margin: 0;
+}
+
+.course-role-tag-popout {
+	margin-top: 0.25rem;
+}

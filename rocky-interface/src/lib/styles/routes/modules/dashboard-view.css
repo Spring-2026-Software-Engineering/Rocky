@@ -1,0 +1,4 @@
+/* Dashboard view - Main import file for dashboard-specific module styles */
+@import '../../components/modules/course-card.css';
+@import '../../components/modules/view-controls.css';
+@import '../../layout/layout.css';

@@ -8,18 +8,14 @@ describe('getUserAssignedCourseIds', () => {
 		const courseDetails: CourseDetail[] = [
 			{
 				id: 1,
-				overview: '',
-				announcements: [],
 				members: [
-					{ id: 'KSUID0001', role: 'student', name: '', email: '', keyLimit: 1 },
-					{ id: null, role: 'student', name: null, email: 'future.user@example.com', keyLimit: 1 }
+					{ id: 'KSUID0001', name: '', email: '', keyLimit: 1 },
+					{ id: null, name: null, email: 'future.user@example.com', keyLimit: 1 }
 				]
 			},
 			{
 				id: 2,
-				overview: '',
-				announcements: [],
-				members: [{ id: 'KSUID0003', role: 'student', name: '', email: '', keyLimit: 1 }]
+				members: [{ id: 'KSUID0003', name: '', email: '', keyLimit: 1 }]
 			}
 		];
 		expect(getUserAssignedCourseIds('KSUID0001', courseDetails)).toEqual([1]);
@@ -31,9 +27,7 @@ describe('getUserAssignedCourseIds', () => {
 		const courseDetails: CourseDetail[] = [
 			{
 				id: 1,
-				overview: '',
-				announcements: [],
-				members: [{ id: null, role: 'student', name: null, email: 'future.user@example.com', keyLimit: 1 }]
+				members: [{ id: null, name: null, email: 'future.user@example.com', keyLimit: 1 }]
 			}
 		];
 

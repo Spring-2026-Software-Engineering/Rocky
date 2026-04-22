@@ -1,0 +1,9 @@
+/* Route-specific style index */
+@import './modules/account-view.css';
+@import './modules/users-view.css';
+@import './modules/login-view.css';
+@import './modules/analytics-view.css';
+@import './modules/dashboard-view.css';
+@import './views/form-shared.css';
+@import './views/help.css';
+@import './views/course-workspace.css';

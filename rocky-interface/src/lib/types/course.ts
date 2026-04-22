@@ -1,17 +1,24 @@
+import { COURSE_EDITOR_DEFAULT_COLOR } from '$lib/config/courseEditor';
+
 export type ApiCourse = Partial<{
 	id: number;
 	code: string;
 	name: string;
 	instructor: string;
-	semester: string;
+	instructor_id: string | null;
+	instructor_email: string | null;
+	ta_ids: string[];
+	ta_emails: string[];
+	semester: string | null;
+	is_active: boolean;
 	color: string;
+	instructor_handout_limit: number;
 	has_api_key: boolean;
 	api_key_owner_type: 'person' | 'group' | null;
 	api_key_owner_id: string | null;
 	api_key_group_created_by: string | null;
 	api_key_created: string | null;
-	overview: string;
-	announcements: string[];
+	instructor_key_limit: number;
 	members: ApiCourseMember[];
 	groups: ApiCourseGroup[];
 }>;
@@ -21,8 +28,15 @@ export type Course = {
 	code: string;
 	name: string;
 	instructor: string;
+	instructorId: string | null;
+	instructorEmail: string | null;
+	taIds: string[];
+	taEmails: string[];
 	semester: string;
+	isActive: boolean;
 	color: string;
+	instructorKeyLimit: number;
+	instructorHandoutLimit: number;
 	hasApiKey: boolean;
 	apiKeyOwnerType: 'person' | 'group' | null;
 	apiKeyOwnerId: string | null;
@@ -34,8 +48,6 @@ export type ApiCourseMember = Partial<{
 	id: string | null;
 	name: string | null;
 	email: string;
-	role: string;
-	accountEmail: string;
 	key_limit: number;
 }>;
 
@@ -50,14 +62,11 @@ export type CourseMember = {
 	id: string | null;
 	name: string | null;
 	email: string;
-	role: 'instructor' | 'student';
 	keyLimit: number;
 };
 
 export type ApiCourseDetail = Partial<{
 	id: number;
-	overview: string;
-	announcements: string[];
 	members: ApiCourseMember[];
 }>;
 
@@ -71,8 +80,6 @@ export type ApiCourseGroup = Partial<{
 
 export type CourseDetail = {
 	id: number;
-	overview: string;
-	announcements: string[];
 	members: CourseMember[];
 };
 
@@ -88,18 +95,33 @@ export type CourseApiKeySummary = {
 	ownerType: 'person' | 'group';
 	ownerId: string;
 	keyName: string;
+	slotIndex: number;
+	apiKeyId: number;
 	created: string;
 	courseId: number;
+	hasHash: boolean;
+	isActive: boolean;
 };
 
-function normalizeSemester(rawSemester?: string): string {
+function normalizeSemester(rawSemester?: string | null): string {
 	const trimmed = rawSemester?.trim() || '';
+	if (!trimmed || trimmed.toLowerCase() === 'none') {
+		return 'None';
+	}
 	if (/^(spring|summer|fall)\s+\d{4}$/i.test(trimmed)) {
 		const [term, year] = trimmed.split(/\s+/);
 		const capitalizedTerm = `${term.charAt(0).toUpperCase()}${term.slice(1).toLowerCase()}`;
 		return `${capitalizedTerm} ${year}`;
 	}
-	return '';
+	return 'None';
+}
+
+function normalizeCourseCode(rawCode?: string | null): string {
+	const trimmed = rawCode?.trim() || '';
+	if (!trimmed || trimmed.toLowerCase() === 'tbd 0000' || trimmed.toLowerCase() === 'none') {
+		return '';
+	}
+	return trimmed;
 }
 
 export function normalizeCourse(raw: ApiCourse, index = 0): Course {
@@ -107,11 +129,28 @@ export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 
 	return {
 		id: typeof raw.id === 'number' && Number.isFinite(raw.id) ? raw.id : index + 1,
-		code: raw.code?.trim() || 'TBD 0000',
+		code: normalizeCourseCode(raw.code),
 		name: raw.name?.trim() || 'Untitled Course',
 		instructor,
+		instructorId: raw.instructor_id?.trim() || null,
+		instructorEmail: raw.instructor_email?.trim().toLowerCase() || null,
+		taIds: Array.isArray(raw.ta_ids)
+			? raw.ta_ids.map((id) => id?.trim().toLowerCase() || '').filter((id) => id.length > 0)
+			: [],
+		taEmails: Array.isArray(raw.ta_emails)
+			? raw.ta_emails.map((email) => email?.trim().toLowerCase() || '').filter((email) => email.length > 0)
+			: [],
 		semester: normalizeSemester(raw.semester),
-		color: raw.color?.trim() || '#1a4a8a',
+		isActive: raw.is_active !== false,
+		color: raw.color?.trim() || COURSE_EDITOR_DEFAULT_COLOR,
+		instructorKeyLimit:
+			typeof raw.instructor_key_limit === 'number' && Number.isFinite(raw.instructor_key_limit) && raw.instructor_key_limit > 0
+				? Math.floor(raw.instructor_key_limit)
+				: 2,
+		instructorHandoutLimit:
+			typeof raw.instructor_handout_limit === 'number' && Number.isFinite(raw.instructor_handout_limit) && raw.instructor_handout_limit > 0
+				? Math.floor(raw.instructor_handout_limit)
+				: 2,
 		hasApiKey: Boolean(raw.has_api_key),
 		apiKeyOwnerType: raw.api_key_owner_type || null,
 		apiKeyOwnerId: raw.api_key_owner_id?.trim() || null,
@@ -124,20 +163,11 @@ export function normalizeCourses(rawCourses: ApiCourse[]): Course[] {
 	return rawCourses.map((course, index) => normalizeCourse(course, index));
 }
 
-function normalizeMemberRole(rawRole?: string): 'instructor' | 'student' {
-	return rawRole?.trim().toLowerCase() === 'instructor' ? 'instructor' : 'student';
-}
-
-function toCourseMemberRole(role: string): 'instructor' | 'student' {
-	return normalizeMemberRole(role);
-}
-
 function normalizeCourseMember(raw: ApiCourseMember, accountsByEmail?: Record<string, CourseAccountRecord>): CourseMember {
-	const referenceEmail = raw.accountEmail?.trim().toLowerCase() || raw.email?.trim().toLowerCase() || '';
+	const referenceEmail = raw.email?.trim().toLowerCase() || '';
 	const matchedAccount = referenceEmail ? accountsByEmail?.[referenceEmail] : undefined;
-	const email = matchedAccount?.email || raw.email?.trim() || raw.accountEmail?.trim() || 'N/A';
+	const email = matchedAccount?.email || raw.email?.trim() || '';
 	const name = matchedAccount?.name || raw.name?.trim() || null;
-	const role = raw.role || 'student';
 	const rawId = raw.id?.trim() || '';
 	const id = matchedAccount?.id || rawId || null;
 
@@ -145,7 +175,6 @@ function normalizeCourseMember(raw: ApiCourseMember, accountsByEmail?: Record<st
 		id,
 		name,
 		email,
-		role: toCourseMemberRole(role),
 		keyLimit:
 			typeof raw.key_limit === 'number' && Number.isFinite(raw.key_limit) && raw.key_limit > 0
 				? Math.floor(raw.key_limit)
@@ -156,10 +185,6 @@ function normalizeCourseMember(raw: ApiCourseMember, accountsByEmail?: Record<st
 export function normalizeCourseDetail(raw: ApiCourseDetail, index = 0, accountsByEmail?: Record<string, CourseAccountRecord>): CourseDetail {
 	return {
 		id: typeof raw.id === 'number' && Number.isFinite(raw.id) ? raw.id : index + 1,
-		overview: raw.overview?.trim() || 'No course overview is available yet.',
-		announcements: Array.isArray(raw.announcements)
-			? raw.announcements.map((item) => item?.trim() || '').filter((item) => item.length > 0)
-			: [],
 		members: Array.isArray(raw.members)
 			? raw.members.map((member) => normalizeCourseMember(member, accountsByEmail))
 			: []

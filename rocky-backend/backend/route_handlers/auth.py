@@ -43,7 +43,7 @@ def get_preview_users(deps: dict[str, Any]):
 
 def get_session_user(deps: dict[str, Any]):
     normalize_str = deps["normalize_str"]
-    EMAIL_RE = deps["EMAIL_RE"]
+    is_valid_email = deps["is_valid_email"]
     _bad_request = deps["_bad_request"]
     _resolve_user_record = deps["_resolve_user_record"]
     _serialize_user = deps["_serialize_user"]
@@ -51,7 +51,7 @@ def get_session_user(deps: dict[str, Any]):
     courses = deps["courses"]
 
     email = normalize_str(request.args.get("email")).lower()
-    if not email or not EMAIL_RE.match(email):
+    if not is_valid_email(email):
         return _bad_request("A valid email query parameter is required.")
 
     user_record = _resolve_user_record(None, email)
@@ -179,7 +179,7 @@ def get_oauth_whitelist(deps: dict[str, Any]):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     result = [_serialize_whitelist_user(entry) for entry in whitelist_users.find()]
     return jsonify(result)
@@ -189,7 +189,7 @@ def add_oauth_whitelist_entry(deps: dict[str, Any]):
     require_admin = deps["require_admin"]
     _bad_request = deps["_bad_request"]
     normalize_str = deps["normalize_str"]
-    EMAIL_RE = deps["EMAIL_RE"]
+    is_valid_email = deps["is_valid_email"]
     _is_kent_email = deps["_is_kent_email"]
     whitelist_users = deps["whitelist_users"]
     require_requester_identity = deps["require_requester_identity"]
@@ -200,7 +200,7 @@ def add_oauth_whitelist_entry(deps: dict[str, Any]):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -214,7 +214,7 @@ def add_oauth_whitelist_entry(deps: dict[str, Any]):
         return _bad_request("firstName is required.")
     if not last_name:
         return _bad_request("lastName is required.")
-    if not email or not EMAIL_RE.match(email):
+    if not is_valid_email(email):
         return _bad_request("A valid email is required.")
     if _is_kent_email(email):
         return _bad_request("@kent.edu emails should not be added to the external whitelist.")
@@ -257,7 +257,7 @@ def update_or_delete_oauth_whitelist_entry(deps: dict[str, Any], entry_id: str):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     normalized_entry_id = normalize_str(entry_id)
     if not normalized_entry_id:

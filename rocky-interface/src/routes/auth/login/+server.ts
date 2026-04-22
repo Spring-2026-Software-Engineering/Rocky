@@ -2,6 +2,13 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { getUserByEmail, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '$lib/server/mockAuth';
 import { ENABLE_PREVIEW_AUTH } from '$lib/config/env';
 
+const FRAME_COOKIE_NAME = 'rocky_current_frame';
+const FRAME_COOKIE_OPTIONS = {
+	path: '/',
+	maxAge: 60 * 60,
+	sameSite: 'lax' as const
+};
+
 // TODO(OAuth): Replace this endpoint with OAuth callback/session issuance logic.
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	if (!ENABLE_PREVIEW_AUTH) {
@@ -21,5 +28,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	}
 
 	cookies.set(SESSION_COOKIE_NAME, user.email, SESSION_COOKIE_OPTIONS);
+	cookies.set(FRAME_COOKIE_NAME, 'dashboard', FRAME_COOKIE_OPTIONS);
 	return json({ ok: true, user });
 };

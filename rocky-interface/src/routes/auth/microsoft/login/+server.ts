@@ -2,6 +2,13 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { API_BASE_URL, ENABLE_MICROSOFT_OAUTH } from '$lib/config/env';
 import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '$lib/server/mockAuth';
 
+const FRAME_COOKIE_NAME = 'rocky_current_frame';
+const FRAME_COOKIE_OPTIONS = {
+	path: '/',
+	maxAge: 60 * 60,
+	sameSite: 'lax' as const
+};
+
 type MicrosoftLoginRequest = {
 	firstName?: string;
 	lastName?: string;
@@ -53,5 +60,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	}
 
 	cookies.set(SESSION_COOKIE_NAME, userEmail, SESSION_COOKIE_OPTIONS);
+	cookies.set(FRAME_COOKIE_NAME, 'dashboard', FRAME_COOKIE_OPTIONS);
 	return json(payload);
 };

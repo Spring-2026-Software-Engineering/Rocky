@@ -51,6 +51,12 @@ def seed_database(collections, payload: dict[str, Any]) -> dict[str, int]:
         if error:
             summary["api_keys_rejected"] += 1
             continue
+        cleaned["api_key_id"] = summary["api_keys_inserted"] + 1
+        slot_index = cleaned.get("slot_index") if isinstance(cleaned.get("slot_index"), int) else 1
+        if slot_index < 1:
+            slot_index = 1
+        cleaned["slot_index"] = slot_index
+        cleaned["key_name"] = f"key-{slot_index}"
         provided_created = item.get("created") if isinstance(item, dict) else None
         if isinstance(provided_created, str) and provided_created.strip():
             cleaned["created"] = provided_created.strip()

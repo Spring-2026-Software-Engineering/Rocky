@@ -1,4 +1,5 @@
-/* View-specific styles extracted from Svelte files */
+/* Route view style index.
+   Split into focused modules to keep files maintainable. */
 
 .form-group {
 	margin-bottom: var(--space-lg);

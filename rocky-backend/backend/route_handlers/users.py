@@ -15,7 +15,7 @@ def create_user(deps: dict[str, Any]):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     cleaned, error = validate_user_payload(request.get_json(silent=True))
     if error:
@@ -35,7 +35,7 @@ def get_users(deps: dict[str, Any]):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     result = [_serialize_user(user) for user in users.find()]
     return jsonify(result)
@@ -48,7 +48,7 @@ def get_user(deps: dict[str, Any], user_id: str):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     user = _resolve_user_record(user_id, None)
     if not user:
@@ -65,7 +65,7 @@ def update_user(deps: dict[str, Any], user_id: str):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     user = _resolve_user_record(user_id, None)
     if not user:
@@ -92,7 +92,7 @@ def delete_user(deps: dict[str, Any], user_id: str):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     user = _resolve_user_record(user_id, None)
     if not user:

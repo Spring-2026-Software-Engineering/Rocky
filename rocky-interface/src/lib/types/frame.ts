@@ -12,7 +12,7 @@ const frameLabels: Record<FrameName, string> = {
 export const primaryFrames: FrameName[] = ['dashboard', 'users', 'courses', 'analytics', 'account'];
 
 const adminFrames: FrameName[] = ['dashboard', 'users', 'courses', 'analytics', 'account', 'help'];
-const clientFrames: FrameName[] = ['dashboard', 'courses', 'account', 'help'];
+const clientFrames: FrameName[] = ['dashboard', 'courses', 'analytics', 'account', 'help'];
 
 export function framesForRole(isAdmin: boolean): FrameName[] {
 	return isAdmin ? adminFrames : clientFrames;

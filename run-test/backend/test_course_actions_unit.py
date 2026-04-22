@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.course_actions import add_course_members, create_course_group, filter_visible_courses, regenerate_course_api_key
+from backend.course_actions import add_course_members, can_manage_people, create_course_group, filter_visible_courses, regenerate_course_api_key
 
 
 class FakeCollection:
@@ -104,6 +104,37 @@ class CourseActionsUnitTests(unittest.TestCase):
 
         self.assertEqual(len(visible), 1)
         self.assertEqual(visible[0]["id"], 1)
+
+    def test_filter_visible_courses_includes_teacher_assistant(self):
+        courses = [
+            {
+                "id": 7,
+                "instructor_id": "KSUID000000001",
+                "instructor_email": "instructor@kent.edu",
+                "ta_ids": ["KSUID000000777"],
+                "ta_emails": ["ta.user@kent.edu"],
+                "members": [],
+            }
+        ]
+
+        visible_by_id = filter_visible_courses(courses, "ksuid000000777", False)
+        visible_by_email = filter_visible_courses(courses, "ta.user@kent.edu", False)
+
+        self.assertEqual(len(visible_by_id), 1)
+        self.assertEqual(visible_by_id[0]["id"], 7)
+        self.assertEqual(len(visible_by_email), 1)
+        self.assertEqual(visible_by_email[0]["id"], 7)
+
+    def test_can_manage_people_allows_teacher_assistant(self):
+        course = {
+            "instructor_id": "KSUID000000001",
+            "instructor_email": "instructor@kent.edu",
+            "ta_ids": ["KSUID000000777"],
+            "ta_emails": ["ta.user@kent.edu"],
+        }
+
+        self.assertTrue(can_manage_people(course, "ksuid000000777", False))
+        self.assertTrue(can_manage_people(course, "ta.user@kent.edu", False))
 
 
 if __name__ == "__main__":

@@ -37,10 +37,7 @@
     "is_active": true,
     "settings": {
       "themePreference": "light",
-      "widgets": [
-        "analytics",
-        "notifications"
-      ]
+      "widgets": []
     }
   },
   {
@@ -53,7 +50,9 @@
     "settings": {
       "themePreference": "light",
       "widgets": [
-        "system-info"
+        "notifications",
+        "system-info",
+        "analytics"
       ]
     }
   },

@@ -1,0 +1,23 @@
+.course-locked-field {
+	background: #f1f3f5;
+	border-color: #c7ccd1;
+	color: #5b6570;
+	cursor: not-allowed;
+	user-select: none;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+button:disabled {
+	background: #eceff3;
+	border-color: #c8cfd7;
+	color: #7d8894;
+	cursor: not-allowed;
+	opacity: 1;
+}
+
+button:disabled {
+	box-shadow: none;
+	filter: grayscale(0.2);
+}

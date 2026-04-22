@@ -1,9 +1,26 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from html import escape as html_escape
 from typing import Any
 
 from flask import jsonify, render_template
+
+
+def _redact_inspector_value(value: Any):
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            normalized_key = str(key).lower()
+            if normalized_key == "html" or normalized_key.endswith("_html"):
+                continue
+            redacted[key] = _redact_inspector_value(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_inspector_value(item) for item in value]
+    if isinstance(value, str):
+        return html_escape(value)
+    return value
 
 
 def health_check(deps: dict[str, Any]):
@@ -25,23 +42,23 @@ def index_page(deps: dict[str, Any]):
 
     collections_snapshot = {
         "users": {
-            "docs": _get_collection_snapshot(users),
+            "docs": _redact_inspector_value(_get_collection_snapshot(users)),
             "description": "Canonical user records; each user document owns its settings.",
         },
         "whitelist_users": {
-            "docs": _get_collection_snapshot(whitelist_users),
+            "docs": _redact_inspector_value(_get_collection_snapshot(whitelist_users)),
             "description": "Approved non-@kent.edu addresses for Microsoft OAuth login.",
         },
         "courses": {
-            "docs": _get_collection_snapshot(courses),
+            "docs": _redact_inspector_value(_get_collection_snapshot(courses)),
             "description": "Course records and memberships.",
         },
         "api_keys": {
-            "docs": _get_collection_snapshot(api_keys),
+            "docs": _redact_inspector_value(_get_collection_snapshot(api_keys)),
             "description": "Issued API keys.",
         },
         "api_history": {
-            "docs": _get_collection_snapshot(api_history),
+            "docs": _redact_inspector_value(_get_collection_snapshot(api_history)),
             "description": "Per-course API request history.",
         },
     }
@@ -53,25 +70,15 @@ def index_page(deps: dict[str, Any]):
 
 
 def get_analytics_kpis(deps: dict[str, Any]):
-    require_admin = deps["require_admin"]
     _get_collection_snapshot = deps["_get_collection_snapshot"]
     analytics_kpis = deps["analytics_kpis"]
-
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
 
     return jsonify(_get_collection_snapshot(analytics_kpis))
 
 
 def get_analytics_activity(deps: dict[str, Any]):
-    require_admin = deps["require_admin"]
     _get_collection_snapshot = deps["_get_collection_snapshot"]
     analytics_activity = deps["analytics_activity"]
-
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
 
     return jsonify(_get_collection_snapshot(analytics_activity))
 
@@ -85,7 +92,7 @@ def get_default_widgets(deps: dict[str, Any]):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
 
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)

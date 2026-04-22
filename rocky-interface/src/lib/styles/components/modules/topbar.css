@@ -1,0 +1,68 @@
+/* Topbar */
+.topbar {
+	height: var(--size-topbar-height);
+	background: var(--color-bg-topbar);
+	display: flex;
+	align-items: center;
+	padding: 0 var(--space-lg);
+	gap: var(--space-md);
+	box-shadow: var(--shadow-topbar);
+	flex-shrink: 0;
+	border-bottom: 3px solid var(--color-highlight-gold);
+}
+
+.brand-logo {
+	height: 34px;
+	width: auto;
+	filter: var(--brand-logo-filter);
+}
+
+.brand-text {
+	display: flex;
+	flex-direction: column;
+	line-height: var(--line-height-tight);
+}
+
+.brand-name {
+	color: var(--color-text-inverse);
+	font-weight: var(--font-weight-bold);
+	font-size: 20px;
+}
+
+.brand-sub {
+	color: rgba(255, 255, 255, 0.84);
+	font-size: var(--font-size-xs);
+}
+
+.ksu-logo {
+	height: 40px;
+	width: auto;
+	margin-left: auto;
+}
+
+.hamburger {
+	display: none;
+	flex-direction: column;
+	justify-content: center;
+	gap: 5px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+	min-width: 48px;
+	min-height: 48px;
+}
+
+.hamburger-line {
+	display: block;
+	width: 24px;
+	height: 2px;
+	background: white;
+	border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+	.hamburger {
+		display: flex;
+	}
+}

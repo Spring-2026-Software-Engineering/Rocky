@@ -10,7 +10,7 @@ from pathlib import Path
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from backend.authz import require_admin, require_requester_identity
@@ -30,14 +30,18 @@ from backend.course_actions import (
     remove_group_member,
     regenerate_course_api_key,
     reconcile_course_members_for_user,
+    set_course_active_state,
+    set_course_api_key_active_state,
     update_course_group_key_limit,
+    update_course_instructor_key_limit,
+    update_course_instructor_handout_limit,
     update_course_member_key_limit,
 )
 from backend.config import get_settings
 from backend.fixtures import read_seed_json
 from backend.storage import Collections, build_collections
 from backend.validation import (
-    EMAIL_RE,
+    is_valid_email,
     normalize_str,
     validate_course_payload,
     validate_user_payload,
@@ -127,7 +131,11 @@ def _iter_course_api_keys(course: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _get_active_course_api_key(course: dict[str, Any]):
-    keys = _iter_course_api_keys(course)
+    keys = [
+        entry
+        for entry in _iter_course_api_keys(course)
+        if normalize_str(entry.get("hash")) and bool(entry.get("is_active", True))
+    ]
     if not keys:
         return None
     return max(keys, key=lambda entry: normalize_str(entry.get("created")))
@@ -148,6 +156,25 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
         key_limit = target_group.get("key_limit") if isinstance(target_group, dict) else None
         return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
 
+    instructor_identifiers = {
+        normalize_str(course.get("instructor_id")).lower(),
+        normalize_str(course.get("instructor_email")).lower(),
+    }
+    instructor_identifiers.update(
+        normalize_str(identifier).lower()
+        for identifier in (course.get("ta_ids") if isinstance(course.get("ta_ids"), list) else [])
+        if normalize_str(identifier)
+    )
+    instructor_identifiers.update(
+        normalize_str(identifier).lower()
+        for identifier in (course.get("ta_emails") if isinstance(course.get("ta_emails"), list) else [])
+        if normalize_str(identifier)
+    )
+    instructor_identifiers.discard("")
+    if normalized_owner_id in instructor_identifiers:
+        instructor_key_limit = course.get("instructor_key_limit")
+        return instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit > 0 else 2
+
     target_member = next(
         (
             member
@@ -155,7 +182,7 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
             if isinstance(member, dict)
             and (
                 normalize_str(member.get("id")).lower() == normalized_owner_id
-                or normalize_str(member.get("accountEmail") or member.get("email")).lower() == normalized_owner_id
+                or normalize_str(member.get("email")).lower() == normalized_owner_id
             )
         ),
         None,
@@ -165,12 +192,26 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
 
 
 def _serialize_api_key_summary(entry: dict[str, Any]) -> dict[str, Any]:
+    slot_index = entry.get("slot_index") if isinstance(entry.get("slot_index"), int) else None
+    if slot_index is None or slot_index < 1:
+        key_name = normalize_str(entry.get("key_name"))
+        if key_name.startswith("key-") and key_name[4:].isdigit():
+            slot_index = int(key_name[4:])
+        else:
+            slot_index = 0
+
+    api_key_id = entry.get("api_key_id") if isinstance(entry.get("api_key_id"), int) else 0
+
     return {
         "owner_type": normalize_str(entry.get("owner_type")).lower() or "person",
         "owner_id": normalize_str(entry.get("owner_id")).lower(),
         "key_name": normalize_str(entry.get("key_name")) or "key-1",
+        "slot_index": slot_index,
+        "api_key_id": api_key_id,
         "created": entry.get("created"),
         "course_id": entry.get("course_id"),
+        "has_hash": bool(normalize_str(entry.get("hash"))),
+        "is_active": bool(entry.get("is_active", True)),
     }
 
 
@@ -246,7 +287,6 @@ def _default_widgets_payload() -> list[dict[str, Any]]:
             continue
         widget_id = normalize_str(item.get("id")).lower()
         title = normalize_str(item.get("title")) or "Untitled Widget"
-        html = normalize_str(item.get("html"))
         lines = item.get("lines") if isinstance(item.get("lines"), list) else []
         cleaned_lines = [normalize_str(line) for line in lines if normalize_str(line)]
         widget_doc: dict[str, Any] = {"title": title}
@@ -254,8 +294,6 @@ def _default_widgets_payload() -> list[dict[str, Any]]:
             widget_doc["id"] = widget_id
             widget_doc["widgetId"] = widget_id
             widget_doc["link"] = f"/widgets/default#{widget_id}"
-        if html:
-            widget_doc["html"] = html
         if cleaned_lines:
             widget_doc["lines"] = cleaned_lines
         widgets.append(widget_doc)
@@ -275,10 +313,9 @@ def _default_user_settings() -> dict[str, Any]:
 
 def _widget_signature(widget: dict[str, Any]) -> tuple[str, str, tuple[str, ...]]:
     title = normalize_str(widget.get("title")).lower()
-    html = normalize_str(widget.get("html"))
     lines = widget.get("lines") if isinstance(widget.get("lines"), list) else []
     normalized_lines = tuple(normalize_str(line) for line in lines if normalize_str(line))
-    return title, html, normalized_lines
+    return title, "", normalized_lines
 
 
 def _widget_id(widget: dict[str, Any]) -> str:
@@ -328,7 +365,7 @@ def _get_collection_snapshot(collection):
 
 def _resolve_user_record(user_id: str | None, email: str | None):
     normalized_email = normalize_str(email).lower()
-    if normalized_email and EMAIL_RE.match(normalized_email):
+    if is_valid_email(normalized_email):
         user = users.find_one({"email": normalized_email})
         if user:
             return user
@@ -420,7 +457,7 @@ def _normalize_oauth_payload(payload: Any):
     email = normalize_str(payload.get("email")).lower()
     user_id = normalize_str(payload.get("id"))
 
-    if not email or not EMAIL_RE.match(email):
+    if not is_valid_email(email):
         return None, "A valid OAuth email is required."
     if not first_name and not last_name:
         return None, "At least one of firstName or lastName is required."
@@ -629,7 +666,7 @@ def _route_deps() -> dict[str, Any]:
         "analytics_activity": analytics_activity,
         "widgets_default": widgets_default,
         "help_faq": help_faq,
-        "EMAIL_RE": EMAIL_RE,
+        "is_valid_email": is_valid_email,
         "KSUID_PREFIX": KSUID_PREFIX,
         "logger": logger,
         "require_admin": require_admin,
@@ -673,10 +710,14 @@ def _route_deps() -> dict[str, Any]:
         "add_group_member": add_group_member,
         "remove_group_member": remove_group_member,
         "update_course_member_key_limit": update_course_member_key_limit,
+        "update_course_instructor_key_limit": update_course_instructor_key_limit,
+        "update_course_instructor_handout_limit": update_course_instructor_handout_limit,
         "update_course_group_key_limit": update_course_group_key_limit,
         "delete_course_api_keys": delete_course_api_keys,
         "regenerate_course_api_key": regenerate_course_api_key,
         "reconcile_course_members_for_user": reconcile_course_members_for_user,
+        "set_course_active_state": set_course_active_state,
+        "set_course_api_key_active_state": set_course_api_key_active_state,
         "_get_owner_key_limit": _get_owner_key_limit,
         "_iter_course_api_keys": _iter_course_api_keys,
         "_serialize_api_key_summary": _serialize_api_key_summary,
@@ -771,6 +812,11 @@ def patch_course_metadata(course_id):
     return course_handlers.patch_course_metadata(_route_deps(), course_id)
 
 
+@app.route("/courses/<course_id>/status", methods=["PATCH"])
+def update_course_status_route(course_id):
+    return course_handlers.update_course_status_route(_route_deps(), course_id)
+
+
 @app.route("/courses/<course_id>", methods=["DELETE"])
 def delete_course(course_id):
     return course_handlers.delete_course(_route_deps(), course_id)
@@ -806,6 +852,16 @@ def update_member_key_limit_route(course_id, member_id):
     return course_handlers.update_member_key_limit_route(_route_deps(), course_id, member_id)
 
 
+@app.route("/courses/<course_id>/instructor-handout-limit", methods=["PATCH"])
+def update_instructor_handout_limit_route(course_id):
+    return course_handlers.update_instructor_handout_limit_route(_route_deps(), course_id)
+
+
+@app.route("/courses/<course_id>/instructor-key-limit", methods=["PATCH"])
+def update_instructor_key_limit_route(course_id):
+    return course_handlers.update_instructor_key_limit_route(_route_deps(), course_id)
+
+
 @app.route("/courses/<course_id>/groups/<group_id>/key-limit", methods=["PATCH"])
 def update_group_key_limit_route(course_id, group_id):
     return course_handlers.update_group_key_limit_route(_route_deps(), course_id, group_id)
@@ -824,6 +880,11 @@ def regenerate_course_api_key_route(course_id):
 @app.route("/courses/<course_id>/api-key", methods=["DELETE"])
 def delete_course_api_key_route(course_id):
     return course_handlers.delete_course_api_key_route(_route_deps(), course_id)
+
+
+@app.route("/courses/<course_id>/api-key/status", methods=["PATCH"])
+def update_course_api_key_status_route(course_id):
+    return course_handlers.update_course_api_key_status_route(_route_deps(), course_id)
 
 
 @app.route("/user-settings", methods=["GET"])

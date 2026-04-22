@@ -131,7 +131,6 @@ class BackendValidationTests(BackendTestCase):
                 "instructor": "Dr. Priya Narayanan",
                 "semester": "Summer 2027",
                 "color": "#1d4ed8",
-                "announcements": ["Welcome to Cloud Computing"],
                 "members": [
                     {"id": "KSUID000000002", "role": "instructor"},
                     {"id": "KSUID000000003", "role": "student"},
@@ -152,6 +151,7 @@ class BackendValidationTests(BackendTestCase):
         self.assertIsNotNone(saved)
         self.assertEqual(saved.get("semester"), "Summer 2027")
         self.assertEqual(saved.get("semester_obj", {}).get("term"), "summer")
+        self.assertEqual(saved.get("is_active"), True)
         self.assertEqual(len(saved.get("members", [])), 2)
         self.assertEqual(len(saved.get("groups", [])), 1)
 
@@ -187,6 +187,7 @@ class BackendValidationTests(BackendTestCase):
         self.assertEqual(stored.get("owner_type"), "person")
         self.assertEqual(stored.get("owner_id"), "ksuid000000001")
         self.assertEqual(stored.get("course_id"), 1)
+        self.assertEqual(stored.get("is_active"), True)
         self.assertNotIn("created_by", stored)
 
     def test_regenerate_group_api_key_tracks_group_and_creator(self):
@@ -274,6 +275,218 @@ class BackendValidationTests(BackendTestCase):
         course_after_regenerate = next((course for course in after_regenerate_payload if course.get("id") == 1), None)
         self.assertIsNotNone(course_after_regenerate)
         self.assertEqual(course_after_regenerate.get("has_api_key"), True)
+
+    def test_instructor_cannot_update_instructor_member_key_limit(self):
+        self._log("Instructor tries to change another instructor key limit. Expecting HTTP 403.")
+        response = self.client.patch(
+            "/courses/1/members/KSUID000000002/key-limit",
+            json={"keyLimit": 3},
+            headers=self.instructor_headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_cannot_set_member_key_limit_above_course_limit(self):
+        self._log("Admin attempts to set member key limit above course key limit. Expecting HTTP 400.")
+        response = self.client.patch(
+            "/courses/2/members/student.alt2@kent.edu/key-limit",
+            json={"keyLimit": 3},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.get_json() or {}
+        self.assertIn("cannot exceed", payload.get("error", ""))
+
+    def test_admin_can_update_instructor_handout_limit(self):
+        self._log("Admin updates course instructor handout limit and value persists on the course.")
+        response = self.client.patch(
+            "/courses/1/instructor-handout-limit",
+            json={"instructorHandoutLimit": 2},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json() or {}
+        self.assertEqual(payload.get("message"), "Instructor handout limit updated successfully.")
+
+        updated_course = main.courses.find_one({"id": 1})
+        self.assertIsNotNone(updated_course)
+        self.assertEqual(updated_course.get("instructor_handout_limit"), 2)
+
+    def test_non_admin_cannot_update_instructor_handout_limit(self):
+        self._log("Instructor attempts to update instructor handout limit. Expecting HTTP 403.")
+        response = self.client.patch(
+            "/courses/1/instructor-handout-limit",
+            json={"instructorHandoutLimit": 4},
+            headers=self.instructor_headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_handout_generation_respects_handout_limit(self):
+        self._log("Admin handouts respect course-wide max active handed-out keys.")
+
+        set_limit_response = self.client.patch(
+            "/courses/1/instructor-handout-limit",
+            json={"instructorHandoutLimit": 2},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(set_limit_response.status_code, 200)
+
+        first = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={"ownerType": "group", "groupId": "group-se3010-a", "keyName": "key-1", "slotIndex": 1},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(first.status_code, 200)
+
+        second = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={"ownerType": "person", "ownerId": "KSUID000000003", "keyName": "key-1", "slotIndex": 1},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(second.status_code, 200)
+
+        third = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={"ownerType": "person", "ownerId": "KSUID000000004", "keyName": "key-1", "slotIndex": 1},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(third.status_code, 400)
+        payload = third.get_json() or {}
+        self.assertIn("Instructor handout key limit reached", payload.get("error", ""))
+
+    def test_admin_can_close_and_reopen_course_and_all_keys_follow_status(self):
+        self._log("Admin closes and reopens a course. Expecting course and all keys to mirror is_active state.")
+
+        close_response = self.client.patch(
+            "/courses/1/status",
+            json={"is_active": False},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(close_response.status_code, 200)
+        close_payload = close_response.get_json() or {}
+        self.assertEqual(close_payload.get("is_active"), False)
+
+        closed_keys = list(main.api_keys.find({"course_id": 1}))
+        self.assertGreater(len(closed_keys), 0)
+        self.assertTrue(all(key.get("is_active") is False for key in closed_keys))
+
+        reopen_response = self.client.patch(
+            "/courses/1/status",
+            json={"is_active": True},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(reopen_response.status_code, 200)
+        reopen_payload = reopen_response.get_json() or {}
+        self.assertEqual(reopen_payload.get("is_active"), True)
+
+        reopened_keys = list(main.api_keys.find({"course_id": 1}))
+        self.assertGreater(len(reopened_keys), 0)
+        self.assertTrue(all(key.get("is_active") is True for key in reopened_keys))
+
+    def test_closed_course_rejects_mutating_endpoints(self):
+        self._log("Closing a course and verifying write endpoints are rejected with HTTP 403.")
+
+        close_response = self.client.patch(
+            "/courses/1/status",
+            json={"is_active": False},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(close_response.status_code, 200)
+
+        add_member_response = self.client.post(
+            "/courses/1/members",
+            json={"members": [{"email": "student.alt2@kent.edu"}]},
+            headers=self.admin_headers,
+        )
+        self.assertEqual(add_member_response.status_code, 403)
+        payload = add_member_response.get_json() or {}
+        self.assertIn("closed", (payload.get("error") or "").lower())
+
+    def test_non_admin_cannot_change_course_status(self):
+        self._log("Instructor attempts to close a course. Expecting HTTP 403.")
+
+        response = self.client.patch(
+            "/courses/1/status",
+            json={"is_active": False},
+            headers=self.instructor_headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_toggle_key_active_status_without_changing_hash(self):
+        self._log("Toggling a key's active state should preserve its stored hash.")
+
+        generate_response = self.client.post(
+            "/courses/1/api-key/regenerate",
+            json={
+                "ownerType": "person",
+                "ownerId": "KSUID000000003",
+                "keyName": "key-1",
+                "slotIndex": 1,
+            },
+            headers=self.admin_headers,
+        )
+        self.assertEqual(generate_response.status_code, 200)
+
+        before_toggle = main.api_keys.find_one(
+            {
+                "course_id": 1,
+                "owner_type": "person",
+                "owner_id": "ksuid000000003",
+                "slot_index": 1,
+            }
+        )
+        self.assertIsNotNone(before_toggle)
+        original_hash = before_toggle.get("hash")
+        self.assertTrue(isinstance(original_hash, str) and len(original_hash) == 64)
+
+        deactivate_response = self.client.patch(
+            "/courses/1/api-key/status",
+            json={
+                "ownerType": "person",
+                "ownerId": "KSUID000000003",
+                "keyName": "key-1",
+                "slotIndex": 1,
+                "isActive": False,
+            },
+            headers=self.admin_headers,
+        )
+        self.assertEqual(deactivate_response.status_code, 200)
+
+        deactivated_key = main.api_keys.find_one(
+            {
+                "course_id": 1,
+                "owner_type": "person",
+                "owner_id": "ksuid000000003",
+                "slot_index": 1,
+            }
+        )
+        self.assertIsNotNone(deactivated_key)
+        self.assertEqual(deactivated_key.get("hash"), original_hash)
+        self.assertEqual(deactivated_key.get("is_active"), False)
+
+        activate_response = self.client.patch(
+            "/courses/1/api-key/status",
+            json={
+                "ownerType": "person",
+                "ownerId": "KSUID000000003",
+                "keyName": "key-1",
+                "slotIndex": 1,
+                "isActive": True,
+            },
+            headers=self.admin_headers,
+        )
+        self.assertEqual(activate_response.status_code, 200)
+
+        activated_key = main.api_keys.find_one(
+            {
+                "course_id": 1,
+                "owner_type": "person",
+                "owner_id": "ksuid000000003",
+                "slot_index": 1,
+            }
+        )
+        self.assertIsNotNone(activated_key)
+        self.assertEqual(activated_key.get("hash"), original_hash)
+        self.assertEqual(activated_key.get("is_active"), True)
 
 
 if __name__ == "__main__":

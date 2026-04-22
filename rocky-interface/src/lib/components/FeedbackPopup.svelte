@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { feedbackMessage } from '$lib/stores/feedbackStore';
-	import '$lib/styles/components/feedback-popup.css';
+	import '$lib/styles/components/modules/feedback-popup.css';
 </script>
 
 {#if $feedbackMessage}
