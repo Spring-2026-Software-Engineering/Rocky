@@ -42,7 +42,7 @@ from backend.config import get_settings
 from backend.fixtures import read_seed_json
 from backend.storage import Collections, build_collections
 from backend.validation import (
-    EMAIL_RE,
+    is_valid_email,
     normalize_str,
     validate_course_payload,
     validate_user_payload,
@@ -286,7 +286,6 @@ def _default_widgets_payload() -> list[dict[str, Any]]:
             continue
         widget_id = normalize_str(item.get("id")).lower()
         title = normalize_str(item.get("title")) or "Untitled Widget"
-        html = normalize_str(item.get("html"))
         lines = item.get("lines") if isinstance(item.get("lines"), list) else []
         cleaned_lines = [normalize_str(line) for line in lines if normalize_str(line)]
         widget_doc: dict[str, Any] = {"title": title}
@@ -294,8 +293,6 @@ def _default_widgets_payload() -> list[dict[str, Any]]:
             widget_doc["id"] = widget_id
             widget_doc["widgetId"] = widget_id
             widget_doc["link"] = f"/widgets/default#{widget_id}"
-        if html:
-            widget_doc["html"] = html
         if cleaned_lines:
             widget_doc["lines"] = cleaned_lines
         widgets.append(widget_doc)
@@ -315,10 +312,9 @@ def _default_user_settings() -> dict[str, Any]:
 
 def _widget_signature(widget: dict[str, Any]) -> tuple[str, str, tuple[str, ...]]:
     title = normalize_str(widget.get("title")).lower()
-    html = normalize_str(widget.get("html"))
     lines = widget.get("lines") if isinstance(widget.get("lines"), list) else []
     normalized_lines = tuple(normalize_str(line) for line in lines if normalize_str(line))
-    return title, html, normalized_lines
+    return title, "", normalized_lines
 
 
 def _widget_id(widget: dict[str, Any]) -> str:
@@ -368,7 +364,7 @@ def _get_collection_snapshot(collection):
 
 def _resolve_user_record(user_id: str | None, email: str | None):
     normalized_email = normalize_str(email).lower()
-    if normalized_email and EMAIL_RE.match(normalized_email):
+    if is_valid_email(normalized_email):
         user = users.find_one({"email": normalized_email})
         if user:
             return user
@@ -460,7 +456,7 @@ def _normalize_oauth_payload(payload: Any):
     email = normalize_str(payload.get("email")).lower()
     user_id = normalize_str(payload.get("id"))
 
-    if not email or not EMAIL_RE.match(email):
+    if not is_valid_email(email):
         return None, "A valid OAuth email is required."
     if not first_name and not last_name:
         return None, "At least one of firstName or lastName is required."
@@ -669,7 +665,7 @@ def _route_deps() -> dict[str, Any]:
         "analytics_activity": analytics_activity,
         "widgets_default": widgets_default,
         "help_faq": help_faq,
-        "EMAIL_RE": EMAIL_RE,
+        "is_valid_email": is_valid_email,
         "KSUID_PREFIX": KSUID_PREFIX,
         "logger": logger,
         "require_admin": require_admin,

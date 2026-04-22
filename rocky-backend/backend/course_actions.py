@@ -8,7 +8,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 from backend.api_key_generator import generate_api_key_pair
-from backend.validation import EMAIL_RE, normalize_str, parse_semester
+from backend.validation import is_valid_email, normalize_str, parse_semester
 
 GROUP_ID_RE = re.compile(r"[^a-z0-9]+")
 
@@ -141,7 +141,7 @@ def _lookup_user(users_collection, identifier: str):
         candidate_id = normalize_str(candidate.get("id")).lower()
         if candidate_id and candidate_id == normalized_identifier_lower:
             return candidate
-    if EMAIL_RE.match(normalized_identifier.lower()):
+    if is_valid_email(normalized_identifier):
         return users_collection.find_one({"email": normalized_identifier.lower()})
     return None
 
@@ -304,7 +304,7 @@ def add_course_members(course: dict[str, Any], users_collection, payload: Any, r
 
         member_id = normalize_str(entry.get("id") or entry.get("memberId") or entry.get("member_id"))
         member_email = normalize_str(entry.get("email")).lower()
-        if member_id and EMAIL_RE.match(member_id.lower()) and not member_email:
+        if member_id and is_valid_email(member_id) and not member_email:
             member_email = member_id.lower()
             member_id = ""
         if not member_email and not member_id:
@@ -317,7 +317,7 @@ def add_course_members(course: dict[str, Any], users_collection, payload: Any, r
             resolved_email = normalize_str(user.get("email")).lower()
             name = f"{normalize_str(user.get('first_name'))} {normalize_str(user.get('last_name'))}".strip() or None
         else:
-            if not EMAIL_RE.match((member_email or member_id).lower()):
+            if not is_valid_email(member_email or member_id):
                 raise ValueError(f"Unknown user: {lookup_identifier}")
 
             resolved_email = (member_email or member_id).lower()

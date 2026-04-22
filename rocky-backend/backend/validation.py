@@ -7,12 +7,26 @@ from typing import Any
 SEMESTER_YEAR_MIN = 2000
 SEMESTER_YEAR_MAX = 2200
 ALLOWED_TERMS = {"none", "spring", "summer", "fall"}
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 COURSE_COLOR_DEFAULT = "#7b2d8b"
 
 
 def normalize_str(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
+
+
+def is_valid_email(value: Any) -> bool:
+    email = normalize_str(value).lower()
+    if not email or " " in email or "@" not in email:
+        return False
+
+    local_part, domain_part = email.rsplit("@", 1)
+    if not local_part or not domain_part or "." not in domain_part:
+        return False
+    if local_part.startswith(".") or local_part.endswith("."):
+        return False
+    if domain_part.startswith(".") or domain_part.endswith("."):
+        return False
+    return all(label for label in domain_part.split("."))
 
 
 def semester_display(term: str, year: int) -> str:
@@ -76,7 +90,7 @@ def normalize_course_members(value: Any):
         account_email = normalize_str(entry.get("email")).lower()
         if not member_id and not account_email:
             return None, None, "each member must include an id or email."
-        if account_email and not EMAIL_RE.match(account_email):
+        if account_email and not is_valid_email(account_email):
             return None, None, "member email must be valid when provided."
 
         key_limit = entry.get("key_limit")
@@ -167,7 +181,7 @@ def validate_user_payload(payload: Any):
         return None, "User first_name is required."
     if not last_name:
         return None, "User last_name is required."
-    if not email or not EMAIL_RE.match(email):
+    if not is_valid_email(email):
         return None, "A valid user email is required."
     if not user_id:
         user_id = f"seed-{email.split('@')[0]}"
@@ -247,7 +261,7 @@ def validate_course_payload(payload: Any):
         return None, "instructor_id is required."
 
     instructor_email = normalize_str(payload.get("instructor_email") or payload.get("instructorEmail")).lower()
-    if instructor_email and not EMAIL_RE.match(instructor_email):
+    if instructor_email and not is_valid_email(instructor_email):
         return None, "instructor_email must be valid when provided."
 
     ta_ids_payload = payload.get("ta_ids")

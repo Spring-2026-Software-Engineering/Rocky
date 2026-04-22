@@ -67,7 +67,6 @@ def _normalize_widget_list(raw_widgets, fallback_widgets):
     available_signatures = {
         (
             (item.get("title") or "").strip().lower() if isinstance(item, dict) else "",
-            (item.get("html") or "").strip() if isinstance(item, dict) and isinstance(item.get("html"), str) else "",
             tuple(
                 line.strip()
                 for line in (item.get("lines") if isinstance(item, dict) and isinstance(item.get("lines"), list) else [])
@@ -89,7 +88,6 @@ def _normalize_widget_list(raw_widgets, fallback_widgets):
         if canonical_widget is None:
             signature = (
                 (item.get("title") or "").strip().lower() if isinstance(item.get("title"), str) else "",
-                (item.get("html") or "").strip() if isinstance(item.get("html"), str) else "",
                 tuple(
                     line.strip()
                     for line in (item.get("lines") if isinstance(item.get("lines"), list) else [])
