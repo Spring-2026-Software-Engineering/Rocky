@@ -371,6 +371,7 @@
 	.course-composer-popout {
 		left: var(--space-md) !important;
 		top: calc(var(--size-topbar-height) + var(--space-sm)) !important;
+		transform: none;
 		width: calc(100vw - 2 * var(--space-md));
 	}
 }

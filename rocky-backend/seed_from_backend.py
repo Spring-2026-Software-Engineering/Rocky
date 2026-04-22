@@ -193,7 +193,11 @@ def seed_from_backend() -> dict[str, int]:
             if not member_id:
                 continue
 
-            if instructor_email and account_email == instructor_email:
+            is_instructor_member = (
+                bool(instructor_email and account_email == instructor_email)
+                or bool(instructor_id and member_id.lower() == instructor_id.lower())
+            )
+            if is_instructor_member:
                 instructor_id = member_id
                 instructor_email = account_email
                 if not instructor_name:

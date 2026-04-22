@@ -166,7 +166,7 @@ export function normalizeCourses(rawCourses: ApiCourse[]): Course[] {
 function normalizeCourseMember(raw: ApiCourseMember, accountsByEmail?: Record<string, CourseAccountRecord>): CourseMember {
 	const referenceEmail = raw.email?.trim().toLowerCase() || '';
 	const matchedAccount = referenceEmail ? accountsByEmail?.[referenceEmail] : undefined;
-	const email = matchedAccount?.email || raw.email?.trim() || 'N/A';
+	const email = matchedAccount?.email || raw.email?.trim() || '';
 	const name = matchedAccount?.name || raw.name?.trim() || null;
 	const rawId = raw.id?.trim() || '';
 	const id = matchedAccount?.id || rawId || null;

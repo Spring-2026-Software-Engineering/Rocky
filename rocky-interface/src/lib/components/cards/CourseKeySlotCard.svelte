@@ -13,6 +13,7 @@
 	export let showToggleActive = false;
 	export let isKeyActive = true;
 	export let readOnly = false;
+	export let slotIdentity = title;
 	export let onKeyNameChange: (value: string) => void = () => {};
 	export let onGenerate: () => Promise<string | null> | string | null = () => null;
 	export let onHide: () => void = () => {};
@@ -20,6 +21,12 @@
 	export let onToggleActive: () => void = () => {};
 
 	let visibleKey: string | null = null;
+	let lastSlotIdentity = slotIdentity;
+
+	$: if (slotIdentity !== lastSlotIdentity) {
+		visibleKey = null;
+		lastSlotIdentity = slotIdentity;
+	}
 
 	async function handleGenerate() {
 		const nextKey = await onGenerate();

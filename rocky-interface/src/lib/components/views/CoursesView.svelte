@@ -127,7 +127,11 @@
 	}
 
 	function getMemberIdentifier(member: CourseDetail['members'][number]): string {
-		return normalizeIdentifier(member.email);
+		const emailIdentifier = normalizeIdentifier(member.email);
+		if (emailIdentifier && emailIdentifier !== 'n/a') {
+			return emailIdentifier;
+		}
+		return normalizeIdentifier(member.id);
 	}
 
 	function getMemberDisplayName(member: CourseDetail['members'][number]): string {
@@ -225,13 +229,19 @@
 				.flatMap((entry) => [normalizeIdentifier(entry.id), normalizeIdentifier(entry.email)])
 				.filter(Boolean)
 		);
+		const instructorIdentifiers = new Set(
+			instructorEntry
+				? [normalizeIdentifier(instructorEntry.id), normalizeIdentifier(instructorEntry.email)].filter(Boolean)
+				: []
+		);
+		const managerIdentifiers = new Set([...teacherAssistantIdentifiers, ...instructorIdentifiers]);
 		if (!instructorEntry) {
 			return [
 				...teacherAssistantEntries,
 				...members
 					.filter((member) => {
 						const memberIdentifiers = [normalizeIdentifier(member.id), normalizeIdentifier(member.email)].filter(Boolean);
-						return !memberIdentifiers.some((identifier) => teacherAssistantIdentifiers.has(identifier));
+						return !memberIdentifiers.some((identifier) => managerIdentifiers.has(identifier));
 					})
 					.map((member) => ({ ...member, isInstructor: false, isTeacherAssistant: false }))
 			];
@@ -247,7 +257,7 @@
 			...members
 				.filter((member) => {
 					const memberIdentifiers = [normalizeIdentifier(member.id), normalizeIdentifier(member.email)].filter(Boolean);
-					return !memberIdentifiers.some((identifier) => teacherAssistantIdentifiers.has(identifier));
+					return !memberIdentifiers.some((identifier) => managerIdentifiers.has(identifier));
 				})
 				.map((member) => ({
 					...member,
@@ -302,7 +312,10 @@
 	function resolveMemberByIdentifier(identifier: string): CourseDetail['members'][number] | undefined {
 		const normalizedIdentifier = normalizeIdentifier(identifier);
 		return (selectedDetail?.members || []).find((member) => {
-			return normalizeIdentifier(member.email) === normalizedIdentifier;
+			return (
+				normalizeIdentifier(member.email) === normalizedIdentifier ||
+				normalizeIdentifier(member.id) === normalizedIdentifier
+			);
 		});
 	}
 
@@ -1453,6 +1466,7 @@
 									hasExistingKey={slot.hasExistingKey}
 									maskedPreview={maskedApiKeyPreview ?? buildMaskedApiKeyPreview(30)}
 									placeholderText="No key exists for this slot yet."
+									slotIdentity={slotStateId}
 									readOnly={isSelectedCourseClosed}
 									generateDisabled={isSelectedCourseClosed}
 									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
@@ -1500,6 +1514,7 @@
 									hasExistingKey={slot.hasExistingKey}
 									maskedPreview={buildMaskedApiKeyPreview(30)}
 									placeholderText="No key exists for this slot yet."
+									slotIdentity={slotStateId}
 									readOnly={isSelectedCourseClosed}
 									generateDisabled={!selectedInstructorStudentOwnerId || isSelectedCourseClosed}
 									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
@@ -1550,6 +1565,7 @@
 									hasExistingKey={slot.hasExistingKey}
 									maskedPreview={buildMaskedApiKeyPreview(30)}
 									placeholderText="No key exists for this slot yet."
+									slotIdentity={slotStateId}
 									readOnly={isSelectedCourseClosed}
 									generateDisabled={!selectedInstructorGroupId || isSelectedCourseClosed}
 									onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}
@@ -1583,6 +1599,7 @@
 								hasExistingKey={slot.hasExistingKey}
 								maskedPreview={maskedApiKeyPreview ?? buildMaskedApiKeyPreview(30)}
 								placeholderText="No key exists for this slot yet."
+								slotIdentity={slotStateId}
 								readOnly={isSelectedCourseClosed}
 								generateDisabled={isSelectedCourseClosed}
 								onKeyNameChange={(nextName) => setSlotKeyName(slotStateId, nextName)}

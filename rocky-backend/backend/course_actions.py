@@ -209,6 +209,7 @@ def filter_visible_courses(courses: list[dict[str, Any]], requester_identifier: 
 def apply_course_metadata_patch(course: dict[str, Any], users_collection, payload: dict[str, Any]) -> dict[str, Any]:
     name = payload.get("name")
     code = payload.get("code")
+    has_semester = "semester" in payload
     semester = payload.get("semester")
     color = payload.get("color")
     instructor_id = normalize_str(payload.get("instructorId") or payload.get("instructor_id"))
@@ -221,7 +222,7 @@ def apply_course_metadata_patch(course: dict[str, Any], users_collection, payloa
         course["name"] = normalize_str(name) or course.get("name", "Untitled Course")
     if code is not None:
         course["code"] = normalize_str(code) or course.get("code", "TBD 0000")
-    if semester is not None:
+    if has_semester:
         parsed_semester, semester_error = parse_semester(semester)
         if semester_error:
             raise ValueError(semester_error)
@@ -492,6 +493,10 @@ def update_course_instructor_handout_limit(course: dict[str, Any], handout_limit
 def update_course_instructor_key_limit(course: dict[str, Any], key_limit: int) -> dict[str, Any]:
     if not isinstance(key_limit, int) or key_limit < 1:
         raise ValueError("instructor_key_limit must be an integer >= 1.")
+
+    handout_limit = course.get("instructor_handout_limit")
+    if isinstance(handout_limit, int) and handout_limit > key_limit:
+        raise ValueError("instructor_key_limit cannot be less than instructor_handout_limit.")
 
     course["instructor_key_limit"] = key_limit
     _set_course_member_lists(course)

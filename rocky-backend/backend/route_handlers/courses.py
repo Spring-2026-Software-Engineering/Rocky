@@ -952,6 +952,8 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
         def _is_handed_out_key(entry: dict[str, Any]) -> bool:
             if not isinstance(entry, dict) or not normalize_str(entry.get("hash")):
                 return False
+            if entry.get("is_active", True) is False:
+                return False
             entry_owner_type = normalize_str(entry.get("owner_type")).lower() or "person"
             entry_owner_id = normalize_str(entry.get("owner_id")).lower()
             if entry_owner_type == "group":

@@ -360,12 +360,10 @@ def validate_api_key_payload(payload: Any):
 
     if owner_type not in {"person", "group"}:
         return None, "owner_type must be either person or group."
-    if not owner_id:
-        return None, "owner_id is required and must be a non-empty string."
     if owner_type == "group" and not owner_id:
         owner_id = group_id
-    if owner_type == "group" and not owner_id:
-        return None, "owner_id is required when owner_type is group."
+    if not owner_id:
+        return None, "owner_id is required and must be a non-empty string."
     if not isinstance(course_id, int):
         return None, "course_id is required and must be an integer."
     if not key_hash:
