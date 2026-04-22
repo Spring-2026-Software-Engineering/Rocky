@@ -127,8 +127,7 @@
 		const parsed = Number(match[1]);
 		return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
 	}
-	$: filteredMembers =
-		(selectedDetail?.members || []).filter((member) => {
+	$: filteredMembers = rosterEntries.filter((member) => {
 			const q = searchQuery.toLowerCase().trim();
 
 			return (
@@ -1628,46 +1627,6 @@
 						{/each}
 					{/if}
 				</div>
-			{:else if activeTab === 'edit-roster'}
-				<div class="section-content">
-					{#if canEditPeopleAndGroups}
-						<div class="course-people-actions">
-							{#if isSelectedCourseClosed}
-								<p class="section-text">Course is closed. Roster changes are read-only.</p>
-							{:else}
-								<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
-								<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>
-								<input
-									class="course-hidden-input"
-									type="file"
-									accept=".csv,text/csv"
-									bind:this={importCsvInput}
-									onchange={importPeopleFromCanvasCsv}
-								/>
-							{/if}
-						</div>
-					{/if}
-					{#if canViewPersonalApiData}
-						<div class="course-panel">
-							<h3>Personal API Data</h3>
-							<p><strong>Status:</strong> Awaiting backend response fields.</p>
-						</div>
-					{/if}
-				</div>
-			{:else if activeTab === 'edit-course' && canEditCourse}
-				<div class="section-content">
-					<CourseEditorCard
-						title="Edit Course"
-						submitLabel="Save Course"
-						idPrefix="edit-course"
-						users={accountUsers}
-						form={editCourseForm}
-						useSemesterPicker={true}
-						semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
-						semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
-						on:submit={saveCourseEdits}
-					/>
-				</div>
 			{:else if activeTab === 'edit-roster' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
@@ -1705,12 +1664,13 @@
 							<tbody>
 								{#if filteredMembers.length}
 									{#each sortedMembers as member}
+										{@const memberIdentifier = getMemberIdentifier(member)}
 										<tr>
-											<td>{entry.isInstructor ? (selectedCourse.instructor || 'Unknown Instructor') : getMemberDisplayName(entry)}</td>
-											<td>{entry.email}</td>
-											<td>{getRosterRole(entry)}</td>
+											<td>{member.isInstructor ? (selectedCourse.instructor || 'Unknown Instructor') : getMemberDisplayName(member)}</td>
+											<td>{member.email}</td>
+											<td>{getRosterRole(member)}</td>
 											<td>
-												{#if entry.isInstructor}
+												{#if member.isInstructor}
 													{#if isCurrentUserAdmin}
 														<div class="course-group-add-row">
 																{#if isSelectedCourseClosed}
@@ -1732,22 +1692,22 @@
 																	{/if}
 															</div>
 													{:else}
-														<span class="section-text">{getRosterKeyLimit(entry)}</span>
+														<span class="section-text">{getRosterKeyLimit(member)}</span>
 													{/if}
-												{:else if entry.isTeacherAssistant}
-													<span class="section-text">{getRosterKeyLimit(entry)}</span>
+												{:else if member.isTeacherAssistant}
+													<span class="section-text">{getRosterKeyLimit(member)}</span>
 												{:else}
 													{#if canEditPeopleAndGroups}
 														<div class="course-group-add-row">
 																{#if isSelectedCourseClosed}
-																	<div class="text-input course-locked-field">{pendingMemberKeyLimitById[memberIdentifier] ?? entry.keyLimit}</div>
+																<div class="text-input course-locked-field">{pendingMemberKeyLimitById[memberIdentifier] ?? member.keyLimit}</div>
 																{:else}
 																	<input
 																		class="text-input"
 																		type="number"
 																		min="1"
 																		max={Math.max(1, selectedCourse?.instructorKeyLimit ?? 2)}
-																		value={pendingMemberKeyLimitById[memberIdentifier] ?? entry.keyLimit}
+																	value={pendingMemberKeyLimitById[memberIdentifier] ?? member.keyLimit}
 																		onchange={(event) => {
 																			const target = event.currentTarget as HTMLInputElement;
 																			const courseKeyLimit = Math.max(1, selectedCourse?.instructorKeyLimit ?? 2);
@@ -1763,14 +1723,14 @@
 																	{/if}
 														</div>
 													{:else}
-														<span class="section-text">{entry.keyLimit}</span>
+														<span class="section-text">{member.keyLimit}</span>
 													{/if}
 												{/if}
 											</td>
 											<td class="table-actions-cell">
-												{#if entry.isInstructor}
+												{#if member.isInstructor}
 													<span class="section-text">Root instructor</span>
-												{:else if entry.isTeacherAssistant}
+												{:else if member.isTeacherAssistant}
 													<span class="section-text">Teacher assistant</span>
 												{:else if canEditPeopleAndGroups}
 														{#if isSelectedCourseClosed}
