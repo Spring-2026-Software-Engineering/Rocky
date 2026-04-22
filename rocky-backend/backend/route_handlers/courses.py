@@ -86,7 +86,7 @@ def create_course(deps: dict[str, Any]):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     cleaned, error = validate_course_payload(request.get_json(silent=True))
     if error:
@@ -128,7 +128,7 @@ def get_courses(deps: dict[str, Any]):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
     users_by_id, users_by_email = _build_user_identity_maps(users, normalize_str)
@@ -154,7 +154,7 @@ def get_course(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
     course = get_course_record(courses, course_id)
@@ -184,7 +184,7 @@ def patch_course_metadata(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     _, is_admin = identity
     if not can_manage_metadata(is_admin):
         return jsonify({"error": "Admin access is required."}), 403
@@ -221,7 +221,7 @@ def update_course_status_route(deps: dict[str, Any], course_id: str):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     course = get_course_record(courses, course_id)
     if not course:
@@ -249,7 +249,7 @@ def delete_course(deps: dict[str, Any], course_id: str):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     course = get_course_record(courses, course_id)
     if not course:
@@ -272,7 +272,7 @@ def add_course_members_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -317,7 +317,7 @@ def remove_course_member_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -362,7 +362,7 @@ def create_course_group_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -416,7 +416,7 @@ def add_group_member_route(deps: dict[str, Any], course_id: str, group_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -461,7 +461,7 @@ def remove_group_member_route(deps: dict[str, Any], course_id: str, group_id: st
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -506,7 +506,7 @@ def update_member_key_limit_route(deps: dict[str, Any], course_id: str, member_i
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -570,7 +570,7 @@ def update_instructor_handout_limit_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     _ = _resolve_requester_user_id(email)
 
@@ -617,7 +617,7 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     _ = _resolve_requester_user_id(email)
 
@@ -661,7 +661,7 @@ def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id:
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -706,7 +706,7 @@ def list_course_api_keys_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -835,7 +835,7 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
 
     data = request.get_json(silent=True)
@@ -1042,7 +1042,7 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
 
     course = get_course_record(courses, course_id)
@@ -1193,7 +1193,7 @@ def update_course_api_key_status_route(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -1258,7 +1258,7 @@ def append_course_api_history(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 
@@ -1298,7 +1298,7 @@ def get_course_api_history(deps: dict[str, Any], course_id: str):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)
 

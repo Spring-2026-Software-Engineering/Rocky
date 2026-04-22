@@ -92,7 +92,7 @@ def get_default_widgets(deps: dict[str, Any]):
 
     identity = require_requester_identity()
     if identity[0] is None:
-        return jsonify(identity[1][0]), identity[1][1]
+        return jsonify({"error": "Authentication headers are required."}), 401
 
     email, is_admin = identity
     requester_id = _resolve_requester_user_id(email)

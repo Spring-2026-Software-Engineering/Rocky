@@ -179,7 +179,7 @@ def get_oauth_whitelist(deps: dict[str, Any]):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     result = [_serialize_whitelist_user(entry) for entry in whitelist_users.find()]
     return jsonify(result)
@@ -200,7 +200,7 @@ def add_oauth_whitelist_entry(deps: dict[str, Any]):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -257,7 +257,7 @@ def update_or_delete_oauth_whitelist_entry(deps: dict[str, Any], entry_id: str):
 
     ok, err = require_admin()
     if not ok:
-        return jsonify(err[0]), err[1]
+        return jsonify({"error": "Admin access is required."}), 403
 
     normalized_entry_id = normalize_str(entry_id)
     if not normalized_entry_id:
