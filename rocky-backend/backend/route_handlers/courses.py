@@ -907,6 +907,7 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
     owner_id = normalize_str(owner_id or normalized_requester).lower()
     key_name = normalize_str(data.get("keyName") or data.get("key_name") or "key-1")[:64].strip() or "key-1"
     slot_index_raw = data.get("slotIndex") or data.get("slot_index")
+    slot_index_provided = slot_index_raw is not None and slot_index_raw != ""
     try:
         slot_index = int(slot_index_raw)
     except (TypeError, ValueError):
@@ -926,10 +927,14 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
             entry
             for entry in owner_keys
             if (
-                isinstance(entry.get("slot_index"), int)
+                slot_index_provided
+                and isinstance(entry.get("slot_index"), int)
                 and entry.get("slot_index") == slot_index
             )
-            or normalize_str(entry.get("key_name")) == key_name
+            or (
+                not slot_index_provided
+                and normalize_str(entry.get("key_name")) == key_name
+            )
         ),
         None,
     )
@@ -1058,6 +1063,7 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
     owner_id = normalize_str(data.get("ownerId") or data.get("owner_id") or data.get("groupId") or data.get("group_id")).lower()
     key_name = normalize_str(data.get("keyName") or data.get("key_name") or "key-1")[:64].strip() or "key-1"
     slot_index_raw = data.get("slotIndex") or data.get("slot_index")
+    slot_index_provided = slot_index_raw is not None and slot_index_raw != ""
     try:
         slot_index = int(slot_index_raw)
     except (TypeError, ValueError):
@@ -1092,7 +1098,7 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
             "owner_type": owner_type,
             "owner_id": owner_id,
         }
-        if slot_index > 0:
+        if slot_index_provided:
             lookup_filter["slot_index"] = slot_index
         else:
             lookup_filter["key_name"] = key_name
@@ -1102,7 +1108,7 @@ def delete_course_api_key_route(deps: dict[str, Any], course_id: str):
             lookup_filter["c_id"] = normalize_str(course.get("code"))
 
         existing_key = api_keys.find_one(lookup_filter)
-        if existing_key is None and "slot_index" in lookup_filter:
+        if existing_key is None and not slot_index_provided:
             fallback_lookup = dict(lookup_filter)
             fallback_lookup.pop("slot_index", None)
             fallback_lookup["key_name"] = key_name

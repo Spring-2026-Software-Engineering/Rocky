@@ -70,25 +70,15 @@ def index_page(deps: dict[str, Any]):
 
 
 def get_analytics_kpis(deps: dict[str, Any]):
-    require_admin = deps["require_admin"]
     _get_collection_snapshot = deps["_get_collection_snapshot"]
     analytics_kpis = deps["analytics_kpis"]
-
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
 
     return jsonify(_get_collection_snapshot(analytics_kpis))
 
 
 def get_analytics_activity(deps: dict[str, Any]):
-    require_admin = deps["require_admin"]
     _get_collection_snapshot = deps["_get_collection_snapshot"]
     analytics_activity = deps["analytics_activity"]
-
-    ok, err = require_admin()
-    if not ok:
-        return jsonify(err[0]), err[1]
 
     return jsonify(_get_collection_snapshot(analytics_activity))
 

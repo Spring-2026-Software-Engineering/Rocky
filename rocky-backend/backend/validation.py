@@ -15,10 +15,10 @@ def normalize_str(value: Any) -> str:
 
 def is_valid_email(value: Any) -> bool:
     email = normalize_str(value).lower()
-    if not email or " " in email or "@" not in email:
+    if not email or " " in email or email.count("@") != 1:
         return False
 
-    local_part, domain_part = email.rsplit("@", 1)
+    local_part, domain_part = email.split("@", 1)
     if not local_part or not domain_part or "." not in domain_part:
         return False
     if local_part.startswith(".") or local_part.endswith("."):
