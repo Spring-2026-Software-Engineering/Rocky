@@ -603,7 +603,7 @@ def update_instructor_handout_limit_route(deps: dict[str, Any], course_id: str):
         return _bad_request("Unable to update instructor handout limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return jsonify({"message": "Instructor handout limit updated successfully."})
 
 
 def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
@@ -646,7 +646,7 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
         return _bad_request("Unable to update instructor key limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
-    return jsonify(_serialize_value(updated))
+    return jsonify({"message": "Instructor key limit updated successfully."})
 
 
 def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id: str):
