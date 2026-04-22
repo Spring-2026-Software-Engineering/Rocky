@@ -1242,7 +1242,7 @@ def update_course_api_key_status_route(deps: dict[str, Any], course_id: str):
             return jsonify({"error": "API key not found."}), 404
         return _bad_request("Unable to update API key status.")
 
-    return jsonify(_serialize_value({"message": "API key status updated", "key": updated_key}))
+    return jsonify({"message": "API key status updated"})
 
 
 def append_course_api_history(deps: dict[str, Any], course_id: str):
