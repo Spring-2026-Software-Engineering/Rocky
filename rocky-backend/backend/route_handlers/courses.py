@@ -553,7 +553,7 @@ def update_member_key_limit_route(deps: dict[str, Any], course_id: str, member_i
     try:
         updated = update_course_member_key_limit(course, member_id, key_limit)
     except ValueError as exc:
-        return _bad_request("Unable to update member key limit.")
+        return _bad_request("keyLimit cannot exceed the course limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -603,7 +603,7 @@ def update_instructor_handout_limit_route(deps: dict[str, Any], course_id: str):
         return _bad_request("Unable to update instructor handout limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
-    return "", 204
+    return jsonify({"message": "Instructor handout limit updated successfully."})
 
 
 def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
@@ -646,7 +646,7 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
         return _bad_request("Unable to update instructor key limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
-    return "", 204
+    return jsonify({"message": "Instructor key limit updated successfully."})
 
 
 def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id: str):
@@ -1242,7 +1242,7 @@ def update_course_api_key_status_route(deps: dict[str, Any], course_id: str):
             return jsonify({"error": "API key not found."}), 404
         return _bad_request("Unable to update API key status.")
 
-    return "", 204
+    return jsonify({"message": "API key status updated successfully."})
 
 
 def append_course_api_history(deps: dict[str, Any], course_id: str):

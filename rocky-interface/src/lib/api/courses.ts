@@ -14,7 +14,16 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 	}
 
 	if (!response.ok) {
-		const body = await response.text();
+		let body = '';
+		if (typeof response.text === 'function') {
+			body = await response.text();
+		} else if (typeof response.json === 'function') {
+			try {
+				body = JSON.stringify(await response.json());
+			} catch {
+				body = '';
+			}
+		}
 		console.error('[courses api] request failed', { url, status: response.status, raw: body });
 		throw new Error(USER_SAFE_ACTION_FAILURE);
 	}
@@ -23,12 +32,20 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 		return undefined as T;
 	}
 
-	const body = await response.text();
-	if (!body.trim()) {
-		return undefined as T;
+	if (typeof response.text === 'function') {
+		const body = await response.text();
+		if (!body.trim()) {
+			return undefined as T;
+		}
+
+		return JSON.parse(body) as T;
 	}
 
-	return JSON.parse(body) as T;
+	if (typeof response.json === 'function') {
+		return (await response.json()) as T;
+	}
+
+	return undefined as T;
 }
 
 function jsonHeaders(): HeadersInit {

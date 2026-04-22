@@ -304,9 +304,12 @@ class BackendValidationTests(BackendTestCase):
             headers=self.admin_headers,
         )
         self.assertEqual(response.status_code, 200)
-
         payload = response.get_json() or {}
-        self.assertEqual(payload.get("instructor_handout_limit"), 2)
+        self.assertEqual(payload.get("message"), "Instructor handout limit updated successfully.")
+
+        updated_course = main.courses.find_one({"id": 1})
+        self.assertIsNotNone(updated_course)
+        self.assertEqual(updated_course.get("instructor_handout_limit"), 2)
 
     def test_non_admin_cannot_update_instructor_handout_limit(self):
         self._log("Instructor attempts to update instructor handout limit. Expecting HTTP 403.")
