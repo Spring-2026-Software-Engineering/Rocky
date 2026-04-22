@@ -111,6 +111,8 @@
 	let selectedInstructorStudentId = '';
 	let selectedInstructorGroupId = '';
 	let rosterEntries: RosterEntry[] = [];
+	let searchQuery = '';
+	let sortByName = false;
 
 	function normalizeIdentifier(value: string | null | undefined): string {
 		return value?.trim().toLowerCase() || '';
@@ -125,6 +127,22 @@
 		const parsed = Number(match[1]);
 		return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
 	}
+	$: filteredMembers =
+		(selectedDetail?.members || []).filter((member) => {
+			const q = searchQuery.toLowerCase().trim();
+
+			return (
+				getMemberDisplayName(member)?.toLowerCase().includes(q) ||
+				member.email?.toLowerCase().includes(q)
+			);
+		}) || [];
+
+	$: sortedMembers = sortByName
+		? [...filteredMembers].sort((a, b) =>
+				getMemberDisplayName(a).localeCompare(getMemberDisplayName(b))
+	  	)
+		: filteredMembers;
+
 
 	function getMemberIdentifier(member: CourseDetail['members'][number]): string {
 		const emailIdentifier = normalizeIdentifier(member.email);
@@ -1629,6 +1647,43 @@
 							{/if}
 						</div>
 					{/if}
+					{#if canViewPersonalApiData}
+						<div class="course-panel">
+							<h3>Personal API Data</h3>
+							<p><strong>Status:</strong> Awaiting backend response fields.</p>
+						</div>
+					{/if}
+				</div>
+			{:else if activeTab === 'edit-course' && canEditCourse}
+				<div class="section-content">
+					<CourseEditorCard
+						title="Edit Course"
+						submitLabel="Save Course"
+						idPrefix="edit-course"
+						users={accountUsers}
+						form={editCourseForm}
+						useSemesterPicker={true}
+						semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
+						semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
+						on:submit={saveCourseEdits}
+					/>
+				</div>
+			{:else if activeTab === 'edit-roster' && canEditPeopleAndGroups}
+				<div class="section-content">
+					<div class="course-people-actions">
+						<input type="text" placeholder="Search users" bind:value={searchQuery} class="view-btn"/>
+						<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>
+						<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
+						<input
+							class="course-hidden-input"
+							type="file"
+							accept=".csv,text/csv"
+							bind:this={importCsvInput}
+							onchange={importPeopleFromCanvasCsv}
+						/>
+					</div>
+
+
 					<div class="table-container">
 						<table class="data-table course-people-table">
 							<colgroup>
@@ -1640,7 +1695,7 @@
 							</colgroup>
 							<thead>
 								<tr>
-									<th>Name</th>
+									<th style="cursor: pointer; user-select: none;" onclick={() => (sortByName = !sortByName)} >Name {sortByName ? '▲' : '▼'}</th>
 									<th>Email</th>
 									<th>Role</th>
 									<th>Keys</th>
@@ -1648,9 +1703,8 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#if rosterEntries.length}
-									{#each rosterEntries as entry}
-										{@const memberIdentifier = normalizeIdentifier(entry.email) || normalizeIdentifier(entry.id)}
+								{#if filteredMembers.length}
+									{#each sortedMembers as member}
 										<tr>
 											<td>{entry.isInstructor ? (selectedCourse.instructor || 'Unknown Instructor') : getMemberDisplayName(entry)}</td>
 											<td>{entry.email}</td>
