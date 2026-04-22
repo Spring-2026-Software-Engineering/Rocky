@@ -599,8 +599,8 @@ def update_instructor_handout_limit_route(deps: dict[str, Any], course_id: str):
 
     try:
         updated = update_course_instructor_handout_limit(course, handout_limit)
-    except ValueError as exc:
-        return _bad_request(str(exc))
+    except ValueError:
+        return _bad_request("Unable to update instructor handout limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -642,8 +642,8 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
 
     try:
         updated = update_course_instructor_key_limit(course, key_limit)
-    except ValueError as exc:
-        return _bad_request(str(exc))
+    except ValueError:
+        return _bad_request("Unable to update instructor key limit.")
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
