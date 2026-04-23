@@ -182,9 +182,6 @@ def validate_user_payload(payload: Any):
         return None, "User last_name is required."
     if not is_valid_email(email):
         return None, "A valid user email is required."
-    if not user_id:
-        user_id = f"seed-{email.split('@')[0]}"
-
     cleaned = {
         "id": user_id,
         "first_name": first_name,

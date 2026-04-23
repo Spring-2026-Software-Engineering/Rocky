@@ -24,7 +24,9 @@ def create_user(deps: dict[str, Any]):
     cleaned["created_at"] = datetime.now(timezone.utc).isoformat()
     cleaned["settings"] = _default_user_settings()
     cleaned["is_active"] = True
-    users.insert_one(cleaned)
+    cleaned.pop("id", None)
+    inserted_id = users.insert_one(cleaned).inserted_id
+    users.update_one({"_id": inserted_id}, {"$set": {"id": str(inserted_id)}})
     return jsonify({"message": "User created"})
 
 

@@ -13,34 +13,24 @@ class MicrosoftOAuthTests(BackendTestCase):
         super().setUp()
         object.__setattr__(main.settings, "enable_microsoft_oauth", True)
 
-    def test_whitelist_add_assigns_unique_wlid(self):
-        self._log("Adding whitelist entry with forced WLID collision. Expecting automatic retry.")
+    def test_whitelist_add_assigns_database_id(self):
+        self._log("Adding whitelist entry. Expecting a database-generated id and persisted entry.")
 
-        main.users.insert_one(
-            {
-                "first_name": "Existing",
-                "last_name": "WLID User",
-                "email": "existing.wlid.user@kent.edu",
-                "id": "WLID000000123",
-                "is_admin": False,
-            }
+        response = self.client.post(
+            "/auth/microsoft/whitelist",
+            json={
+                "firstName": "Taylor",
+                "lastName": "Outside",
+                "email": "taylor.outside@example.com",
+            },
+            headers=self.admin_headers,
         )
-
-        with patch.object(main.random, "randint", side_effect=[123, 456]):
-            response = self.client.post(
-                "/auth/microsoft/whitelist",
-                json={
-                    "firstName": "Taylor",
-                    "lastName": "Outside",
-                    "email": "taylor.outside@example.com",
-                },
-                headers=self.admin_headers,
-            )
 
         self.assertEqual(response.status_code, 201)
         payload = response.get_json()
         entry = payload["entry"]
-        self.assertEqual(entry["id"], "WLID000000456")
+        self.assertTrue(entry["id"])
+        self.assertEqual(entry["email"], "taylor.outside@example.com")
 
     def test_microsoft_login_denies_non_whitelisted_external_email(self):
         self._log("Posting OAuth login for non-Kent non-whitelisted email. Expecting HTTP 403.")
@@ -84,7 +74,7 @@ class MicrosoftOAuthTests(BackendTestCase):
 
         saved = main.users.find_one({"email": "ari.guest@example.com"})
         self.assertIsNotNone(saved)
-        self.assertEqual(saved.get("id"), whitelist_id)
+        self.assertTrue(saved.get("id"))
         self.assertEqual(saved.get("is_admin"), False)
 
     def test_whitelist_patch_updates_active_flag_and_syncs_existing_user(self):
@@ -118,7 +108,7 @@ class MicrosoftOAuthTests(BackendTestCase):
         )
         self.assertEqual(disable_response.status_code, 200)
         self.assertEqual(main.whitelist_users.find_one({"id": whitelist_id}).get("is_active"), False)
-        self.assertEqual(main.users.find_one({"id": whitelist_id}).get("is_active"), False)
+        self.assertEqual(main.users.find_one({"email": "ari.sync@example.com"}).get("is_active"), False)
 
         enable_response = self.client.patch(
             f"/auth/microsoft/whitelist/{whitelist_id}",
@@ -127,7 +117,7 @@ class MicrosoftOAuthTests(BackendTestCase):
         )
         self.assertEqual(enable_response.status_code, 200)
         self.assertEqual(main.whitelist_users.find_one({"id": whitelist_id}).get("is_active"), True)
-        self.assertEqual(main.users.find_one({"id": whitelist_id}).get("is_active"), True)
+        self.assertEqual(main.users.find_one({"email": "ari.sync@example.com"}).get("is_active"), True)
 
     def test_microsoft_login_preserves_deactivated_whitelist_status(self):
         self._log("Logging in with deactivated whitelisted email. Expecting created user to remain inactive.")
@@ -164,7 +154,7 @@ class MicrosoftOAuthTests(BackendTestCase):
         payload = login_response.get_json()
         self.assertEqual(payload["user"]["is_active"], False)
 
-        saved = main.users.find_one({"id": whitelist_id})
+        saved = main.users.find_one({"email": "casey.dormant@example.com"})
         self.assertIsNotNone(saved)
         self.assertEqual(saved.get("is_active"), False)
 
@@ -188,7 +178,8 @@ class MicrosoftOAuthTests(BackendTestCase):
         saved = main.users.find_one({"email": "jordan.kent@kent.edu"})
         self.assertIsNotNone(saved)
         self.assertEqual(saved.get("is_admin"), False)
-        self.assertEqual(saved.get("id"), "KSUID123456789")
+        self.assertTrue(saved.get("id"))
+        self.assertEqual(payload["user"]["id"], saved.get("id"))
 
     def test_whitelist_requires_admin_headers(self):
         self._log("Requesting whitelist list as non-admin. Expecting HTTP 403.")
@@ -247,7 +238,7 @@ class MicrosoftOAuthTests(BackendTestCase):
             None,
         )
         self.assertIsNotNone(member)
-        self.assertEqual(member.get("id"), "KSUID000000222")
+        self.assertEqual(member.get("id"), main.users.find_one({"email": "new.student@kent.edu"}).get("id"))
         self.assertEqual(member.get("name"), "New Student")
 
     def test_microsoft_login_reconciles_pending_member_for_kent_user(self):
@@ -280,7 +271,7 @@ class MicrosoftOAuthTests(BackendTestCase):
             None,
         )
         self.assertIsNotNone(member)
-        self.assertEqual(member.get("id"), "KSUID222333444")
+        self.assertEqual(member.get("id"), main.users.find_one({"email": "oauth.student@kent.edu"}).get("id"))
         self.assertEqual(member.get("name"), "Oauth Student")
 
 

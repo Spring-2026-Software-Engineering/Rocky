@@ -92,8 +92,6 @@ help_faq = collections.help_faq
 ALLOWED_THEME_PREFERENCES = {"light", "dark"}
 API_KEY_REGENERATION_COOLDOWN = timedelta(minutes=5)
 KENT_EMAIL_SUFFIX = "@kent.edu"
-WLID_PREFIX = "WLID"
-KSUID_PREFIX = "KSUID"
 
 
 def _parse_object_id(value: str):
@@ -389,10 +387,16 @@ def _resolve_user_record(user_id: str | None, email: str | None):
         if user:
             return user
 
+        object_id = _parse_object_id(normalized_user_id)
+        if object_id is not None:
+            user = users.find_one({"_id": object_id})
+            if user:
+                return user
+
         whitelist_user = whitelist_users.find_one({"id": normalized_user_id})
         if whitelist_user:
             return {
-                "id": normalize_str(whitelist_user.get("id")),
+                "id": normalize_str(whitelist_user.get("id") or whitelist_user.get("_id")),
                 "first_name": normalize_str(whitelist_user.get("first_name")),
                 "last_name": normalize_str(whitelist_user.get("last_name")),
                 "email": normalize_str(whitelist_user.get("email")).lower(),
@@ -413,39 +417,6 @@ def _is_user_active(user_record: dict[str, Any]) -> bool:
 
 def _is_kent_email(email: str) -> bool:
     return email.lower().endswith(KENT_EMAIL_SUFFIX)
-
-
-def _coerce_ksuid(value: str | None) -> str:
-    raw = normalize_str(value).upper()
-    if not raw:
-        return ""
-
-    if raw.startswith(KSUID_PREFIX):
-        suffix = raw[len(KSUID_PREFIX):]
-        return f"{KSUID_PREFIX}{suffix}" if suffix.isdigit() and len(suffix) == 9 else ""
-
-    return f"{KSUID_PREFIX}{raw}" if raw.isdigit() and len(raw) == 9 else ""
-
-
-def _next_prefixed_id(collection, field_name: str, prefix: str) -> str:
-    while True:
-        candidate = f"{prefix}{random.randint(0, 999999999):09d}"
-        if collection.find_one({field_name: candidate}) is None:
-            return candidate
-
-
-def _wlid_exists(candidate: str) -> bool:
-    return (
-        whitelist_users.find_one({"id": candidate}) is not None
-        or users.find_one({"id": candidate}) is not None
-    )
-
-
-def _next_unique_wlid() -> str:
-    while True:
-        candidate = f"{WLID_PREFIX}{random.randint(0, 999999999):09d}"
-        if not _wlid_exists(candidate):
-            return candidate
 
 
 def _normalize_oauth_payload(payload: Any):
@@ -480,7 +451,7 @@ def _build_display_name(first_name: str, last_name: str, email: str) -> str:
 def _resolve_requester_user_id(email: str) -> str:
     user_record = _resolve_user_record(None, email)
     if user_record:
-        user_id = normalize_str(user_record.get("id"))
+        user_id = normalize_str(user_record.get("id") or user_record.get("_id"))
         if user_id:
             return user_id
     return normalize_str(email).lower()
@@ -495,7 +466,7 @@ def _serialize_user(user_record: dict[str, Any]) -> dict[str, Any]:
             "first_name": first_name,
             "last_name": last_name,
             "email": normalize_str(user_record.get("email")).lower(),
-            "id": normalize_str(user_record.get("id")),
+            "id": normalize_str(user_record.get("id") or user_record.get("_id")),
             "is_admin": bool(user_record.get("is_admin")),
             "is_active": _is_user_active(user_record),
             "created_at": user_record.get("created_at"),
@@ -510,7 +481,7 @@ def _serialize_whitelist_user(entry: dict[str, Any]) -> dict[str, Any]:
             "first_name": normalize_str(entry.get("first_name")),
             "last_name": normalize_str(entry.get("last_name")),
             "email": normalize_str(entry.get("email")).lower(),
-            "id": normalize_str(entry.get("id")),
+            "id": normalize_str(entry.get("id") or entry.get("_id")),
             "is_admin": bool(entry.get("is_admin")),
             "is_active": _is_user_active(entry),
             "settings": entry.get("settings", _default_user_settings()),
@@ -667,7 +638,6 @@ def _route_deps() -> dict[str, Any]:
         "widgets_default": widgets_default,
         "help_faq": help_faq,
         "is_valid_email": is_valid_email,
-        "KSUID_PREFIX": KSUID_PREFIX,
         "logger": logger,
         "require_admin": require_admin,
         "require_requester_identity": require_requester_identity,
@@ -682,9 +652,6 @@ def _route_deps() -> dict[str, Any]:
         "_default_user_settings": _default_user_settings,
         "_normalize_oauth_payload": _normalize_oauth_payload,
         "_is_kent_email": _is_kent_email,
-        "_coerce_ksuid": _coerce_ksuid,
-        "_next_prefixed_id": _next_prefixed_id,
-        "_next_unique_wlid": _next_unique_wlid,
         "_can_access_user_record": _can_access_user_record,
         "_default_widgets_payload": _default_widgets_payload,
         "_get_settings_for_user": _get_settings_for_user,

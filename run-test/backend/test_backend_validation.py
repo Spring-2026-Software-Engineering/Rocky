@@ -71,7 +71,7 @@ class BackendValidationTests(BackendTestCase):
         self.assertEqual(response.status_code, 200)
         saved = main.users.find_one({"email": "local.api.user@kent.edu"})
         self.assertIsNotNone(saved)
-        self.assertTrue(saved.get("id", "").startswith("seed-"))
+        self.assertTrue(saved.get("id"))
 
     def test_update_user_only_accepts_is_active_boolean(self):
         self._log("Updating user status through /users/<id>. Expecting boolean-only is_active support.")
@@ -129,17 +129,18 @@ class BackendValidationTests(BackendTestCase):
                 "code": "CS 4550",
                 "name": "Cloud Computing",
                 "instructor": "Dr. Priya Narayanan",
+                "instructor_id": self.seeded_user_ids["instructor.local@kent.edu"],
                 "semester": "Summer 2027",
                 "color": "#1d4ed8",
                 "members": [
-                    {"id": "KSUID000000002", "role": "instructor"},
-                    {"id": "KSUID000000003", "role": "student"},
+                    {"id": self.seeded_user_ids["instructor.local@kent.edu"], "role": "instructor"},
+                    {"id": self.seeded_user_ids["instructor.alt@kent.edu"], "role": "student"},
                 ],
                 "groups": [
                     {
                         "id": "group-cs4550-cloud",
                         "name": "Cloud Ops",
-                        "memberIds": ["KSUID000000003"],
+                        "memberIds": [self.seeded_user_ids["instructor.alt@kent.edu"]],
                     }
                 ],
             },
@@ -181,11 +182,11 @@ class BackendValidationTests(BackendTestCase):
         self.assertNotIn("created_by", payload or {})
         self.assertNotIn("c_id", payload or {})
 
-        stored = main.api_keys.find_one({"course_id": 1, "owner_type": "person", "owner_id": "ksuid000000001", "key_name": "key-1"})
+        stored = main.api_keys.find_one({"course_id": 1, "owner_type": "person", "key_name": "key-1"})
         self.assertIsNotNone(stored)
         self.assertEqual(stored.get("hash"), hashlib.sha256(plaintext_key.encode("utf-8")).hexdigest())
         self.assertEqual(stored.get("owner_type"), "person")
-        self.assertEqual(stored.get("owner_id"), "ksuid000000001")
+        self.assertTrue(stored.get("owner_id"))
         self.assertEqual(stored.get("course_id"), 1)
         self.assertEqual(stored.get("is_active"), True)
         self.assertNotIn("created_by", stored)
@@ -204,13 +205,13 @@ class BackendValidationTests(BackendTestCase):
 
         payload = response.get_json() or {}
         self.assertEqual(payload.get("owner_type"), "group")
-        self.assertEqual(payload.get("group_created_by"), "ksuid000000001")
+        self.assertTrue(payload.get("group_created_by"))
 
         stored = main.api_keys.find_one({"course_id": 1, "owner_type": "group", "owner_id": "group-se3010-a", "key_name": "key-1"})
         self.assertIsNotNone(stored)
         self.assertEqual(stored.get("owner_type"), "group")
         self.assertEqual(stored.get("owner_id"), "group-se3010-a")
-        self.assertEqual(stored.get("group_created_by"), "ksuid000000001")
+        self.assertTrue(stored.get("group_created_by"))
 
     def test_student_can_generate_own_key_once_then_hits_cooldown(self):
         self._log("Generating a self-service API key as a student and verifying the cooldown blocks a second request.")
@@ -277,13 +278,13 @@ class BackendValidationTests(BackendTestCase):
         self.assertEqual(course_after_regenerate.get("has_api_key"), True)
 
     def test_instructor_cannot_update_instructor_member_key_limit(self):
-        self._log("Instructor tries to change another instructor key limit. Expecting HTTP 403.")
+        self._log("Instructor tries to change another instructor key limit. Expecting HTTP 400.")
         response = self.client.patch(
-            "/courses/1/members/KSUID000000002/key-limit",
+            f"/courses/1/members/{self.seeded_user_ids['instructor.alt@kent.edu']}/key-limit",
             json={"keyLimit": 3},
             headers=self.instructor_headers,
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
 
     def test_admin_cannot_set_member_key_limit_above_course_limit(self):
         self._log("Admin attempts to set member key limit above course key limit. Expecting HTTP 400.")

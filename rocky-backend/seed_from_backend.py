@@ -146,7 +146,6 @@ def seed_from_backend() -> dict[str, int]:
         settings_payload = _normalize_user_settings(raw.get("settings"), raw_widgets)
 
         user_doc = {
-            "id": (raw.get("id") or f"seed-{email.split('@')[0]}").strip(),
             "first_name": (raw.get("first_name") or "").strip(),
             "last_name": (raw.get("last_name") or "").strip(),
             "email": email,
@@ -160,7 +159,8 @@ def seed_from_backend() -> dict[str, int]:
             parts = [part for part in fallback_name.split() if part]
             user_doc["first_name"] = parts[0] if parts else "Unknown"
             user_doc["last_name"] = " ".join(parts[1:]) if len(parts) > 1 else "User"
-        main.users.insert_one(user_doc)
+        inserted_id = main.users.insert_one(user_doc).inserted_id
+        main.users.update_one({"_id": inserted_id}, {"$set": {"id": str(inserted_id)}})
         users_inserted += 1
 
     user_id_by_email = {

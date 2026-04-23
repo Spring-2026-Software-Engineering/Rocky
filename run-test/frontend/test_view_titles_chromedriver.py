@@ -21,7 +21,7 @@ class ViewTitleE2ETests(FrontendBrowserTestCase):
             ("Users", "Users"),
             ("Courses", "Courses"),
             ("Analytics", "Analytics"),
-            ("Account", "Account Settings"),
+            ("Account", "Account Profile"),
             ("Help", "Help Center"),
             ("Dashboard", "Dashboard"),
         ]
