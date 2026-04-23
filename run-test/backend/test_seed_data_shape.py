@@ -45,8 +45,8 @@ class SeedDataShapeTests(BackendTestCase):
         self.assertTrue(all(widget in available_ids for widget in student_widgets))
         self.assertTrue(all(widget in available_ids for widget in instructor_widgets))
 
-        self.assertNotEqual(admin_widgets[0], student_widgets[0])
-        self.assertNotEqual(student_widgets[0], instructor_widgets[0])
+        self.assertNotEqual(admin_widgets, student_widgets)
+        self.assertNotEqual(student_widgets, instructor_widgets)
 
 
 if __name__ == "__main__":

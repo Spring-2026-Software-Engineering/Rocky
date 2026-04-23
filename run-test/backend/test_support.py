@@ -41,6 +41,11 @@ class BackendTestCase(unittest.TestCase):
 
     def setUp(self):
         seed_backend.seed_from_backend()
+        self.seeded_user_ids = {
+            (user.get("email") or "").strip().lower(): (user.get("id") or "").strip()
+            for user in main.users.find()
+            if (user.get("email") or "").strip() and (user.get("id") or "").strip()
+        }
         self.admin_headers = {
             "X-Rocky-User-Email": "admin.local@kent.edu",
             "X-Rocky-User-Is-Admin": "true",

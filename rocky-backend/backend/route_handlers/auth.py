@@ -71,10 +71,7 @@ def microsoft_login(deps: dict[str, Any]):
     _bad_request = deps["_bad_request"]
     _is_kent_email = deps["_is_kent_email"]
     _resolve_user_record = deps["_resolve_user_record"]
-    _coerce_ksuid = deps["_coerce_ksuid"]
-    _next_prefixed_id = deps["_next_prefixed_id"]
     users = deps["users"]
-    KSUID_PREFIX = deps["KSUID_PREFIX"]
     _default_user_settings = deps["_default_user_settings"]
     _serialize_user = deps["_serialize_user"]
     whitelist_users = deps["whitelist_users"]
@@ -97,11 +94,9 @@ def microsoft_login(deps: dict[str, Any]):
     last_name = cleaned["last_name"]
     if _is_kent_email(email):
         user_record = _resolve_user_record(None, email)
-        generated_id = _coerce_ksuid(cleaned.get("id")) or _next_prefixed_id(users, "id", KSUID_PREFIX)
 
         if not user_record:
             to_insert = {
-                "id": generated_id,
                 "first_name": first_name,
                 "last_name": last_name,
                 "email": email,
@@ -110,21 +105,22 @@ def microsoft_login(deps: dict[str, Any]):
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "settings": _default_user_settings(),
             }
-            users.insert_one(to_insert)
-            user_record = users.find_one({"id": generated_id})
+            inserted_id = users.insert_one(to_insert).inserted_id
+            users.update_one({"_id": inserted_id}, {"$set": {"id": str(inserted_id)}})
+            user_record = users.find_one({"_id": inserted_id})
             logger.info("[oauth] login success: created Kent user %s", email)
         else:
             users.update_one(
-                {"id": user_record["id"]},
+                {"_id": user_record.get("_id")},
                 {
                     "$set": {
                         "first_name": first_name,
                         "last_name": last_name,
-                        "id": user_record.get("id") or generated_id,
+                        "id": str(user_record.get("id") or user_record.get("_id") or ""),
                     }
                 },
             )
-            user_record = users.find_one({"id": user_record["id"]})
+            user_record = users.find_one({"_id": user_record.get("_id")})
             logger.info("[oauth] login success: existing Kent user %s", email)
 
         reconcile_course_members_for_user(courses, user_record)
@@ -137,10 +133,8 @@ def microsoft_login(deps: dict[str, Any]):
 
     user_record = users.find_one({"email": email})
     if not user_record:
-        external_id = normalize_str(whitelist_record.get("id"))
         whitelist_is_active = _is_user_active(whitelist_record)
         to_insert = {
-            "id": external_id,
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
@@ -149,23 +143,24 @@ def microsoft_login(deps: dict[str, Any]):
             "created_at": datetime.now(timezone.utc).isoformat(),
             "settings": _default_user_settings(),
         }
-        users.insert_one(to_insert)
-        user_record = users.find_one({"id": external_id})
+        inserted_id = users.insert_one(to_insert).inserted_id
+        users.update_one({"_id": inserted_id}, {"$set": {"id": str(inserted_id)}})
+        user_record = users.find_one({"_id": inserted_id})
         logger.info("[oauth] login success: created whitelisted user %s", email)
     else:
         whitelist_is_active = _is_user_active(whitelist_record)
         users.update_one(
-            {"id": user_record["id"]},
+            {"_id": user_record.get("_id")},
             {
                 "$set": {
                     "first_name": first_name,
                     "last_name": last_name,
-                    "id": whitelist_record["id"],
+                    "id": str(user_record.get("id") or user_record.get("_id") or ""),
                     "is_active": whitelist_is_active,
                 }
             },
         )
-        user_record = users.find_one({"id": user_record["id"]})
+        user_record = users.find_one({"_id": user_record.get("_id")})
         logger.info("[oauth] login success: existing whitelisted user %s", email)
 
     reconcile_course_members_for_user(courses, user_record)
@@ -193,7 +188,6 @@ def add_oauth_whitelist_entry(deps: dict[str, Any]):
     _is_kent_email = deps["_is_kent_email"]
     whitelist_users = deps["whitelist_users"]
     require_requester_identity = deps["require_requester_identity"]
-    _next_unique_wlid = deps["_next_unique_wlid"]
     _default_user_settings = deps["_default_user_settings"]
     _serialize_whitelist_user = deps["_serialize_whitelist_user"]
     logger = deps["logger"]
@@ -230,7 +224,6 @@ def add_oauth_whitelist_entry(deps: dict[str, Any]):
         requester_email, _ = identity
 
     created = {
-        "id": _next_unique_wlid(),
         "first_name": first_name,
         "last_name": last_name,
         "email": email,
@@ -240,8 +233,9 @@ def add_oauth_whitelist_entry(deps: dict[str, Any]):
         "created_at": datetime.now(timezone.utc).isoformat(),
         "created_by": requester_email,
     }
-    whitelist_users.insert_one(created)
-    saved = whitelist_users.find_one({"id": created["id"]})
+    inserted_id = whitelist_users.insert_one(created).inserted_id
+    whitelist_users.update_one({"_id": inserted_id}, {"$set": {"id": str(inserted_id)}})
+    saved = whitelist_users.find_one({"_id": inserted_id})
 
     logger.info("[oauth] whitelist add success: %s", email)
     return jsonify({"message": "Whitelist entry added.", "entry": _serialize_whitelist_user(saved)}), 201
@@ -265,7 +259,11 @@ def update_or_delete_oauth_whitelist_entry(deps: dict[str, Any], entry_id: str):
 
     entry = whitelist_users.find_one({"id": normalized_entry_id})
     if not entry:
+        entry = whitelist_users.find_one({"_id": normalized_entry_id})
+    if not entry:
         return jsonify({"error": "Whitelist entry not found"}), 404
+
+    entry_email = normalize_str(entry.get("email")).lower()
 
     if request.method == "PATCH":
         payload = request.get_json(silent=True)
@@ -277,11 +275,13 @@ def update_or_delete_oauth_whitelist_entry(deps: dict[str, Any], entry_id: str):
             return _bad_request("is_active must be a boolean.")
 
         is_active = payload.get("is_active")
-        whitelist_users.update_one({"id": normalized_entry_id}, {"$set": {"is_active": is_active}})
-        users.update_one({"id": normalized_entry_id}, {"$set": {"is_active": is_active}})
-        updated = whitelist_users.find_one({"id": normalized_entry_id})
+        whitelist_users.update_one({"_id": entry.get("_id")}, {"$set": {"is_active": is_active}})
+        if entry_email:
+            users.update_one({"email": entry_email}, {"$set": {"is_active": is_active}})
+        updated = whitelist_users.find_one({"_id": entry.get("_id")})
         return jsonify({"message": "Whitelist entry updated.", "entry": _serialize_whitelist_user(updated)})
 
-    whitelist_users.delete_one({"id": normalized_entry_id})
-    users.delete_many({"id": normalized_entry_id})
+    whitelist_users.delete_one({"_id": entry.get("_id")})
+    if entry_email:
+        users.delete_many({"email": entry_email})
     return jsonify({"message": "Whitelist entry removed."})
