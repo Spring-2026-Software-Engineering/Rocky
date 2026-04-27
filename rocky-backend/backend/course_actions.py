@@ -84,7 +84,7 @@ def _set_course_member_lists(course: dict[str, Any]) -> None:
             member_id = ""
         name = normalize_str(member.get("name")) or None
         key_limit = member.get("key_limit")
-        if not isinstance(key_limit, int) or key_limit < 1:
+        if not isinstance(key_limit, int) or key_limit < 0:
             key_limit = 1
         normalized = {
             "id": member_id or None,
@@ -116,11 +116,11 @@ def _set_course_member_lists(course: dict[str, Any]) -> None:
     course["ta_emails"] = [identifier for identifier in course["ta_emails"] if identifier not in instructor_identifiers]
 
     instructor_key_limit = course.get("instructor_key_limit")
-    if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
+    if not isinstance(instructor_key_limit, int) or instructor_key_limit < 0:
         course["instructor_key_limit"] = 2
 
     course_handout_limit = course.get("instructor_handout_limit")
-    if not isinstance(course_handout_limit, int) or course_handout_limit < 1:
+    if not isinstance(course_handout_limit, int) or course_handout_limit < 0:
         course["instructor_handout_limit"] = 2
 
     if not isinstance(course.get("is_active"), bool):
@@ -453,14 +453,14 @@ def update_course_member_key_limit(course: dict[str, Any], member_id: str, key_l
     normalized_member_id = normalize_str(member_id)
     if not normalized_member_id:
         raise ValueError("member id is required.")
-    if not isinstance(key_limit, int) or key_limit < 1:
-        raise ValueError("key_limit must be an integer >= 1.")
+    if not isinstance(key_limit, int) or key_limit < 0:
+        raise ValueError("key_limit must be an integer >= 0.")
 
-    instructor_key_limit = course.get("instructor_key_limit")
-    if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
-        instructor_key_limit = 2
-    if key_limit > instructor_key_limit:
-        raise ValueError("key_limit cannot exceed instructor_key_limit.")
+    student_key_limit = course.get("instructor_handout_limit")
+    if not isinstance(student_key_limit, int) or student_key_limit < 0:
+        student_key_limit = 2
+    if key_limit > student_key_limit:
+        raise ValueError("key_limit cannot exceed instructor_handout_limit.")
 
     updated = False
     for member in course.get("members", []):
@@ -476,14 +476,8 @@ def update_course_member_key_limit(course: dict[str, Any], member_id: str, key_l
 
 
 def update_course_instructor_handout_limit(course: dict[str, Any], handout_limit: int) -> dict[str, Any]:
-    if not isinstance(handout_limit, int) or handout_limit < 1:
-        raise ValueError("instructor_handout_limit must be an integer >= 1.")
-
-    instructor_key_limit = course.get("instructor_key_limit")
-    if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
-        instructor_key_limit = 2
-    if handout_limit > instructor_key_limit:
-        raise ValueError("instructor_handout_limit cannot exceed instructor_key_limit.")
+    if not isinstance(handout_limit, int) or handout_limit < 0:
+        raise ValueError("instructor_handout_limit must be an integer >= 0.")
 
     course["instructor_handout_limit"] = handout_limit
     _set_course_member_lists(course)
@@ -491,12 +485,8 @@ def update_course_instructor_handout_limit(course: dict[str, Any], handout_limit
 
 
 def update_course_instructor_key_limit(course: dict[str, Any], key_limit: int) -> dict[str, Any]:
-    if not isinstance(key_limit, int) or key_limit < 1:
-        raise ValueError("instructor_key_limit must be an integer >= 1.")
-
-    handout_limit = course.get("instructor_handout_limit")
-    if isinstance(handout_limit, int) and handout_limit > key_limit:
-        raise ValueError("instructor_key_limit cannot be less than instructor_handout_limit.")
+    if not isinstance(key_limit, int) or key_limit < 0:
+        raise ValueError("instructor_key_limit must be an integer >= 0.")
 
     course["instructor_key_limit"] = key_limit
     _set_course_member_lists(course)
@@ -507,14 +497,14 @@ def update_course_group_key_limit(course: dict[str, Any], group_id: str, key_lim
     normalized_group_id = normalize_str(group_id)
     if not normalized_group_id:
         raise ValueError("groupId is required.")
-    if not isinstance(key_limit, int) or key_limit < 1:
-        raise ValueError("key_limit must be an integer >= 1.")
+    if not isinstance(key_limit, int) or key_limit < 0:
+        raise ValueError("key_limit must be an integer >= 0.")
 
-    instructor_key_limit = course.get("instructor_key_limit")
-    if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
-        instructor_key_limit = 2
-    if key_limit > instructor_key_limit:
-        raise ValueError("key_limit cannot exceed instructor_key_limit.")
+    student_key_limit = course.get("instructor_handout_limit")
+    if not isinstance(student_key_limit, int) or student_key_limit < 0:
+        student_key_limit = 2
+    if key_limit > student_key_limit:
+        raise ValueError("key_limit cannot exceed instructor_handout_limit.")
 
     target_group = next(
         (group for group in course.get("groups", []) if isinstance(group, dict) and normalize_str(group.get("id")) == normalized_group_id),
@@ -640,7 +630,6 @@ def regenerate_course_api_key(
         "created": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Keep a fallback course code only when numeric id is unavailable.
     if course_numeric_id is None:
         key_doc["c_id"] = course_code
 
