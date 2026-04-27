@@ -15,7 +15,7 @@
 		dashboard: '/dashboard-icon.svg',
 		users: '/users-icon.svg',
 		courses: '/courses-icon.svg',
-		analytics: '/analytics-icon.svg',
+		// analytics: '/analytics-icon.svg',
 		account: '/account-icon.svg',
 		help: '/help-icon.svg'
 	};
