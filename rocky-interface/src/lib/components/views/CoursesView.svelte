@@ -424,11 +424,12 @@
 			);
 			await refreshAfterWrite();
 		} catch {
-			// API layer already shows user-facing feedback.
+	
 		}
 
 		target.value = '';
 	}
+
 
 	function triggerCsvImportPicker() {
 		importCsvInput?.click();
@@ -448,6 +449,7 @@
 				code: editCourseForm.code.trim() || selectedCourse.code,
 				semester: editCourseForm.semester.trim() || selectedCourse.semester,
 				instructorId: normalizedInstructorId || currentInstructorId,
+				taIds: editCourseForm.taIds,
 				color: editCourseForm.color
 			});
 			await refreshAfterWrite();
@@ -1004,4 +1006,30 @@
 
 		</section>
 	{/if}
+
+		{#if showAddEmailPopup}
+	<div class="popup-backdrop">
+		<div class="popup-card">
+			<h3>Add User by Email</h3>
+			<p class="section-text">Enter a user email to add them to this course.</p>
+
+			<input
+				class="text-input"
+				type="email"
+				bind:value={newMemberEmail}
+				placeholder="student@kent.edu"
+			/>
+
+			{#if addEmailError}
+				<p class="popup-error">{addEmailError}</p>
+			{/if}
+
+			<div class="popup-actions">
+				<button type="button" class="view-btn" onclick={closeAddEmailPopup}>Cancel</button>
+				<button type="button" class="view-btn" onclick={submitAddEmailPopup}>Add User</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
 </ViewShell>

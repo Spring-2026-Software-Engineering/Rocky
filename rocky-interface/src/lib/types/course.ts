@@ -62,6 +62,7 @@ export type CourseMember = {
 	id: string | null;
 	name: string | null;
 	email: string;
+	role?: 'student' | 'instructor';
 	keyLimit: number;
 };
 
