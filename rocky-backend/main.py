@@ -152,26 +152,39 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
             None,
         )
         key_limit = target_group.get("key_limit") if isinstance(target_group, dict) else None
-        return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
+        return key_limit if isinstance(key_limit, int) and key_limit >= 0 else 1
+
+    def normalize_identifier(value: Any) -> str:
+        if value is None:
+            return ""
+        string_value = str(value) if not isinstance(value, str) else value
+        return normalize_str(string_value).lower()
 
     instructor_identifiers = {
-        normalize_str(course.get("instructor_id")).lower(),
-        normalize_str(course.get("instructor_email")).lower(),
+        normalize_identifier(course.get("instructor_id") or course.get("instructorId")),
+        normalize_identifier(course.get("instructor_email") or course.get("instructorEmail")),
     }
+    ta_ids_list = course.get("ta_ids") if isinstance(course.get("ta_ids"), list) else course.get("taIds") if isinstance(course.get("taIds"), list) else []
+    ta_emails_list = course.get("ta_emails") if isinstance(course.get("ta_emails"), list) else course.get("taEmails") if isinstance(course.get("taEmails"), list) else []
     instructor_identifiers.update(
-        normalize_str(identifier).lower()
-        for identifier in (course.get("ta_ids") if isinstance(course.get("ta_ids"), list) else [])
-        if normalize_str(identifier)
+        normalize_identifier(identifier)
+        for identifier in ta_ids_list
     )
     instructor_identifiers.update(
-        normalize_str(identifier).lower()
-        for identifier in (course.get("ta_emails") if isinstance(course.get("ta_emails"), list) else [])
-        if normalize_str(identifier)
+        normalize_identifier(identifier)
+        for identifier in ta_emails_list
     )
     instructor_identifiers.discard("")
     if normalized_owner_id in instructor_identifiers:
-        instructor_key_limit = course.get("instructor_key_limit")
-        return instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit > 0 else 2
+        instructor_key_limit = course.get("instructor_key_limit") if course.get("instructor_key_limit") is not None else course.get("instructorKeyLimit")
+        instructor_handout_limit = course.get("instructor_handout_limit") if course.get("instructor_handout_limit") is not None else course.get("instructorHandoutLimit")
+        if normalized_owner_type == "person":
+            limit = instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit >= 0 else 2
+            return limit
+        if isinstance(instructor_handout_limit, int) and instructor_handout_limit >= 0:
+            return instructor_handout_limit
+        limit = instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit >= 0 else 2
+        return limit
 
     target_member = next(
         (
@@ -186,7 +199,16 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
         None,
     )
     key_limit = target_member.get("key_limit") if isinstance(target_member, dict) else None
-    return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
+    if isinstance(key_limit, int) and key_limit >= 0:
+        return key_limit
+    
+    # For person-type owners, fall back to instructor_key_limit if available
+    if normalized_owner_type == "person":
+        instructor_key_limit = course.get("instructor_key_limit") if course.get("instructor_key_limit") is not None else course.get("instructorKeyLimit")
+        if isinstance(instructor_key_limit, int) and instructor_key_limit >= 0:
+            return instructor_key_limit
+    
+    return 1
 
 
 def _serialize_api_key_summary(entry: dict[str, Any]) -> dict[str, Any]:
@@ -305,7 +327,7 @@ def _default_widget_ids() -> list[str]:
 def _default_user_settings() -> dict[str, Any]:
     return {
         "themePreference": "light",
-        "widgets": _default_widget_ids(),
+        "widgets": [],
     }
 
 
@@ -497,13 +519,13 @@ def _can_access_user_record(requester_email: str, requester_is_admin: bool, targ
     return normalize_str(target_user.get("email")).lower() == normalize_str(requester_email).lower()
 
 
-def _sanitize_widgets(raw: Any) -> list[dict[str, Any]]:
+def _sanitize_widgets(raw: Any) -> list[str]:
     available_widgets = _canonical_available_widgets()
     available_by_id = {_widget_id(widget): widget for widget in available_widgets if _widget_id(widget)}
     available_signatures = {_widget_signature(widget): widget for widget in available_widgets}
 
     if not isinstance(raw, list):
-        return _default_widget_ids()
+        return []
 
     widgets: list[str] = []
     for item in raw:
@@ -521,7 +543,7 @@ def _sanitize_widgets(raw: Any) -> list[dict[str, Any]]:
         if widget_id and widget_id in available_by_id:
             widgets.append(widget_id)
 
-    return widgets or _default_widget_ids()
+    return widgets
 
 
 def _sanitize_user_settings(raw: Any):

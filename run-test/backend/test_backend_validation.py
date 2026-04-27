@@ -321,8 +321,8 @@ class BackendValidationTests(BackendTestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_admin_handout_generation_respects_handout_limit(self):
-        self._log("Admin handouts respect course-wide max active handed-out keys.")
+    def test_admin_handout_generation_ignores_handout_display_limit(self):
+        self._log("Admin handouts are not blocked by the course-wide handout display limit.")
 
         set_limit_response = self.client.patch(
             "/courses/1/instructor-handout-limit",
@@ -350,9 +350,7 @@ class BackendValidationTests(BackendTestCase):
             json={"ownerType": "person", "ownerId": "KSUID000000004", "keyName": "key-1", "slotIndex": 1},
             headers=self.admin_headers,
         )
-        self.assertEqual(third.status_code, 400)
-        payload = third.get_json() or {}
-        self.assertIn("Instructor handout key limit reached", payload.get("error", ""))
+        self.assertEqual(third.status_code, 200)
 
     def test_admin_can_close_and_reopen_course_and_all_keys_follow_status(self):
         self._log("Admin closes and reopens a course. Expecting course and all keys to mirror is_active state.")
