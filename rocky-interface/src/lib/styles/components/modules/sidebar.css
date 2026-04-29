@@ -19,10 +19,10 @@
 	gap: var(--space-sm);
 	text-align: left;
 	color: var(--color-text-inverse);
-	padding: 14px var(--space-lg);
+	padding: 20px var(--space-lg);
 	width: 100%;
 	cursor: pointer;
-	font-size: var(--font-size-base);
+	font-size: var(--font-size-lg);
 	font-weight: var(--font-weight-semibold);
 	transition: background-color var(--transition-base);
 	border-left: 4px solid transparent;
