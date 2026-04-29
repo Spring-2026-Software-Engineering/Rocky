@@ -230,7 +230,7 @@ def seed_from_backend() -> dict[str, int]:
                     instructor_name = " ".join(part for part in [first_name, last_name] if part).strip()
 
         instructor_key_limit = raw.get("instructor_key_limit")
-        if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
+        if not isinstance(instructor_key_limit, int) or instructor_key_limit < 0:
             instructor_key_limit = 2
 
         member_emails_in_course = {
@@ -278,7 +278,6 @@ def seed_from_backend() -> dict[str, int]:
         used_course_ids.add(course_id)
 
         course_doc = {
-            # Fields consumed by frontend
             "id": course_id,
             "code": (raw.get("code") or f"TBD {1000 + index}").strip(),
             "name": (raw.get("name") or "Untitled Course").strip(),
@@ -291,7 +290,6 @@ def seed_from_backend() -> dict[str, int]:
             "is_active": True,
             "members": normalized_members,
             "groups": normalized_groups,
-            # Fields expected by backend create/update shape
             "student_ids": student_ids,
             "semester_obj": {"year": year, "term": term},
         }
