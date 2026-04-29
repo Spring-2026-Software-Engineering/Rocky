@@ -338,6 +338,16 @@
 	margin: 0 !important;
 }
 
+.widget-note-link {
+	color: var(--color-primary-600);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.widget-note-link:hover {
+	color: var(--color-primary-700);
+}
+
 /* ========== COURSE CARD ========== */
 .course-card {
 	background: var(--color-bg-primary);

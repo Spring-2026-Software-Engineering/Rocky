@@ -97,8 +97,8 @@ def normalize_course_members(value: Any):
             key_limit = entry.get("keyLimit")
         if key_limit is None:
             key_limit = 1
-        if not isinstance(key_limit, int) or key_limit < 1:
-            return None, None, "member key_limit must be an integer >= 1."
+        if not isinstance(key_limit, int) or key_limit < 0:
+            return None, None, "member key_limit must be an integer >= 0."
 
         normalized = {
             "id": member_id or None,
@@ -144,8 +144,8 @@ def normalize_course_groups(value: Any):
             key_limit = entry.get("keyLimit")
         if key_limit is None:
             key_limit = 1
-        if not isinstance(key_limit, int) or key_limit < 1:
-            return None, "group key_limit must be an integer >= 1."
+        if not isinstance(key_limit, int) or key_limit < 0:
+            return None, "group key_limit must be an integer >= 0."
 
         groups.append({"id": group_id, "name": name, "memberIds": normalized_ids, "key_limit": key_limit})
 
@@ -282,8 +282,8 @@ def validate_course_payload(payload: Any):
         instructor_key_limit = payload.get("instructorKeyLimit")
     if instructor_key_limit is None:
         instructor_key_limit = 2
-    if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
-        return None, "instructor_key_limit must be an integer >= 1."
+    if not isinstance(instructor_key_limit, int) or instructor_key_limit < 0:
+        return None, "instructor_key_limit must be an integer >= 0."
 
     student_ids = payload.get("student_ids")
     if student_ids is None:
@@ -296,10 +296,8 @@ def validate_course_payload(payload: Any):
         instructor_handout_limit = payload.get("instructorHandoutLimit")
     if instructor_handout_limit is None:
         instructor_handout_limit = 2
-    if not isinstance(instructor_handout_limit, int) or instructor_handout_limit < 1:
-        return None, "instructor_handout_limit must be an integer >= 1."
-    if instructor_handout_limit > instructor_key_limit:
-        return None, "instructor_handout_limit cannot exceed instructor_key_limit."
+    if not isinstance(instructor_handout_limit, int) or instructor_handout_limit < 0:
+        return None, "instructor_handout_limit must be an integer >= 0."
 
     cleaned = {
         "name": name,
