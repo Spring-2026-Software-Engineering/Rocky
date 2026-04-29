@@ -1,7 +1,18 @@
 export type ThemePreference = 'light' | 'dark';
+export const profilePictureOptions = [
+	{ value: '/batch_squirrel.svg', label: 'Gold profile picture' },
+	{ value: '/batch_dog.svg', label: 'Purple profile picture' },
+	{ value: '/batch_duck.svg', label: 'Green profile picture' },
+	{ value: '/batch_fish.svg', label: 'Blue profile picture' },
+	{ value: '/batch_penguin.svg', label: 'Lime profile picture' },
+	{ value: '/batch_cat.svg', label: 'Orange profile picture' }
+] as const;
+
+export type ProfilePicture = (typeof profilePictureOptions)[number]['value'];
 
 export type UserSettings = {
 	themePreference: ThemePreference;
+	profilePicture: ProfilePicture;
 };
 
 export type UserSettingKey = keyof UserSettings;
@@ -15,6 +26,11 @@ export const settingsDefinitions: { [K in UserSettingKey]: SettingDefinition<K> 
 	themePreference: {
 		defaultValue: 'light',
 		validate: (value): value is ThemePreference => value === 'light' || value === 'dark'
+	},
+	profilePicture: {
+		defaultValue: '/batch_dog.svg',
+		validate: (value): value is ProfilePicture =>
+			typeof value === 'string' && profilePictureOptions.some((option) => option.value === value)
 	}
 };
 
@@ -24,7 +40,8 @@ export function isUserSettingKey(value: string): value is UserSettingKey {
 
 export function getDefaultUserSettings(): UserSettings {
 	return {
-		themePreference: settingsDefinitions.themePreference.defaultValue
+		themePreference: settingsDefinitions.themePreference.defaultValue,
+		profilePicture: settingsDefinitions.profilePicture.defaultValue
 	};
 }
 
@@ -37,12 +54,11 @@ export function sanitizeUserSettings(raw: unknown): UserSettings {
 	const input = raw as Partial<Record<UserSettingKey, unknown>>;
 	const output: UserSettings = { ...defaults };
 
-	for (const key of Object.keys(settingsDefinitions) as UserSettingKey[]) {
-		const definition = settingsDefinitions[key];
-		const candidate = input[key];
-		if (definition.validate(candidate)) {
-			output[key] = candidate;
-		}
+	if (settingsDefinitions.themePreference.validate(input.themePreference)) {
+		output.themePreference = input.themePreference;
+	}
+	if (settingsDefinitions.profilePicture.validate(input.profilePicture)) {
+		output.profilePicture = input.profilePicture;
 	}
 
 	return output;
@@ -56,12 +72,11 @@ export function sanitizeUserSettingsPatch(raw: unknown): Partial<UserSettings> {
 	const input = raw as Partial<Record<UserSettingKey, unknown>>;
 	const output: Partial<UserSettings> = {};
 
-	for (const key of Object.keys(settingsDefinitions) as UserSettingKey[]) {
-		const candidate = input[key];
-		const definition = settingsDefinitions[key];
-		if (definition.validate(candidate)) {
-			output[key] = candidate;
-		}
+	if (settingsDefinitions.themePreference.validate(input.themePreference)) {
+		output.themePreference = input.themePreference;
+	}
+	if (settingsDefinitions.profilePicture.validate(input.profilePicture)) {
+		output.profilePicture = input.profilePicture;
 	}
 
 	return output;

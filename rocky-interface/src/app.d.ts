@@ -6,11 +6,13 @@ declare global {
 		interface Locals {
 			currentUser: import('$lib/types/user').User | null;
 			themePreference: import('$lib/settings/userSettings').ThemePreference;
+			userSettings: import('$lib/settings/userSettings').UserSettings;
 			initialFrame: import('$lib/types/frame').FrameName;
 		}
 		interface PageData {
 			currentUser: import('$lib/types/user').User | null;
 			themePreference: import('$lib/settings/userSettings').ThemePreference;
+			userSettings: import('$lib/settings/userSettings').UserSettings;
 			initialFrame: import('$lib/types/frame').FrameName;
 		}
 		// interface PageState {}
