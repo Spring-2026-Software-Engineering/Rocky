@@ -1,6 +1,7 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { getUserByEmail, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '$lib/server/mockAuth';
 import { getSettingsForUser } from './lib/server/userSettingsStore';
+import { getDefaultUserSettings } from '$lib/settings/userSettings';
 import { framesForRole, type FrameName } from '$lib/types/frame';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -51,11 +52,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.currentUser = currentUser;
 	event.locals.themePreference = 'light';
+	event.locals.userSettings = getDefaultUserSettings();
 	event.locals.initialFrame = readInitialFrameFromCookie(event.cookies.get(FRAME_COOKIE_NAME), currentUser?.isAdmin ?? false);
 
 	if (currentUser) {
 		const settings = await getSettingsForUser(currentUser);
 		event.locals.themePreference = settings.themePreference;
+		event.locals.userSettings = settings;
 	}
 
 	const isRootPath = event.url.pathname === '/';
