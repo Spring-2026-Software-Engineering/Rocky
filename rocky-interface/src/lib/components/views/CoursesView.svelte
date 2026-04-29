@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import {
 		addCourseMembers,
@@ -11,7 +11,11 @@
 		removeCourseMember,
 		removeGroupMember as removeCourseGroupMember,
 		regenerateCourseApiKey,
+		updateCourseActiveStatus,
+		updateCourseApiKeyStatus,
 		updateCourseGroupKeyLimit,
+		updateCourseInstructorKeyLimit,
+		updateCourseInstructorHandoutLimit,
 		updateCourseMemberKeyLimit,
 		updateCourseMetadata
 	} from '$lib/api/courses';
@@ -20,16 +24,51 @@
 	import { selectedCourseId } from '$lib/stores/courseStore';
 	import ViewShell from '$lib/components/ViewShell.svelte';
 	import CourseEditorCard from '$lib/components/cards/CourseEditorCard.svelte';
+	import CourseKeySlotCard from '$lib/components/cards/CourseKeySlotCard.svelte';
 	import {
+		COURSE_EDITOR_DEFAULT_COLOR,
 		COURSE_EDITOR_SEMESTER_YEAR_MAX,
 		COURSE_EDITOR_SEMESTER_YEAR_MIN
 	} from '$lib/config/courseEditor';
+	import { showErrorFeedback } from '$lib/stores/feedbackStore';
 	import type { Course, CourseApiKeySummary, CourseDetail, CourseGroup } from '$lib/types/course';
 	import type { User } from '$lib/types/user';
 	import type { CourseApiHistoryEntry, CourseApiKeySummaryResponse } from '$lib/api/courses';
 
-	type CourseTab = 'home' | 'edit-course' | 'edit-roster' | 'groups';
+	type CourseTab = 'home' | 'students' | 'groups' | 'edit-roster' | 'edit-groups' | 'course-settings' | `group:${string}`;
+	type KeySlot = {
+		slotIndex: number;
+		baseKeyName: string;
+		hasExistingKey: boolean;
+		isActive: boolean;
+		key: CourseApiKeySummary | null;
+	};
+	type RosterEntry = CourseDetail['members'][number] & {
+		isInstructor: boolean;
+		isTeacherAssistant: boolean;
+	};
 	const API_KEY_PREFIX = 'sk_kent_';
+
+	function buildMaskedApiKeyPreview(maskLength: number): string {
+		return `${API_KEY_PREFIX}${'*'.repeat(maskLength)}`;
+	}
+
+	function isSelectedCourseActive(): boolean {
+		return selectedCourse?.isActive !== false;
+	}
+
+	function ensureCourseIsEditable(): boolean {
+		if (isSelectedCourseActive()) {
+			return true;
+		}
+		showErrorFeedback('Course is closed. Reopen it to make changes.');
+		return false;
+	}
+
+	let isSelectedCourseClosed = false;
+	let courseStatusActionPending = false;
+	let pendingCourseStatusValue: boolean | null = null;
+	let courseStatusPendingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	let allCourses: Course[] = [];
 	let allUsers: User[] = [];
@@ -44,9 +83,9 @@
 		name: '',
 		code: '',
 		semester: '',
+		color: COURSE_EDITOR_DEFAULT_COLOR,
 		instructorId: '',
-		taIds: [],
-		color: '#2b5aa6'
+		taIds: [] as string[]
 	};
 	let newGroupName = '';
 	let pendingGroupMemberIdByGroupId: Record<string, string> = {};
@@ -65,12 +104,9 @@
 	let newPersonalKeyName = '';
 	let newGroupKeyNameByGroupId: Record<string, string> = {};
 	let pendingMemberKeyLimitById: Record<string, number> = {};
+	let pendingInstructorKeyLimit = 2;
+	let pendingInstructorHandoutLimit = 2;
 	let pendingGroupKeyLimitById: Record<string, number> = {};
-<<<<<<< HEAD
-	let showAddEmailPopup = false;
-	let newMemberEmail = '';
-	let addEmailError: string | null = null;
-=======
 	let editedSlotKeyNamesById: Record<string, string> = {};
 	let slotHasGeneratedKeyById: Record<string, boolean> = {};
 	let selectedInstructorStudentId = '';
@@ -78,14 +114,14 @@
 	let rosterEntries: RosterEntry[] = [];
 	let searchQuery = '';
 	let sortByName = false;
->>>>>>> development
+	let showAddEmailPopup = false;
+	let newMemberEmail = '';
+	let addEmailError: string | null = null;
 
 	function normalizeIdentifier(value: string | null | undefined): string {
 		return value?.trim().toLowerCase() || '';
 	}
 
-<<<<<<< HEAD
-=======
 	function parseSlotIndexFromKeyName(value: string | null | undefined): number {
 		const normalized = value?.trim().toLowerCase() || '';
 		const match = normalized.match(/^key-(\d+)$/);
@@ -111,9 +147,12 @@
 		  )
 		: filteredMembers;
 
->>>>>>> development
 	function getMemberIdentifier(member: CourseDetail['members'][number]): string {
-		return normalizeIdentifier(member.id) || normalizeIdentifier(member.email);
+		const emailIdentifier = normalizeIdentifier(member.email);
+		if (emailIdentifier && emailIdentifier !== 'n/a') {
+			return emailIdentifier;
+		}
+		return normalizeIdentifier(member.id);
 	}
 
 	function getMemberDisplayName(member: CourseDetail['members'][number]): string {
@@ -135,8 +174,6 @@
 		return email ? 'Pending user' : 'Unknown user';
 	}
 
-<<<<<<< HEAD
-=======
 	function getCourseInstructorRosterEntry() {
 		if (!selectedCourse) {
 			return null;
@@ -281,7 +318,6 @@
 		return currentIdentifiers.some((identifier) => managerIdentifiers.includes(identifier));
 	}
 
->>>>>>> development
 	function memberMatchesCurrentUser(member: CourseDetail['members'][number]): boolean {
 		const currentUserIdentifiers = [currentUserId, currentUserEmail].map(normalizeIdentifier).filter(Boolean);
 		const memberIdentifiers = [normalizeIdentifier(member.id), normalizeIdentifier(member.email)].filter(Boolean);
@@ -297,12 +333,13 @@
 	function resolveMemberByIdentifier(identifier: string): CourseDetail['members'][number] | undefined {
 		const normalizedIdentifier = normalizeIdentifier(identifier);
 		return (selectedDetail?.members || []).find((member) => {
-			return normalizeIdentifier(member.id) === normalizedIdentifier || normalizeIdentifier(member.email) === normalizedIdentifier;
+			return (
+				normalizeIdentifier(member.email) === normalizedIdentifier ||
+				normalizeIdentifier(member.id) === normalizedIdentifier
+			);
 		});
 	}
 
-<<<<<<< HEAD
-=======
 	function isGroupTab(tab: CourseTab): tab is `group:${string}` {
 		return tab.startsWith('group:');
 	}
@@ -611,7 +648,6 @@
 		apiKeyActionError = null;
 	}
 
->>>>>>> development
 	async function loadWorkspace() {
 		try {
 			const requestList = [fetchCourses(), fetchCourseDetails(), fetchCourseGroups()] as const;
@@ -643,19 +679,33 @@
 		await loadWorkspace();
 	});
 
+	onDestroy(() => {
+		clearSensitiveKeyState();
+		if (courseStatusPendingTimeoutId) {
+			clearTimeout(courseStatusPendingTimeoutId);
+			courseStatusPendingTimeoutId = null;
+		}
+	});
+
 	$: visibleCourses = baseVisibleCourses;
 	$: selectedCourse = visibleCourses.find((course) => course.id === $selectedCourseId) ?? null;
 	$: selectedDetail = selectedCourse ? detailsByCourseId[selectedCourse.id] : null;
 	$: selectedGroups = selectedCourse ? groupsByCourseId[selectedCourse.id] || [] : [];
 	$: selectedGroupIds = new Set(selectedGroups.map((group) => group.id));
 	$: nonAdminUsers = allUsers.filter((user) => !user.isAdmin);
-	$: accountUsers = allUsers.filter((user) => user.email && user.email.trim() && user.email !== 'N/A');
+	$: accountUsers = allUsers.filter((user) => !user.isAdmin && user.email && user.email.trim() && user.email !== 'N/A');
 	$: currentUserId = $page.data.currentUser?.id?.trim() || '';
 	$: currentUserEmail = $page.data.currentUser?.email?.trim().toLowerCase() || '';
 	$: isCurrentUserAdmin = Boolean($page.data.currentUser?.isAdmin);
 	$: baseVisibleCourses = isCurrentUserAdmin
 		? allCourses
 		: allCourses.filter((course) => {
+				const managerIdentifiers = [course.instructorId, course.instructorEmail, ...(course.taIds || []), ...(course.taEmails || [])]
+					.map(normalizeIdentifier)
+					.filter(Boolean);
+				if (managerIdentifiers.includes(normalizeIdentifier(currentUserId)) || managerIdentifiers.includes(currentUserEmail)) {
+					return true;
+				}
 				const members = detailsByCourseId[course.id]?.members || [];
 				return members.some((member) => {
 					const memberId = normalizeIdentifier(member.id);
@@ -663,12 +713,23 @@
 					return memberId === normalizeIdentifier(currentUserId) || memberEmail === currentUserEmail;
 				});
 		  });
-	$: isCurrentUserCourseInstructor = Boolean(selectedDetail?.members.find((member) => member.role === 'instructor' && memberMatchesCurrentUser(member)));
+	$: isCurrentUserCourseInstructor = Boolean(
+		selectedCourse &&
+		[normalizeIdentifier(selectedCourse.instructorId), normalizeIdentifier(selectedCourse.instructorEmail)]
+			.filter(Boolean)
+			.some((identifier) => identifier === normalizeIdentifier(currentUserId) || identifier === currentUserEmail)
+	);
+	$: isCurrentUserCourseTeacherAssistant = Boolean(
+		selectedCourse &&
+		[...(selectedCourse.taIds || []).map(normalizeIdentifier), ...(selectedCourse.taEmails || []).map(normalizeIdentifier)]
+			.filter(Boolean)
+			.some((identifier) => identifier === normalizeIdentifier(currentUserId) || identifier === currentUserEmail)
+	);
 	$: isCurrentUserClient = !isCurrentUserAdmin;
 	$: canEditCourse = isCurrentUserAdmin;
-	$: canEditPeopleAndGroups = isCurrentUserAdmin || isCurrentUserCourseInstructor;
+	$: canEditPeopleAndGroups = isCurrentUserAdmin || isCurrentUserCourseInstructor || isCurrentUserCourseTeacherAssistant;
 	$: studentGroup = selectedGroups.find((group) => groupContainsCurrentUser(group)) || null;
-	$: studentMembers = (selectedDetail?.members || []).filter((member) => member.role === 'student');
+	$: studentMembers = selectedDetail?.members || [];
 	$: groupedStudentIdSet = new Set(
 		selectedGroups.flatMap((group) => group.memberIds.map((id) => normalizeIdentifier(id)))
 	);
@@ -694,27 +755,26 @@
 
 		return studentGroup.memberIds
 			.map((id) => memberByIdentifier.get(normalizeIdentifier(id)))
-			.filter((member): member is NonNullable<typeof member> => Boolean(member))
-			.filter((member) => member.role === 'student');
+			.filter((member): member is NonNullable<typeof member> => Boolean(member));
 	})();
 	$: groupMembershipRows = selectedGroups.map((group) => ({
 		group,
 		members: group.memberIds
 			.map((id) => memberByIdentifier.get(normalizeIdentifier(id)))
 			.filter((member): member is NonNullable<typeof member> => Boolean(member))
-			.filter((member) => member.role === 'student')
 	}));
-	$: canViewManagerApiData = isCurrentUserAdmin || isCurrentUserCourseInstructor;
+	$: canViewManagerApiData = isCurrentUserAdmin || isCurrentUserCourseInstructor || isCurrentUserCourseTeacherAssistant;
 	$: canViewCourseApiHistory = isCurrentUserAdmin;
-	$: canViewPersonalApiData = isCurrentUserClient && !isCurrentUserCourseInstructor && !studentGroup;
+	$: canViewPersonalApiData = isCurrentUserClient && !isCurrentUserCourseInstructor && !isCurrentUserCourseTeacherAssistant && !studentGroup;
 	$: personalOwnedKeys = courseApiKeys.filter(
-		(key) => key.ownerType === 'person' && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId))
+		(key) =>
+			key.hasHash !== false &&
+			key.ownerType === 'person' &&
+			[normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId))
 	);
 	$: groupOwnedKeys = courseApiKeys.filter(
-		(key) => key.ownerType === 'group' && selectedGroupIds.has(key.ownerId)
+		(key) => key.hasHash !== false && key.ownerType === 'group' && selectedGroupIds.has(key.ownerId)
 	);
-<<<<<<< HEAD
-=======
 	$: studentVisibleGroups = selectedGroups.filter((group) => groupContainsCurrentUser(group));
 	$: instructorVisibleStudents = studentMembers;
 	$: if (instructorVisibleStudents.length === 0) {
@@ -758,10 +818,14 @@
 		pendingInstructorKeyLimit = Math.max(0, selectedCourse.instructorKeyLimit ?? 2);
 		pendingInstructorHandoutLimit = Math.max(0, selectedCourse.instructorHandoutLimit ?? 2);
 	}
->>>>>>> development
 	$: canGenerateApiKey = Boolean(
 		selectedCourse &&
-		(isCurrentUserAdmin || (selectedDetail?.members || []).some((member) => memberMatchesCurrentUser(member)))
+		(
+			isCurrentUserAdmin ||
+			isCurrentUserCourseInstructor ||
+			isCurrentUserCourseTeacherAssistant ||
+			(selectedDetail?.members || []).some((member) => memberMatchesCurrentUser(member))
+		)
 	);
 	$: hasExistingApiKey = Boolean(selectedCourse?.hasApiKey);
 	$: currentUserIsApiKeyOwner = selectedCourse?.apiKeyOwnerType === 'person' && Boolean(selectedCourse?.apiKeyOwnerId && [normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(selectedCourse.apiKeyOwnerId)));
@@ -772,14 +836,19 @@
 			selectedGroups.some((group) => group.id === selectedCourse.apiKeyOwnerId && group.memberIds.map(normalizeIdentifier).some((id) => [normalizeIdentifier(currentUserId), currentUserEmail].includes(id)))
 		);
 	$: shouldShowMaskedApiKey = hasExistingApiKey && (isCurrentUserAdmin || currentUserIsApiKeyOwner || currentUserIsApiKeyGroupMember);
-	$: maskedApiKeyPreview = shouldShowMaskedApiKey ? `${API_KEY_PREFIX}${'*'.repeat(17)}` : null;
-	$: showCourseTabBar = canEditCourse || canEditPeopleAndGroups;
-	$: selectableGroupMembers = (selectedDetail?.members || []).filter((member) => member.role !== 'instructor');
-	$: availableTabs = [
-		'home',
-		...(canEditCourse ? (['edit-course'] as CourseTab[]) : []),
-		...(canEditPeopleAndGroups ? (['edit-roster', 'groups'] as CourseTab[]) : [])
-	] as CourseTab[];
+	$: maskedApiKeyPreview = shouldShowMaskedApiKey ? buildMaskedApiKeyPreview(30) : null;
+	$: showCourseTabBar = availableTabs.length > 0;
+	$: selectableGroupMembers = selectedDetail?.members || [];
+	$: availableTabs = canEditPeopleAndGroups
+		? ([
+				'home',
+				'students',
+				'groups',
+				'edit-roster',
+				'edit-groups',
+				...(canEditCourse ? (['course-settings'] as CourseTab[]) : [])
+		  ] as CourseTab[])
+		: (['home', ...studentGroupTabs] as CourseTab[]);
 	$: if (!availableTabs.includes(activeTab)) {
 		activeTab = 'home';
 	}
@@ -788,17 +857,25 @@
 	}
 	$: if (selectedCourse) {
 		const matchingUserByName = nonAdminUsers.find((user) => user.displayName === selectedCourse.instructor);
-		const courseInstructorMember = selectedDetail?.members.find((member) => member.role === 'instructor');
-		const matchingUserByEmail = courseInstructorMember
-			? allUsers.find((user) => normalizeIdentifier(user.email) === normalizeIdentifier(courseInstructorMember.email))
+		const matchingUserByEmail = selectedCourse.instructorEmail
+			? allUsers.find((user) => normalizeIdentifier(user.email) === normalizeIdentifier(selectedCourse.instructorEmail))
 			: undefined;
+		const normalizedCourseTaIds = (selectedCourse.taIds || []).map(normalizeIdentifier).filter(Boolean);
+		const normalizedCourseTaEmails = (selectedCourse.taEmails || []).map(normalizeIdentifier).filter(Boolean);
+		const matchedTaIds = allUsers
+			.filter((user) => {
+				const userId = normalizeIdentifier(user.id);
+				const userEmail = normalizeIdentifier(user.email);
+				return normalizedCourseTaIds.includes(userId) || normalizedCourseTaEmails.includes(userEmail);
+			})
+			.map((user) => user.id);
 		editCourseForm = {
 			name: selectedCourse.name,
 			code: selectedCourse.code,
 			semester: selectedCourse.semester,
-			instructorId: courseInstructorMember?.id || matchingUserByEmail?.id || matchingUserByName?.id || '',
-			taIds: [],
-			color: selectedCourse.color || '#2b5aa6'
+			color: selectedCourse.color,
+			instructorId: selectedCourse.instructorId || matchingUserByEmail?.id || matchingUserByName?.id || '',
+			taIds: [...new Set(matchedTaIds)]
 		};
 	}
 	$: if (selectedCourse && canViewCourseApiHistory && loadedCourseApiHistoryForId !== selectedCourse.id) {
@@ -809,12 +886,19 @@
 	}
 	$: if (selectedCourse?.id && selectedCourse.id !== lastSelectedCourseId) {
 		lastSelectedCourseId = selectedCourse.id;
-		apiKeyActionError = null;
-		previewApiKey = null;
+		clearSensitiveKeyState();
 		newPersonalKeyName = '';
 		newGroupKeyNameByGroupId = {};
 		pendingMemberKeyLimitById = {};
+		pendingInstructorKeyLimit = 2;
+		pendingInstructorHandoutLimit = 2;
 		pendingGroupKeyLimitById = {};
+	}
+	$: isSelectedCourseClosed = selectedCourse?.isActive === false;
+	$: {
+		selectedCourse;
+		selectedDetail;
+		rosterEntries = getRosterEntries();
 	}
 
 	function setSelectedCourseHasApiKey(
@@ -857,10 +941,56 @@
 				ownerType: (entry.owner_type === 'group' ? 'group' : 'person') as 'person' | 'group',
 				ownerId: entry.owner_id?.trim() || '',
 				keyName: entry.key_name?.trim() || 'key-1',
+				slotIndex:
+					typeof entry.slot_index === 'number' && Number.isInteger(entry.slot_index) && entry.slot_index > 0
+						? entry.slot_index
+						: parseSlotIndexFromKeyName(entry.key_name),
+				apiKeyId: typeof entry.api_key_id === 'number' && Number.isInteger(entry.api_key_id) && entry.api_key_id > 0 ? entry.api_key_id : 0,
 				created: entry.created?.trim() || '',
-				courseId: typeof entry.course_id === 'number' ? entry.course_id : selectedCourse?.id || 0
+				courseId: typeof entry.course_id === 'number' ? entry.course_id : selectedCourse?.id || 0,
+				hasHash: entry.has_hash !== false,
+				isActive: entry.is_active !== false
 			}))
 			.filter((entry) => entry.ownerId.length > 0 && entry.keyName.length > 0);
+	}
+
+	function upsertGeneratedApiKeySummary(response: NonNullable<Awaited<ReturnType<typeof regenerateCourseApiKey>>>) {
+		const ownerType = (response.owner_type === 'group' ? 'group' : 'person') as 'person' | 'group';
+		const ownerId = response.owner_id?.trim() || '';
+		const keyName = response.key_name?.trim() || 'key-1';
+
+		if (!ownerId || !keyName) {
+			return;
+		}
+
+		const nextSummary: CourseApiKeySummary = {
+			ownerType,
+			ownerId,
+			keyName,
+			slotIndex:
+				typeof response.slot_index === 'number' && Number.isInteger(response.slot_index) && response.slot_index > 0
+					? response.slot_index
+					: parseSlotIndexFromKeyName(response.key_name),
+			apiKeyId:
+				typeof response.api_key_id === 'number' && Number.isInteger(response.api_key_id) && response.api_key_id > 0 ? response.api_key_id : 0,
+			created: response.created?.trim() || '',
+			courseId: typeof response.course_id === 'number' ? response.course_id : selectedCourse?.id || 0,
+			hasHash: true,
+			isActive: true
+		};
+
+		courseApiKeys = [
+			nextSummary,
+			...courseApiKeys.filter(
+				(entry) =>
+					!(
+						entry.ownerType === nextSummary.ownerType &&
+						normalizeIdentifier(entry.ownerId) === normalizeIdentifier(nextSummary.ownerId) &&
+						((entry.slotIndex > 0 && entry.slotIndex === nextSummary.slotIndex) ||
+							normalizeIdentifier(entry.keyName) === normalizeIdentifier(nextSummary.keyName))
+					)
+			)
+		];
 	}
 
 	async function loadCourseApiHistory(courseId: number) {
@@ -895,6 +1025,9 @@
 	}
 
 	async function removeMember(memberId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
@@ -908,6 +1041,10 @@
 	}
 
 	function openAddEmailPopup() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
+
 		newMemberEmail = '';
 		addEmailError = null;
 		showAddEmailPopup = true;
@@ -920,6 +1057,10 @@
 	}
 
 	async function submitAddEmailPopup() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
+
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
@@ -928,6 +1069,15 @@
 
 		if (!email) {
 			addEmailError = 'Email is required.';
+			return;
+		}
+
+		const matchingAccount = allUsers.find(
+			(user) => normalizeIdentifier(user.email) === normalizeIdentifier(email)
+		);
+
+		if (matchingAccount?.isAdmin) {
+			addEmailError = 'Admins cannot be added to course lists.';
 			return;
 		}
 
@@ -941,6 +1091,9 @@
 	}
 
 	async function importPeopleFromCanvasCsv(event: Event) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
@@ -954,7 +1107,14 @@
 		const csvText = await file.text();
 		const idMatches = csvText.match(/(?:KSUID|WLID)\d{9}/gi) || [];
 		const parsedIds = [...new Set(idMatches.map((value) => value.trim()))];
-		if (parsedIds.length === 0) {
+		const nonAdminIds = parsedIds.filter((id) => {
+			const matchingUser = allUsers.find((user) => normalizeIdentifier(user.id) === normalizeIdentifier(id));
+			return !matchingUser?.isAdmin;
+		});
+		if (nonAdminIds.length !== parsedIds.length) {
+			showErrorFeedback('Admin accounts were excluded from the imported course list.');
+		}
+		if (nonAdminIds.length === 0) {
 			target.value = '';
 			return;
 		}
@@ -962,37 +1122,45 @@
 		try {
 			await addCourseMembers(
 				selectedCourse.id,
-				parsedIds.map((id) => ({ id, role: 'student' }))
+				nonAdminIds.map((id) => ({ id }))
 			);
 			await refreshAfterWrite();
 		} catch {
-	
+			// API layer already shows user-facing feedback.
 		}
 
 		target.value = '';
 	}
-
 
 	function triggerCsvImportPicker() {
 		importCsvInput?.click();
 	}
 
 	async function saveCourseEdits() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
 
+		const courseName = editCourseForm.name.trim();
+		if (!courseName) {
+			showErrorFeedback('Course name is required.');
+			return;
+		}
+
 		const normalizedInstructorId = editCourseForm.instructorId.trim();
-		const currentInstructorId = selectedDetail?.members.find((member) => member.role === 'instructor')?.id || '';
+		const currentInstructorId = selectedCourse.instructorId || '';
 
 		try {
 			await updateCourseMetadata(selectedCourse.id, {
-				name: editCourseForm.name.trim() || selectedCourse.name,
+				name: courseName,
 				code: editCourseForm.code.trim() || selectedCourse.code,
 				semester: editCourseForm.semester.trim() || selectedCourse.semester,
+				color: editCourseForm.color.trim() || selectedCourse.color,
 				instructorId: normalizedInstructorId || currentInstructorId,
-				taIds: editCourseForm.taIds,
-				color: editCourseForm.color
+				taIds: editCourseForm.taIds.filter((id) => id !== (normalizedInstructorId || currentInstructorId))
 			});
 			await refreshAfterWrite();
 		} catch {
@@ -1001,6 +1169,9 @@
 	}
 
 	async function createGroup() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1020,6 +1191,9 @@
 	}
 
 	async function addGroupMember(groupId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1042,6 +1216,9 @@
 	}
 
 	async function removeGroupMember(groupId: string, id: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1055,6 +1232,9 @@
 	}
 
 	async function regenerateApiKey() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1080,6 +1260,9 @@
 	}
 
 	async function generateNamedPersonalKey() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse || !currentUserId) {
 			return;
 		}
@@ -1100,6 +1283,9 @@
 	}
 
 	async function generateNamedGroupKey(groupId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1123,6 +1309,9 @@
 	}
 
 	async function saveMemberKeyLimit(memberId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1130,8 +1319,6 @@
 		if (!Number.isInteger(keyLimit) || keyLimit < 0) {
 			return;
 		}
-<<<<<<< HEAD
-=======
 		if (keyLimit > courseStudentKeyLimit) {
 			showErrorFeedback(`Member key limit cannot exceed the student key limit (${courseStudentKeyLimit}).`);
 			pendingMemberKeyLimitById = {
@@ -1140,7 +1327,6 @@
 			};
 			return;
 		}
->>>>>>> development
 		try {
 			await updateCourseMemberKeyLimit(selectedCourse.id, memberId, keyLimit);
 			await refreshAfterWrite();
@@ -1149,8 +1335,6 @@
 		}
 	}
 
-<<<<<<< HEAD
-=======
 	async function saveInstructorHandoutLimit() {
 		if (!ensureCourseIsEditable()) {
 			return;
@@ -1189,8 +1373,10 @@
 		}
 	}
 
->>>>>>> development
 	async function saveGroupKeyLimit(groupId: string) {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1198,8 +1384,6 @@
 		if (!Number.isInteger(keyLimit) || keyLimit < 0) {
 			return;
 		}
-<<<<<<< HEAD
-=======
 		const courseKeyLimit = Math.max(0, selectedCourse.instructorKeyLimit ?? 2);
 		if (keyLimit > courseKeyLimit) {
 			showErrorFeedback(`Group key limit cannot exceed the course key limit (${courseKeyLimit}).`);
@@ -1209,7 +1393,6 @@
 			};
 			return;
 		}
->>>>>>> development
 		try {
 			await updateCourseGroupKeyLimit(selectedCourse.id, groupId, keyLimit);
 			await refreshAfterWrite();
@@ -1223,6 +1406,9 @@
 	}
 
 	async function deleteApiKey() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
 		if (!selectedCourse) {
 			return;
 		}
@@ -1244,6 +1430,68 @@
 
 	function getAvailableMembersForGroup(group: CourseGroup) {
 		return selectableGroupMembers.filter((member) => !group.memberIds.map(normalizeIdentifier).includes(getMemberIdentifier(member)));
+	}
+
+	function getCourseStatusActionLabel(): string {
+		if (courseStatusActionPending) {
+			return pendingCourseStatusValue ? 'Opening...' : 'Closing...';
+		}
+		return isSelectedCourseClosed ? 'Open Course' : 'Close Course';
+	}
+
+	async function toggleSelectedCourseActiveStatus() {
+		if (!selectedCourse || !isCurrentUserAdmin || courseStatusActionPending) {
+			return;
+		}
+
+		const targetCourseId = selectedCourse.id;
+		const nextIsActive = !isSelectedCourseActive();
+		const previousCourses = allCourses;
+		const previousKeys = courseApiKeys;
+
+		courseStatusActionPending = true;
+		pendingCourseStatusValue = nextIsActive;
+		if (courseStatusPendingTimeoutId) {
+			clearTimeout(courseStatusPendingTimeoutId);
+		}
+		courseStatusPendingTimeoutId = setTimeout(() => {
+			courseStatusActionPending = false;
+			pendingCourseStatusValue = null;
+			courseStatusPendingTimeoutId = null;
+		}, 8000);
+
+		allCourses = allCourses.map((course) =>
+			course.id === targetCourseId
+				? {
+						...course,
+						isActive: nextIsActive
+				  }
+				: course
+		);
+		courseApiKeys = courseApiKeys.map((entry) =>
+			entry.courseId === targetCourseId
+				? {
+						...entry,
+						isActive: nextIsActive
+				  }
+				: entry
+		);
+
+		try {
+			await updateCourseActiveStatus(targetCourseId, nextIsActive);
+				void refreshAfterWrite();
+		} catch {
+			allCourses = previousCourses;
+			courseApiKeys = previousKeys;
+			// API layer already shows user-facing feedback.
+		} finally {
+			if (courseStatusPendingTimeoutId) {
+				clearTimeout(courseStatusPendingTimeoutId);
+				courseStatusPendingTimeoutId = null;
+			}
+			courseStatusActionPending = false;
+			pendingCourseStatusValue = null;
+		}
 	}
 </script>
 
@@ -1270,12 +1518,14 @@
 			</div>
 		</section>
 	{:else}
-		<section class="section course-workspace">
+		<section class="section course-workspace" class:course-locked={isSelectedCourseClosed}>
 			<div class="section-header course-header">
 				<div>
 					<h2>{selectedCourse.name}</h2>
 					<p class="section-text">
-						{selectedCourse.code} · {selectedCourse.semester} · {selectedDetail?.members.find((member) => member.role === 'instructor') ? getMemberDisplayName(selectedDetail.members.find((member) => member.role === 'instructor') as CourseDetail['members'][number]) : selectedCourse.instructor}
+						{[selectedCourse.code?.trim(), selectedCourse.semester, selectedCourse.instructor]
+							.filter((value) => value && value.length > 0)
+							.join(' · ')}
 					</p>
 				</div>
 			</div>
@@ -1284,53 +1534,14 @@
 				<div class="course-tab-bar">
 					{#each availableTabs as tab}
 						<button type="button" class="view-btn" class:course-tab-active={activeTab === tab} onclick={() => (activeTab = tab)}>
-							{tab === 'home' ? 'Home' : tab === 'edit-course' ? 'Edit Course' : tab === 'edit-roster' ? 'Edit Roster' : 'Groups'}
+							{getTabLabel(tab)}
 						</button>
 					{/each}
 				</div>
 			{/if}
 
-			{#if activeTab === 'home'}
+			{#if activeTab === 'home' && !canEditPeopleAndGroups}
 				<div class="section-content home-panel-stack">
-<<<<<<< HEAD
-					<div class="course-panel">
-						<h3>API Key Workspace</h3>
-						<div class="course-row-split">
-							<div>
-								<p>
-									<strong>Latest Generated Key:</strong>
-									{#if previewApiKey}
-										{previewApiKey}
-									{:else if maskedApiKeyPreview}
-										{maskedApiKeyPreview}
-									{:else}
-										Generate a key to view it once.
-									{/if}
-								</p>
-								{#if previewApiKey}
-									<p>Save this key now! This key will not be saved on reload.</p>
-								{/if}
-								{#if courseApiKeysLoading}
-									<p>Loading key cards...</p>
-								{:else if courseApiKeysError}
-									<p><strong>Error:</strong> {courseApiKeysError}</p>
-								{/if}
-								{#if apiKeyActionError}
-									<p class="course-key-error"><strong>Error:</strong> {apiKeyActionError}</p>
-								{/if}
-							</div>
-							<div class="course-inline-actions">
-									{#if canGenerateApiKey && !isCurrentUserAdmin}
-									<button type="button" class="list-go-btn" onclick={regenerateApiKey}>Generate API Key</button>
-									{/if}
-									{#if isCurrentUserAdmin && hasExistingApiKey}
-										<button type="button" class="list-go-btn" onclick={deleteApiKey}>Delete API Key</button>
-									{/if}
-								{#if previewApiKey}
-									<button type="button" class="list-go-btn" onclick={clearPreviewApiKey}>Hide Key</button>
-								{/if}
-							</div>
-=======
 					{#if courseApiKeysLoading}
 						<p>Loading key slots...</p>
 					{:else if courseApiKeysError}
@@ -1417,47 +1628,12 @@
 									</option>
 								{/each}
 							</select>
->>>>>>> development
 						</div>
-					</div>
-					<div class="course-panel">
-						<h3>Personal Keys</h3>
-						{#if !currentUserId}
-							<p>Sign in to manage personal keys.</p>
+						{#if courseApiKeysLoading}
+							<p>Loading key slots...</p>
+						{:else if courseApiKeysError}
+							<p><strong>Error:</strong> {courseApiKeysError}</p>
 						{:else}
-<<<<<<< HEAD
-							<div class="course-group-create-row">
-								<input class="text-input" type="text" bind:value={newPersonalKeyName} placeholder="New personal key name" />
-								<button type="button" class="view-btn" onclick={generateNamedPersonalKey}>Generate Personal Key</button>
-							</div>
-							{#if personalOwnedKeys.length === 0}
-								<p>No personal keys yet.</p>
-							{:else}
-								<ul class="course-inline-list">
-									{#each personalOwnedKeys as key}
-										<li><strong>{key.keyName}</strong> · {API_KEY_PREFIX}{'*'.repeat(17)} · {key.created || 'pending timestamp'}</li>
-									{/each}
-								</ul>
-							{/if}
-						{/if}
-					</div>
-					<div class="course-panel">
-						<h3>Group Keys</h3>
-						{#if selectedGroups.filter((group) => group.memberIds.includes(currentUserId)).length === 0}
-							<p>You are not in a course group for this class.</p>
-						{:else}
-							{#each selectedGroups.filter((group) => group.memberIds.includes(currentUserId)) as group}
-								<p><strong>{group.name}</strong></p>
-								<div class="course-group-create-row">
-									<input class="text-input" type="text" bind:value={newGroupKeyNameByGroupId[group.id]} placeholder="New group key name" />
-									<button type="button" class="view-btn" onclick={() => generateNamedGroupKey(group.id)}>Generate Group Key</button>
-								</div>
-								<ul class="course-inline-list">
-									{#each groupOwnedKeys.filter((key) => key.ownerId === group.id) as key}
-										<li><strong>{key.keyName}</strong> · {API_KEY_PREFIX}{'*'.repeat(17)} · {key.created || 'pending timestamp'}</li>
-									{/each}
-								</ul>
-=======
 							{#each instructorStudentKeySlots as slot (getSlotStateId('person', selectedInstructorStudentOwnerId, slot.slotIndex))}
 								{@const slotStateId = getSlotStateId('person', selectedInstructorStudentOwnerId, slot.slotIndex)}
 								<CourseKeySlotCard
@@ -1481,87 +1657,29 @@
 									onToggleActive={() =>
 										setSlotActiveState('person', selectedInstructorStudentOwnerId, slot.slotIndex, slot.baseKeyName, !slot.isActive)}
 								/>
->>>>>>> development
 							{/each}
 						{/if}
-					</div>
-					{#if isCurrentUserClient && studentGroup}
-						<div class="course-panel">
-							<h3>Group API Data</h3>
-							<p><strong>{studentGroup.name}</strong></p>
-							<ul class="course-inline-list">
-								{#each studentGroupMembers as member}
-									<li>{getMemberDisplayName(member)} ({member.email}) - API data pending implementation.</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-					{#if canViewManagerApiData}
-						<div class="course-panel">
-							<h3>Student API Data</h3>
-							{#if ungroupedStudentMembers.length}
-								<ul class="course-inline-list">
-									{#each ungroupedStudentMembers as member}
-										<li>{getMemberDisplayName(member)} ({member.email}) - API data pending implementation.</li>
-									{/each}
-								</ul>
-							{:else}
-								<p>No ungrouped students found for this course.</p>
-							{/if}
-						</div>
-						<div class="course-panel">
-							<h3>Group API Data</h3>
-							{#if groupMembershipRows.length}
-								{#each groupMembershipRows as row}
-									<p><strong>{row.group.name}:</strong> {row.members.length ? row.members.map((member) => getMemberDisplayName(member)).join(', ') : 'No student members'} - API data pending implementation.</p>
-								{/each}
-							{:else}
-								<p>No groups found for this course.</p>
-							{/if}
-						</div>
-					{/if}
-					{#if canViewCourseApiHistory}
-						<div class="course-panel">
-							<h3>API History</h3>
-							{#if courseApiHistoryLoading}
-								<p>Loading API history...</p>
-							{:else if courseApiHistoryError}
-								<p><strong>Error:</strong> {courseApiHistoryError}</p>
-							{:else if courseApiHistory.length === 0}
-								<p>No API history has been recorded for this course yet.</p>
-							{:else}
-								<ul class="course-inline-list">
-									{#each courseApiHistory as entry}
-										<li>
-											<strong>{entry.userId}</strong> · {entry.eventType} · {entry.groupName ? `Group: ${entry.groupName}` : 'Ungrouped'} · {entry.created || 'pending timestamp'}
-										</li>
-									{/each}
-								</ul>
-							{/if}
-						</div>
-					{/if}
-					{#if canViewPersonalApiData}
-						<div class="course-panel">
-							<h3>Personal API Data</h3>
-							<p><strong>Status:</strong> Awaiting backend response fields.</p>
-						</div>
-<<<<<<< HEAD
 					{/if}
 				</div>
-			{:else if activeTab === 'edit-course' && canEditCourse}
-				<div class="section-content">
-					<CourseEditorCard
-						title="Edit Course"
-						submitLabel="Save Course"
-						idPrefix="edit-course"
-						users={accountUsers}
-						form={editCourseForm}
-						useSemesterPicker={true}
-						semesterYearMin={COURSE_EDITOR_SEMESTER_YEAR_MIN}
-						semesterYearMax={COURSE_EDITOR_SEMESTER_YEAR_MAX}
-						on:submit={saveCourseEdits}
-					/>
-=======
+			{:else if activeTab === 'groups'}
+				<div class="section-content home-panel-stack">
+					{#if selectedGroups.length === 0}
+						<p class="section-text">No groups are available for this course yet.</p>
+					{:else}
+						<div class="course-group-create-row">
+							<select
+								class="text-input"
+								value={selectedInstructorGroupId}
+								onchange={(event) => {
+									const target = event.currentTarget as HTMLSelectElement;
+									selectedInstructorGroupId = target.value;
+								}}
+							>
+								{#each selectedGroups as group}
+									<option value={group.id}>{group.name}</option>
+								{/each}
+							</select>
+						</div>
 						{#if courseApiKeysLoading}
 							<p>Loading key slots...</p>
 						{:else if courseApiKeysError}
@@ -1623,11 +1741,11 @@
 							/>
 						{/each}
 					{/if}
->>>>>>> development
 				</div>
 			{:else if activeTab === 'edit-roster' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
+						<input type="text" placeholder="Search users" bind:value={searchQuery} class="view-btn"/>
 						<button type="button" class="view-btn" onclick={openAddEmailPopup}>Add Email</button>
 						<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
 						<input
@@ -1638,6 +1756,8 @@
 							onchange={importPeopleFromCanvasCsv}
 						/>
 					</div>
+
+
 					<div class="table-container">
 						<table class="data-table course-people-table">
 							<colgroup>
@@ -1649,7 +1769,7 @@
 							</colgroup>
 							<thead>
 								<tr>
-									<th>Name</th>
+									<th style="cursor: pointer; user-select: none;" onclick={() => (sortByName = !sortByName)} >Name {sortByName ? '▲' : '▼'}</th>
 									<th>Email</th>
 									<th>Role</th>
 									<th>Keys</th>
@@ -1657,31 +1777,14 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#if selectedDetail?.members.length}
-									{#each selectedDetail.members as member}
+								{#if filteredMembers.length}
+									{#each sortedMembers as member}
+										{@const memberIdentifier = getMemberIdentifier(member)}
 										<tr>
-												<td>{getMemberDisplayName(member)}</td>
+											<td>{member.isInstructor ? (selectedCourse.instructor || 'Unknown Instructor') : getMemberDisplayName(member)}</td>
 											<td>{member.email}</td>
-											<td>{member.role}</td>
+											<td>{getRosterRole(member)}</td>
 											<td>
-<<<<<<< HEAD
-												<div class="course-group-add-row">
-													<input
-														class="text-input"
-														type="number"
-														min="1"
-															value={pendingMemberKeyLimitById[getMemberIdentifier(member)] ?? member.keyLimit}
-														onchange={(event) => {
-															const target = event.currentTarget as HTMLInputElement;
-															pendingMemberKeyLimitById = {
-																...pendingMemberKeyLimitById,
-																	[getMemberIdentifier(member)]: Math.max(1, Number(target.value) || 1)
-															};
-														}}
-													/>
-															<button type="button" class="list-go-btn" onclick={() => saveMemberKeyLimit(getMemberIdentifier(member))}>Save</button>
-												</div>
-=======
 												{#if member.isInstructor}
 													{#if isCurrentUserAdmin}
 														<div class="course-group-add-row">
@@ -1752,26 +1855,30 @@
 												{:else}
 													<span class="section-text">Member</span>
 												{/if}
->>>>>>> development
 											</td>
-												<td class="table-actions-cell"><button type="button" class="list-go-btn" onclick={() => removeMember(getMemberIdentifier(member))}>Remove</button></td>
 										</tr>
-									{/each}
-								{:else}
-									<tr>
-										<td colspan="5">No members in this course yet.</td>
-									</tr>
-								{/if}
+											{/each}
+										{:else}
+											<tr>
+												<td colspan="5">No members in this course yet.</td>
+											</tr>
+										{/if}
 							</tbody>
 						</table>
 					</div>
 				</div>
-			{:else}
+			{:else if activeTab === 'edit-groups' && canEditPeopleAndGroups}
 				<div class="section-content">
 					<div class="course-people-actions">
 						<div class="course-group-create-row">
-							<input class="text-input" type="text" bind:value={newGroupName} placeholder="New group name" />
-							<button type="button" class="view-btn" onclick={createGroup}>Create Group</button>
+							{#if isSelectedCourseClosed}
+								<div class="text-input course-locked-field">{newGroupName || 'New group name'}</div>
+							{:else}
+								<input class="text-input" type="text" bind:value={newGroupName} placeholder="New group name" />
+							{/if}
+							{#if !isSelectedCourseClosed}
+								<button type="button" class="view-btn" onclick={createGroup}>Create Group</button>
+							{/if}
 						</div>
 					</div>
 					<div class="table-container">
@@ -1799,10 +1906,12 @@
 												{#if group.memberIds.length}
 													<ul class="course-inline-list">
 														{#each group.memberIds as memberId}
-																{@const member = resolveMemberByIdentifier(memberId)}
+															{@const member = resolveMemberByIdentifier(memberId)}
 															<li>
-																	{member ? getMemberDisplayName(member) : memberId} ({memberId})
-																<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, memberId)}>Remove</button>
+																{member ? getMemberDisplayName(member) : 'Unknown user'}
+																{#if !isSelectedCourseClosed}
+																	<button type="button" class="list-go-btn" onclick={() => removeGroupMember(group.id, memberId)}>Remove</button>
+																{/if}
 															</li>
 														{/each}
 													</ul>
@@ -1812,22 +1921,6 @@
 											</td>
 											<td>
 												<div class="course-group-add-row">
-<<<<<<< HEAD
-													<input
-														class="text-input"
-														type="number"
-														min="1"
-														value={pendingGroupKeyLimitById[group.id] ?? group.keyLimit}
-														onchange={(event) => {
-															const target = event.currentTarget as HTMLInputElement;
-															pendingGroupKeyLimitById = {
-																...pendingGroupKeyLimitById,
-																[group.id]: Math.max(1, Number(target.value) || 1)
-															};
-														}}
-													/>
-													<button type="button" class="list-go-btn" onclick={() => saveGroupKeyLimit(group.id)}>Save</button>
-=======
 													{#if isSelectedCourseClosed}
 														<div class="text-input course-locked-field">{pendingGroupKeyLimitById[group.id] ?? group.keyLimit}</div>
 													{:else}
@@ -1849,28 +1942,35 @@
 															{#if !isSelectedCourseClosed}
 																<button type="button" class="list-go-btn" onclick={() => saveGroupKeyLimit(group.id)}>Save</button>
 															{/if}
->>>>>>> development
 												</div>
 											</td>
 											<td>
 												<div class="course-group-add-row">
-													<select
-														class="text-input"
-														value={pendingGroupMemberIdByGroupId[group.id] || ''}
-														onchange={(event) => {
-															const target = event.currentTarget as HTMLSelectElement;
-															pendingGroupMemberIdByGroupId = {
-																...pendingGroupMemberIdByGroupId,
-																[group.id]: target.value
-															};
-														}}
-													>
-														<option value="">Select course member</option>
-														{#each getAvailableMembersForGroup(group) as member}
-															<option value={getMemberIdentifier(member)}>{getMemberDisplayName(member)} ({getMemberIdentifier(member)})</option>
-														{/each}
-													</select>
-													<button type="button" class="list-go-btn" onclick={() => addGroupMember(group.id)}>Add</button>
+													{#if isSelectedCourseClosed}
+														<div class="text-input course-locked-field">
+															{pendingGroupMemberIdByGroupId[group.id] || 'Select course member'}
+														</div>
+													{:else}
+														<select
+															class="text-input"
+															value={pendingGroupMemberIdByGroupId[group.id] || ''}
+															onchange={(event) => {
+																const target = event.currentTarget as HTMLSelectElement;
+																pendingGroupMemberIdByGroupId = {
+																	...pendingGroupMemberIdByGroupId,
+																	[group.id]: target.value
+																};
+															}}
+														>
+															<option value="">Select course member</option>
+															{#each getAvailableMembersForGroup(group) as member}
+																<option value={getMemberIdentifier(member)}>{getMemberDisplayName(member)}</option>
+															{/each}
+														</select>
+													{/if}
+													{#if !isSelectedCourseClosed}
+														<button type="button" class="list-go-btn" onclick={() => addGroupMember(group.id)}>Add</button>
+													{/if}
 												</div>
 											</td>
 										</tr>
@@ -1884,8 +1984,6 @@
 						</table>
 					</div>
 				</div>
-<<<<<<< HEAD
-=======
 			{:else if activeTab === 'course-settings' && canEditCourse}
 				<div class="section-content">
 					<CourseEditorCard
@@ -1933,13 +2031,11 @@
 						</div>
 					{/if}
 				</div>
->>>>>>> development
 			{/if}
 
 		</section>
 	{/if}
-
-		{#if showAddEmailPopup}
+	{#if showAddEmailPopup}
 	<div class="popup-backdrop">
 		<div class="popup-card">
 			<h3>Add User by Email</h3>
@@ -1963,5 +2059,4 @@
 		</div>
 	</div>
 {/if}
-
 </ViewShell>
