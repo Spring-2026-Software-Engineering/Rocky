@@ -108,6 +108,7 @@
 	let pendingInstructorHandoutLimit = 2;
 	let pendingGroupKeyLimitById: Record<string, number> = {};
 	let editedSlotKeyNamesById: Record<string, string> = {};
+	let slotHasGeneratedKeyById: Record<string, boolean> = {};
 	let selectedInstructorStudentId = '';
 	let selectedInstructorGroupId = '';
 	let rosterEntries: RosterEntry[] = [];
@@ -127,6 +128,7 @@
 		const parsed = Number(match[1]);
 		return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
 	}
+
 	$: filteredMembers = rosterEntries.filter((member) => {
 		const q = searchQuery.toLowerCase().trim();
 
@@ -378,14 +380,14 @@
 	}
 
 	function buildKeySlots(limit: number, keys: CourseApiKeySummary[]): KeySlot[] {
-		const activeKeys = keys.filter((key) => key.isActive !== false);
-		const highestStoredSlot = activeKeys.reduce((maxSlot, key) => (key.slotIndex > maxSlot ? key.slotIndex : maxSlot), 0);
-		const totalSlots = Math.max(0, limit, highestStoredSlot, activeKeys.length);
+		const storedKeys = keys.filter((key) => key.hasHash !== false);
+		const highestStoredSlot = storedKeys.reduce((maxSlot, key) => (key.slotIndex > maxSlot ? key.slotIndex : maxSlot), 0);
+		const totalSlots = Math.max(0, limit, highestStoredSlot, storedKeys.length);
 		if (totalSlots === 0) {
 			return [];
 		}
 		const slotEntries: Array<CourseApiKeySummary | null> = Array.from({ length: totalSlots }, () => null);
-		const orderedKeys = [...activeKeys].sort((a, b) => {
+		const orderedKeys = [...storedKeys].sort((a, b) => {
 			const aSlot = a.slotIndex > 0 ? a.slotIndex : Number.MAX_SAFE_INTEGER;
 			const bSlot = b.slotIndex > 0 ? b.slotIndex : Number.MAX_SAFE_INTEGER;
 			if (aSlot !== bSlot) {
@@ -441,6 +443,13 @@
 		};
 	}
 
+	function setSlotHasGeneratedKey(slotStateId: string, hasGeneratedKey: boolean) {
+		slotHasGeneratedKeyById = {
+			...slotHasGeneratedKeyById,
+			[slotStateId]: hasGeneratedKey
+		};
+	}
+
 	async function generateKeyForSlot(
 		ownerType: 'person' | 'group',
 		ownerId: string,
@@ -471,6 +480,7 @@
 				...editedSlotKeyNamesById,
 				[slotStateId]: keyName
 			};
+			setSlotHasGeneratedKey(slotStateId, true);
 
 			upsertGeneratedApiKeySummary(response);
 			return response.api_key?.trim() || null;
@@ -522,6 +532,7 @@
 					}
 					: entry
 			);
+			setSlotHasGeneratedKey(slotStateId, false);
 		} catch (err) {
 			apiKeyActionError = err instanceof Error ? err.message : 'Unable to remove key.';
 		}
@@ -573,7 +584,7 @@
 
 	function getGroupOwnedKeys(groupId: string): CourseApiKeySummary[] {
 		return groupOwnedKeys.filter(
-			(key) => key.isActive !== false && normalizeIdentifier(key.ownerId) === normalizeIdentifier(groupId)
+			(key) => key.hasHash !== false && normalizeIdentifier(key.ownerId) === normalizeIdentifier(groupId)
 		);
 	}
 
@@ -610,7 +621,6 @@
 		return courseApiKeys.filter(
 			(key) =>
 				key.hasHash !== false &&
-				key.isActive !== false &&
 				key.ownerType === 'person' &&
 				ownerIdentifiers.includes(normalizeIdentifier(key.ownerId))
 		);
@@ -625,7 +635,6 @@
 		return courseApiKeys.filter(
 			(key) =>
 				key.hasHash !== false &&
-				key.isActive !== false &&
 				key.ownerType === 'person' &&
 				normalizedOwnerIdentifiers.includes(normalizeIdentifier(key.ownerId))
 		);
@@ -757,12 +766,11 @@
 	$: personalOwnedKeys = courseApiKeys.filter(
 		(key) =>
 			key.hasHash !== false &&
-			key.isActive !== false &&
 			key.ownerType === 'person' &&
 			[normalizeIdentifier(currentUserId), currentUserEmail].includes(normalizeIdentifier(key.ownerId))
 	);
 	$: groupOwnedKeys = courseApiKeys.filter(
-		(key) => key.hasHash !== false && key.isActive !== false && key.ownerType === 'group' && selectedGroupIds.has(key.ownerId)
+		(key) => key.hasHash !== false && key.ownerType === 'group' && selectedGroupIds.has(key.ownerId)
 	);
 	$: studentVisibleGroups = selectedGroups.filter((group) => groupContainsCurrentUser(group));
 	$: instructorVisibleStudents = studentMembers;
@@ -1512,10 +1520,6 @@
 					{:else if courseApiKeysError}
 						<p><strong>Error:</strong> {courseApiKeysError}</p>
 					{:else}
-						{#if apiKeyActionError}
-							<p><strong>Key action error:</strong> {apiKeyActionError}</p>
-						{/if}
-
 						{#if personalKeySlots.length}
 							{#each personalKeySlots as slot (getSlotStateId('person', studentPersonalKeyOwnerId, slot.slotIndex))}
 								{@const slotStateId = getSlotStateId('person', studentPersonalKeyOwnerId, slot.slotIndex)}
@@ -1532,7 +1536,7 @@
 									onGenerate={() => generateKeyForSlot('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName)}
 									removeDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 									onRemove={() => removeKeyForSlot('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName)}
-									showToggleActive={true}
+									showToggleActive={false}
 									isKeyActive={slot.isActive}
 									toggleActiveDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 									onToggleActive={() => setSlotActiveState('person', studentPersonalKeyOwnerId, slot.slotIndex, slot.baseKeyName, !slot.isActive)}
@@ -1550,9 +1554,6 @@
 					{:else if courseApiKeysError}
 						<p><strong>Error:</strong> {courseApiKeysError}</p>
 					{:else}
-						{#if apiKeyActionError}
-							<p><strong>Key action error:</strong> {apiKeyActionError}</p>
-						{/if}
 						{#if courseInstructorKeySlots.length}
 							{#each courseInstructorKeySlots as slot (getSlotStateId('person', courseInstructorOwnerId, slot.slotIndex))}
 								{@const slotStateId = getSlotStateId('person', courseInstructorOwnerId, slot.slotIndex)}
@@ -1706,7 +1707,7 @@
 								onGenerate={() => generateKeyForSlot('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName)}
 								removeDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 								onRemove={() => removeKeyForSlot('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName)}
-								showToggleActive={true}
+								showToggleActive={false}
 								isKeyActive={slot.isActive}
 								toggleActiveDisabled={!slot.hasExistingKey || isSelectedCourseClosed}
 								onToggleActive={() => setSlotActiveState('group', activeStudentGroup.id, slot.slotIndex, slot.baseKeyName, !slot.isActive)}

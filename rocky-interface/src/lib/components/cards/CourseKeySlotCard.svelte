@@ -14,6 +14,7 @@
 	export let isKeyActive = true;
 	export let readOnly = false;
 	export let slotIdentity = title;
+	export let disabledMessage = 'Key: This key is currently disabled for this slot.';
 	export let onKeyNameChange: (value: string) => void = () => {};
 	export let onGenerate: () => Promise<string | null> | string | null = () => null;
 	export let onHide: () => void = () => {};
@@ -22,15 +23,20 @@
 
 	let visibleKey: string | null = null;
 	let lastSlotIdentity = slotIdentity;
+	let generatedExists = false;
 
 	$: if (slotIdentity !== lastSlotIdentity) {
 		visibleKey = null;
+		generatedExists = false;
 		lastSlotIdentity = slotIdentity;
 	}
 
 	async function handleGenerate() {
 		const nextKey = await onGenerate();
 		visibleKey = typeof nextKey === 'string' && nextKey.trim() ? nextKey.trim() : null;
+		if (visibleKey) {
+			generatedExists = true;
+		}
 	}
 
 	function handleHide() {
@@ -40,6 +46,7 @@
 
 	function handleRemove() {
 		visibleKey = null;
+		generatedExists = false;
 		onRemove();
 	}
 
@@ -49,6 +56,7 @@
 
 	onDestroy(() => {
 		visibleKey = null;
+		generatedExists = false;
 	});
 </script>
 
@@ -71,8 +79,12 @@
 		<strong>Key:</strong>
 		{#if visibleKey}
 			{visibleKey}
-		{:else if hasExistingKey}
-			{maskedPreview}
+		{:else if hasExistingKey || generatedExists || maskedPreview}
+			{#if isKeyActive}
+				{maskedPreview}
+			{:else}
+				{disabledMessage}
+			{/if}
 		{:else}
 			{placeholderText}
 		{/if}
@@ -82,13 +94,13 @@
 	{:else}
 		<div class="course-inline-actions">
 			<button type="button" class="list-go-btn" onclick={handleGenerate} disabled={generateDisabled}>Generate Key</button>
-			{#if hasExistingKey || visibleKey}
+			{#if hasExistingKey || visibleKey || maskedPreview}
 				<button type="button" class="list-go-btn" onclick={handleRemove} disabled={removeDisabled}>Remove Key</button>
-				{#if showToggleActive}
-					<button type="button" class="list-go-btn" onclick={handleToggleActive} disabled={toggleActiveDisabled}>
-						{isKeyActive ? 'Deactivate Key' : 'Activate Key'}
-					</button>
-				{/if}
+			{/if}
+			{#if (hasExistingKey || visibleKey || maskedPreview) && showToggleActive}
+				<button type="button" class="list-go-btn" onclick={handleToggleActive} disabled={toggleActiveDisabled}>
+					{isKeyActive ? 'Deactivate Key' : 'Activate Key'}
+				</button>
 			{/if}
 			{#if visibleKey}
 				<button type="button" class="list-go-btn" onclick={handleHide} disabled={hideDisabled}>Hide Key</button>
