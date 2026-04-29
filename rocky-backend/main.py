@@ -90,6 +90,14 @@ widgets_default = collections.widgets_default
 help_faq = collections.help_faq
 
 ALLOWED_THEME_PREFERENCES = {"light", "dark"}
+ALLOWED_PROFILE_PICTURES = {
+    "/batch_squirrel.svg",
+    "/batch_dog.svg",
+    "/batch_duck.svg",
+    "/batch_fish.svg",
+    "/batch_penguin.svg",
+    "/batch_cat.svg",
+}
 API_KEY_REGENERATION_COOLDOWN = timedelta(minutes=5)
 KENT_EMAIL_SUFFIX = "@kent.edu"
 
@@ -327,6 +335,7 @@ def _default_widget_ids() -> list[str]:
 def _default_user_settings() -> dict[str, Any]:
     return {
         "themePreference": "light",
+        "profilePicture": "/batch_dog.svg",
         "widgets": [],
     }
 
@@ -552,6 +561,9 @@ def _sanitize_user_settings(raw: Any):
         theme = normalize_str(raw.get("themePreference")).lower()
         if theme in ALLOWED_THEME_PREFERENCES:
             settings_payload["themePreference"] = theme
+        profile_picture = normalize_str(raw.get("profilePicture"))
+        if profile_picture in ALLOWED_PROFILE_PICTURES:
+            settings_payload["profilePicture"] = profile_picture
 
     raw_widgets = raw.get("widgets") if isinstance(raw, dict) else None
     settings_payload["widgets"] = _sanitize_widgets(raw_widgets)
@@ -579,6 +591,13 @@ def _sanitize_user_settings_patch(raw: Any):
 
     if "widgets" in raw:
         patch["widgets"] = _sanitize_widgets(raw.get("widgets"))
+
+    if "profilePicture" in raw:
+        profile_picture = normalize_str(raw.get("profilePicture"))
+        if profile_picture not in ALLOWED_PROFILE_PICTURES:
+            allowed = ", ".join(sorted(ALLOWED_PROFILE_PICTURES))
+            return {}, f"profilePicture must be one of: {allowed}."
+        patch["profilePicture"] = profile_picture
 
     return patch, None
 
@@ -713,6 +732,7 @@ def _route_deps() -> dict[str, Any]:
         "_parse_iso_datetime": _parse_iso_datetime,
         "API_KEY_REGENERATION_COOLDOWN": API_KEY_REGENERATION_COOLDOWN,
         "ALLOWED_THEME_PREFERENCES": ALLOWED_THEME_PREFERENCES,
+        "ALLOWED_PROFILE_PICTURES": ALLOWED_PROFILE_PICTURES,
     }
 
 

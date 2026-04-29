@@ -71,6 +71,7 @@ def patch_user_setting(deps: dict[str, Any], setting_key: str):
     _bad_request = deps["_bad_request"]
     normalize_str = deps["normalize_str"]
     ALLOWED_THEME_PREFERENCES = deps["ALLOWED_THEME_PREFERENCES"]
+    ALLOWED_PROFILE_PICTURES = deps["ALLOWED_PROFILE_PICTURES"]
 
     identity = require_requester_identity()
     if identity[0] is None:
@@ -87,15 +88,21 @@ def patch_user_setting(deps: dict[str, Any], setting_key: str):
     if not _can_access_user_record(email, is_admin, user_record):
         return jsonify({"error": "You may only access your own settings."}), 403
 
-    if setting_key != "themePreference":
+    current = _sanitize_user_settings(user_record.get("settings"))
+    if setting_key == "themePreference":
+        value = normalize_str(data.get("value")).lower()
+        if value not in ALLOWED_THEME_PREFERENCES:
+            allowed = ", ".join(sorted(ALLOWED_THEME_PREFERENCES))
+            return _bad_request(f"themePreference must be one of: {allowed}.")
+        current["themePreference"] = value
+    elif setting_key == "profilePicture":
+        value = normalize_str(data.get("value"))
+        if value not in ALLOWED_PROFILE_PICTURES:
+            allowed = ", ".join(sorted(ALLOWED_PROFILE_PICTURES))
+            return _bad_request(f"profilePicture must be one of: {allowed}.")
+        current["profilePicture"] = value
+    else:
         return _bad_request(f"Unsupported user setting key: {setting_key}.")
 
-    value = normalize_str(data.get("value")).lower()
-    if value not in ALLOWED_THEME_PREFERENCES:
-        allowed = ", ".join(sorted(ALLOWED_THEME_PREFERENCES))
-        return _bad_request(f"themePreference must be one of: {allowed}.")
-
-    current = _sanitize_user_settings(user_record.get("settings"))
-    current["themePreference"] = value
     _upsert_settings_for_user(user_record, current)
     return jsonify({"settings": _resolve_user_settings(current)})
