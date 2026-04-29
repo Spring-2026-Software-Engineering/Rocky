@@ -6,6 +6,7 @@
 		COURSE_EDITOR_SEMESTER_YEAR_MIN
 	} from '$lib/config/courseEditor';
 	import type { User } from '$lib/types/user';
+	import CourseColorPicker from '$lib/components/widgets/CourseColorPicker.svelte';
 
 	type CourseEditorForm = {
 		name: string;
@@ -207,17 +208,11 @@
 			{/if}
 		</div>
 		<div class="form-group">
-			<label class="form-label" for={`${idPrefix}-color-input`}>Course Color</label>
+			<label class="form-label">Course Color</label>
 			{#if readOnly}
 				<div class="text-input course-locked-field">{form.color || 'N/A'}</div>
 			{:else}
-				<input
-					id={`${idPrefix}-color-input`}
-					class="text-input course-color-input"
-					type="color"
-					bind:value={form.color}
-					aria-label="Course Color"
-				/>
+				<CourseColorPicker bind:value={form.color} />
 			{/if}
 		</div>
 		<div class="form-group">
