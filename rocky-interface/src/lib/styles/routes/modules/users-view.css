@@ -17,6 +17,8 @@
 	font-weight: var(--font-weight-semibold);
 }
 
+
+
 .whitelist-heading {
 	margin: 0 0 12px 0;
 }
@@ -103,4 +105,30 @@
 	.whitelist-form {
 		grid-template-columns: 1fr;
 	}
+}
+
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .users-table {
+        min-width: 700px;
+        table-layout: fixed;
+    }
+
+    .users-col-name    { width: 130px; }
+    .users-col-email   { width: 200px; }
+    .users-col-id      { width: 140px; }
+    .users-col-admin   { width: 60px; }
+    .users-col-active  { width: 60px; }
+    .users-col-actions { width: 110px; }
+
+    .users-table td,
+    .users-table th {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }
