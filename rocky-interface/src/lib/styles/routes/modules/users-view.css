@@ -114,13 +114,13 @@
     }
 
     .users-table {
-        min-width: 700px;
+        min-width: 740px;
         table-layout: fixed;
     }
 
     .users-col-name    { width: 130px; }
     .users-col-email   { width: 200px; }
-    .users-col-id      { width: 140px; }
+    .users-col-id      { width: 180px; }
     .users-col-admin   { width: 60px; }
     .users-col-active  { width: 60px; }
     .users-col-actions { width: 110px; }
