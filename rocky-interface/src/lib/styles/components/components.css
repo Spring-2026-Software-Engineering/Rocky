@@ -256,11 +256,14 @@
 /*  Mobile View for Courses Sidebar */
 @media (max-width: 768px) {
 	.course-popout {
-		position: static;
+		position: static !important;
+		left: auto;
+		top: auto;
+		bottom: auto;
 		width: 100%;
 		height: auto;
 		max-height: 400px;
-		border-radius: 0;
+		border-radius: 0px;
 		border-left: none;
 		border-right: none;
 		box-shadow: none;
@@ -272,7 +275,20 @@
 
 @media (max-width: 768px) {
     .course-popout-header {
-        display: none;
+        display: none ! important;
+    }
+}
+
+@media (max-width: 768px) {
+	.course-tab-group {
+		position: static;
+	}
+}
+
+@media (max-width: 768px) {
+    .sidebar .course-popout {
+        max-width: var(--size-sidebar-width);
+        overflow-x: hidden;
     }
 }
 
