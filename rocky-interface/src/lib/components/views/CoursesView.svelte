@@ -114,6 +114,9 @@
 	let rosterEntries: RosterEntry[] = [];
 	let searchQuery = '';
 	let sortByName = false;
+	let showAddEmailPopup = false;
+	let newMemberEmail = '';
+	let addEmailError: string | null = null;
 
 	function normalizeIdentifier(value: string | null | undefined): string {
 		return value?.trim().toLowerCase() || '';
@@ -1037,29 +1040,53 @@
 		}
 	}
 
-	async function addMemberByEmailPrompt() {
+	function openAddEmailPopup() {
 		if (!ensureCourseIsEditable()) {
 			return;
 		}
+
+		newMemberEmail = '';
+		addEmailError = null;
+		showAddEmailPopup = true;
+	}
+
+	function closeAddEmailPopup() {
+		showAddEmailPopup = false;
+		newMemberEmail = '';
+		addEmailError = null;
+	}
+
+	async function submitAddEmailPopup() {
+		if (!ensureCourseIsEditable()) {
+			return;
+		}
+
 		if (!selectedCourse || !selectedDetail) {
 			return;
 		}
 
-		const emailInput = window.prompt('Enter user email to add to this course:');
-		const email = emailInput?.trim() || '';
+		const email = newMemberEmail.trim();
+
 		if (!email) {
+			addEmailError = 'Email is required.';
 			return;
 		}
-		const matchingAccount = allUsers.find((user) => normalizeIdentifier(user.email) === normalizeIdentifier(email));
+
+		const matchingAccount = allUsers.find(
+			(user) => normalizeIdentifier(user.email) === normalizeIdentifier(email)
+		);
+
 		if (matchingAccount?.isAdmin) {
-			showErrorFeedback('Admins cannot be added to course lists.');
+			addEmailError = 'Admins cannot be added to course lists.';
 			return;
 		}
+
 		try {
 			await addCourseMembers(selectedCourse.id, [{ email }]);
 			await refreshAfterWrite();
+			closeAddEmailPopup();
 		} catch {
-			// API layer already shows user-facing feedback.
+			addEmailError = 'Unable to add user.';
 		}
 	}
 
@@ -1719,7 +1746,7 @@
 				<div class="section-content">
 					<div class="course-people-actions">
 						<input type="text" placeholder="Search users" bind:value={searchQuery} class="view-btn"/>
-						<button type="button" class="view-btn" onclick={addMemberByEmailPrompt}>Add Email</button>
+						<button type="button" class="view-btn" onclick={openAddEmailPopup}>Add Email</button>
 						<button type="button" class="view-btn" onclick={triggerCsvImportPicker}>Import Canvas CSV</button>
 						<input
 							class="course-hidden-input"
@@ -2008,4 +2035,28 @@
 
 		</section>
 	{/if}
+	{#if showAddEmailPopup}
+	<div class="popup-backdrop">
+		<div class="popup-card">
+			<h3>Add User by Email</h3>
+			<p class="section-text">Enter a user email to add them to this course.</p>
+
+			<input
+				class="text-input"
+				type="email"
+				bind:value={newMemberEmail}
+				placeholder="student@kent.edu"
+			/>
+
+			{#if addEmailError}
+				<p class="popup-error">{addEmailError}</p>
+			{/if}
+
+			<div class="popup-actions">
+				<button type="button" class="view-btn" onclick={closeAddEmailPopup}>Cancel</button>
+				<button type="button" class="view-btn" onclick={submitAddEmailPopup}>Add User</button>
+			</div>
+		</div>
+	</div>
+{/if}
 </ViewShell>
