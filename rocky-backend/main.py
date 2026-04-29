@@ -92,8 +92,6 @@ help_faq = collections.help_faq
 ALLOWED_THEME_PREFERENCES = {"light", "dark"}
 API_KEY_REGENERATION_COOLDOWN = timedelta(minutes=5)
 KENT_EMAIL_SUFFIX = "@kent.edu"
-WLID_PREFIX = "WLID"
-KSUID_PREFIX = "KSUID"
 
 
 def _parse_object_id(value: str):
@@ -154,26 +152,39 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
             None,
         )
         key_limit = target_group.get("key_limit") if isinstance(target_group, dict) else None
-        return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
+        return key_limit if isinstance(key_limit, int) and key_limit >= 0 else 1
+
+    def normalize_identifier(value: Any) -> str:
+        if value is None:
+            return ""
+        string_value = str(value) if not isinstance(value, str) else value
+        return normalize_str(string_value).lower()
 
     instructor_identifiers = {
-        normalize_str(course.get("instructor_id")).lower(),
-        normalize_str(course.get("instructor_email")).lower(),
+        normalize_identifier(course.get("instructor_id") or course.get("instructorId")),
+        normalize_identifier(course.get("instructor_email") or course.get("instructorEmail")),
     }
+    ta_ids_list = course.get("ta_ids") if isinstance(course.get("ta_ids"), list) else course.get("taIds") if isinstance(course.get("taIds"), list) else []
+    ta_emails_list = course.get("ta_emails") if isinstance(course.get("ta_emails"), list) else course.get("taEmails") if isinstance(course.get("taEmails"), list) else []
     instructor_identifiers.update(
-        normalize_str(identifier).lower()
-        for identifier in (course.get("ta_ids") if isinstance(course.get("ta_ids"), list) else [])
-        if normalize_str(identifier)
+        normalize_identifier(identifier)
+        for identifier in ta_ids_list
     )
     instructor_identifiers.update(
-        normalize_str(identifier).lower()
-        for identifier in (course.get("ta_emails") if isinstance(course.get("ta_emails"), list) else [])
-        if normalize_str(identifier)
+        normalize_identifier(identifier)
+        for identifier in ta_emails_list
     )
     instructor_identifiers.discard("")
     if normalized_owner_id in instructor_identifiers:
-        instructor_key_limit = course.get("instructor_key_limit")
-        return instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit > 0 else 2
+        instructor_key_limit = course.get("instructor_key_limit") if course.get("instructor_key_limit") is not None else course.get("instructorKeyLimit")
+        instructor_handout_limit = course.get("instructor_handout_limit") if course.get("instructor_handout_limit") is not None else course.get("instructorHandoutLimit")
+        if normalized_owner_type == "person":
+            limit = instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit >= 0 else 2
+            return limit
+        if isinstance(instructor_handout_limit, int) and instructor_handout_limit >= 0:
+            return instructor_handout_limit
+        limit = instructor_key_limit if isinstance(instructor_key_limit, int) and instructor_key_limit >= 0 else 2
+        return limit
 
     target_member = next(
         (
@@ -188,7 +199,16 @@ def _get_owner_key_limit(course: dict[str, Any], owner_type: str, owner_id: str)
         None,
     )
     key_limit = target_member.get("key_limit") if isinstance(target_member, dict) else None
-    return key_limit if isinstance(key_limit, int) and key_limit > 0 else 1
+    if isinstance(key_limit, int) and key_limit >= 0:
+        return key_limit
+    
+    # For person-type owners, fall back to instructor_key_limit if available
+    if normalized_owner_type == "person":
+        instructor_key_limit = course.get("instructor_key_limit") if course.get("instructor_key_limit") is not None else course.get("instructorKeyLimit")
+        if isinstance(instructor_key_limit, int) and instructor_key_limit >= 0:
+            return instructor_key_limit
+    
+    return 1
 
 
 def _serialize_api_key_summary(entry: dict[str, Any]) -> dict[str, Any]:
@@ -307,7 +327,7 @@ def _default_widget_ids() -> list[str]:
 def _default_user_settings() -> dict[str, Any]:
     return {
         "themePreference": "light",
-        "widgets": _default_widget_ids(),
+        "widgets": [],
     }
 
 
@@ -389,10 +409,16 @@ def _resolve_user_record(user_id: str | None, email: str | None):
         if user:
             return user
 
+        object_id = _parse_object_id(normalized_user_id)
+        if object_id is not None:
+            user = users.find_one({"_id": object_id})
+            if user:
+                return user
+
         whitelist_user = whitelist_users.find_one({"id": normalized_user_id})
         if whitelist_user:
             return {
-                "id": normalize_str(whitelist_user.get("id")),
+                "id": normalize_str(whitelist_user.get("id") or whitelist_user.get("_id")),
                 "first_name": normalize_str(whitelist_user.get("first_name")),
                 "last_name": normalize_str(whitelist_user.get("last_name")),
                 "email": normalize_str(whitelist_user.get("email")).lower(),
@@ -413,39 +439,6 @@ def _is_user_active(user_record: dict[str, Any]) -> bool:
 
 def _is_kent_email(email: str) -> bool:
     return email.lower().endswith(KENT_EMAIL_SUFFIX)
-
-
-def _coerce_ksuid(value: str | None) -> str:
-    raw = normalize_str(value).upper()
-    if not raw:
-        return ""
-
-    if raw.startswith(KSUID_PREFIX):
-        suffix = raw[len(KSUID_PREFIX):]
-        return f"{KSUID_PREFIX}{suffix}" if suffix.isdigit() and len(suffix) == 9 else ""
-
-    return f"{KSUID_PREFIX}{raw}" if raw.isdigit() and len(raw) == 9 else ""
-
-
-def _next_prefixed_id(collection, field_name: str, prefix: str) -> str:
-    while True:
-        candidate = f"{prefix}{random.randint(0, 999999999):09d}"
-        if collection.find_one({field_name: candidate}) is None:
-            return candidate
-
-
-def _wlid_exists(candidate: str) -> bool:
-    return (
-        whitelist_users.find_one({"id": candidate}) is not None
-        or users.find_one({"id": candidate}) is not None
-    )
-
-
-def _next_unique_wlid() -> str:
-    while True:
-        candidate = f"{WLID_PREFIX}{random.randint(0, 999999999):09d}"
-        if not _wlid_exists(candidate):
-            return candidate
 
 
 def _normalize_oauth_payload(payload: Any):
@@ -480,7 +473,7 @@ def _build_display_name(first_name: str, last_name: str, email: str) -> str:
 def _resolve_requester_user_id(email: str) -> str:
     user_record = _resolve_user_record(None, email)
     if user_record:
-        user_id = normalize_str(user_record.get("id"))
+        user_id = normalize_str(user_record.get("id") or user_record.get("_id"))
         if user_id:
             return user_id
     return normalize_str(email).lower()
@@ -495,7 +488,7 @@ def _serialize_user(user_record: dict[str, Any]) -> dict[str, Any]:
             "first_name": first_name,
             "last_name": last_name,
             "email": normalize_str(user_record.get("email")).lower(),
-            "id": normalize_str(user_record.get("id")),
+            "id": normalize_str(user_record.get("id") or user_record.get("_id")),
             "is_admin": bool(user_record.get("is_admin")),
             "is_active": _is_user_active(user_record),
             "created_at": user_record.get("created_at"),
@@ -510,7 +503,7 @@ def _serialize_whitelist_user(entry: dict[str, Any]) -> dict[str, Any]:
             "first_name": normalize_str(entry.get("first_name")),
             "last_name": normalize_str(entry.get("last_name")),
             "email": normalize_str(entry.get("email")).lower(),
-            "id": normalize_str(entry.get("id")),
+            "id": normalize_str(entry.get("id") or entry.get("_id")),
             "is_admin": bool(entry.get("is_admin")),
             "is_active": _is_user_active(entry),
             "settings": entry.get("settings", _default_user_settings()),
@@ -526,13 +519,13 @@ def _can_access_user_record(requester_email: str, requester_is_admin: bool, targ
     return normalize_str(target_user.get("email")).lower() == normalize_str(requester_email).lower()
 
 
-def _sanitize_widgets(raw: Any) -> list[dict[str, Any]]:
+def _sanitize_widgets(raw: Any) -> list[str]:
     available_widgets = _canonical_available_widgets()
     available_by_id = {_widget_id(widget): widget for widget in available_widgets if _widget_id(widget)}
     available_signatures = {_widget_signature(widget): widget for widget in available_widgets}
 
     if not isinstance(raw, list):
-        return _default_widget_ids()
+        return []
 
     widgets: list[str] = []
     for item in raw:
@@ -550,7 +543,7 @@ def _sanitize_widgets(raw: Any) -> list[dict[str, Any]]:
         if widget_id and widget_id in available_by_id:
             widgets.append(widget_id)
 
-    return widgets or _default_widget_ids()
+    return widgets
 
 
 def _sanitize_user_settings(raw: Any):
@@ -667,7 +660,6 @@ def _route_deps() -> dict[str, Any]:
         "widgets_default": widgets_default,
         "help_faq": help_faq,
         "is_valid_email": is_valid_email,
-        "KSUID_PREFIX": KSUID_PREFIX,
         "logger": logger,
         "require_admin": require_admin,
         "require_requester_identity": require_requester_identity,
@@ -682,9 +674,6 @@ def _route_deps() -> dict[str, Any]:
         "_default_user_settings": _default_user_settings,
         "_normalize_oauth_payload": _normalize_oauth_payload,
         "_is_kent_email": _is_kent_email,
-        "_coerce_ksuid": _coerce_ksuid,
-        "_next_prefixed_id": _next_prefixed_id,
-        "_next_unique_wlid": _next_unique_wlid,
         "_can_access_user_record": _can_access_user_record,
         "_default_widgets_payload": _default_widgets_payload,
         "_get_settings_for_user": _get_settings_for_user,

@@ -15,16 +15,27 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 	if (!response.ok) {
 		let body = '';
+		let parsed: any = null;
 		if (typeof response.text === 'function') {
 			body = await response.text();
+			try {
+				parsed = JSON.parse(body || '{}');
+			} catch {
+				parsed = null;
+			}
 		} else if (typeof response.json === 'function') {
 			try {
-				body = JSON.stringify(await response.json());
+				parsed = await response.json();
+				body = JSON.stringify(parsed);
 			} catch {
 				body = '';
+				parsed = null;
 			}
 		}
 		console.error('[courses api] request failed', { url, status: response.status, raw: body });
+		if (parsed && typeof parsed === 'object' && (parsed.error || parsed.message)) {
+			throw new Error((parsed.error || parsed.message) as string);
+		}
 		throw new Error(USER_SAFE_ACTION_FAILURE);
 	}
 

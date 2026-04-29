@@ -146,7 +146,6 @@ def seed_from_backend() -> dict[str, int]:
         settings_payload = _normalize_user_settings(raw.get("settings"), raw_widgets)
 
         user_doc = {
-            "id": (raw.get("id") or f"seed-{email.split('@')[0]}").strip(),
             "first_name": (raw.get("first_name") or "").strip(),
             "last_name": (raw.get("last_name") or "").strip(),
             "email": email,
@@ -160,7 +159,8 @@ def seed_from_backend() -> dict[str, int]:
             parts = [part for part in fallback_name.split() if part]
             user_doc["first_name"] = parts[0] if parts else "Unknown"
             user_doc["last_name"] = " ".join(parts[1:]) if len(parts) > 1 else "User"
-        main.users.insert_one(user_doc)
+        inserted_id = main.users.insert_one(user_doc).inserted_id
+        main.users.update_one({"_id": inserted_id}, {"$set": {"id": str(inserted_id)}})
         users_inserted += 1
 
     user_id_by_email = {
@@ -230,7 +230,7 @@ def seed_from_backend() -> dict[str, int]:
                     instructor_name = " ".join(part for part in [first_name, last_name] if part).strip()
 
         instructor_key_limit = raw.get("instructor_key_limit")
-        if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
+        if not isinstance(instructor_key_limit, int) or instructor_key_limit < 0:
             instructor_key_limit = 2
 
         member_emails_in_course = {
@@ -278,7 +278,6 @@ def seed_from_backend() -> dict[str, int]:
         used_course_ids.add(course_id)
 
         course_doc = {
-            # Fields consumed by frontend
             "id": course_id,
             "code": (raw.get("code") or f"TBD {1000 + index}").strip(),
             "name": (raw.get("name") or "Untitled Course").strip(),
@@ -291,7 +290,6 @@ def seed_from_backend() -> dict[str, int]:
             "is_active": True,
             "members": normalized_members,
             "groups": normalized_groups,
-            # Fields expected by backend create/update shape
             "student_ids": student_ids,
             "semester_obj": {"year": year, "term": term},
         }

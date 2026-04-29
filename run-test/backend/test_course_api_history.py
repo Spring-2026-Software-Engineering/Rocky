@@ -42,7 +42,7 @@ class CourseApiHistoryTests(BackendTestCase):
             "/courses/1/api-key/regenerate",
             json={
                 "ownerType": "person",
-                "ownerId": "KSUID000000004",
+                "ownerId": self.seeded_user_ids["student.local@kent.edu"],
                 "keyName": "key-1",
                 "slotIndex": 1,
             },
@@ -56,7 +56,7 @@ class CourseApiHistoryTests(BackendTestCase):
             if entry.get("event_type") == "generate-key"
             and isinstance(entry.get("meta"), dict)
             and (entry["meta"].get("owner_type") or "").lower() == "person"
-            and (entry["meta"].get("owner_id") or "").lower() == "ksuid000000004"
+            and (entry["meta"].get("owner_id") or "") == self.seeded_user_ids["student.local@kent.edu"]
             and entry["meta"].get("path") == "/courses/1/api-key/regenerate"
         ]
         self.assertTrue(matching_entries)
@@ -64,11 +64,11 @@ class CourseApiHistoryTests(BackendTestCase):
         history_entry = matching_entries[-1]
         history_meta = history_entry.get("meta") or {}
 
-        self.assertEqual((history_entry.get("u_id") or "").lower(), "ksuid000000002")
-        self.assertEqual((history_meta.get("actor_id") or "").lower(), "ksuid000000002")
+        self.assertEqual((history_entry.get("u_id") or ""), self.seeded_user_ids["instructor.local@kent.edu"])
+        self.assertEqual((history_meta.get("actor_id") or ""), self.seeded_user_ids["instructor.local@kent.edu"])
         self.assertEqual(history_meta.get("actor_email"), "instructor.local@kent.edu")
         self.assertEqual((history_meta.get("owner_type") or "").lower(), "person")
-        self.assertEqual((history_meta.get("owner_id") or "").lower(), "ksuid000000004")
+        self.assertEqual((history_meta.get("owner_id") or ""), self.seeded_user_ids["student.local@kent.edu"])
         self.assertFalse(history_entry.get("is_group_member"))
         self.assertIsNone(history_entry.get("group_id"))
 
@@ -113,8 +113,8 @@ class CourseApiHistoryTests(BackendTestCase):
         history_entry = matching_entries[-1]
         history_meta = history_entry.get("meta") or {}
 
-        self.assertEqual((history_entry.get("u_id") or "").lower(), "ksuid000000002")
-        self.assertEqual((history_meta.get("actor_id") or "").lower(), "ksuid000000002")
+        self.assertEqual((history_entry.get("u_id") or ""), self.seeded_user_ids["instructor.local@kent.edu"])
+        self.assertEqual((history_meta.get("actor_id") or ""), self.seeded_user_ids["instructor.local@kent.edu"])
         self.assertEqual(history_meta.get("actor_email"), "instructor.local@kent.edu")
         self.assertEqual((history_meta.get("owner_type") or "").lower(), "group")
         self.assertEqual((history_meta.get("owner_id") or "").lower(), "group-se3010-a")

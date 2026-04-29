@@ -4,7 +4,6 @@
       "first_name": "Valid",
       "last_name": "Student",
       "email": "valid.student@kent.edu",
-      "id": "KSUID000000100",
       "is_admin": false,
       "is_active": true
     },
@@ -12,29 +11,30 @@
       "first_name": "Valid",
       "last_name": "Admin",
       "email": "valid.admin@kent.edu",
-      "id": "KSUID000000200",
       "is_admin": true,
       "is_active": true
     },
     {
       "first_name": "Bad",
       "last_name": "Missing Email",
-      "id": "KSUID000000300",
       "is_admin": false
     },
     {
       "first_name": "Bad",
       "last_name": "Role",
       "email": "bad.role@kent.edu",
-      "id": "KSUID000000400",
       "is_admin": "owner"
     }
   ],
   "courses": [
     {
       "name": "Software Engineering",
-      "instructor_ids": ["KSUID000000200"],
-      "student_ids": ["KSUID000000100"],
+        "instructor_email": "valid.admin@kent.edu",
+        "members": [
+          {
+            "email": "valid.student@kent.edu"
+          }
+        ],
       "semester": {
         "year": 2026,
         "term": "spring"
@@ -42,8 +42,12 @@
     },
     {
       "name": "Invalid Course Term",
-      "instructor_ids": ["KSUID000000200"],
-      "student_ids": ["KSUID000000100"],
+        "instructor_email": "valid.admin@kent.edu",
+        "members": [
+          {
+            "email": "valid.student@kent.edu"
+          }
+        ],
       "semester": {
         "year": 2026,
         "term": "autumn"
@@ -51,7 +55,7 @@
     },
     {
       "name": "Invalid Student Ids",
-      "instructor_ids": ["KSUID000000200"],
+        "instructor_email": "valid.admin@kent.edu",
       "student_ids": [101],
       "semester": {
         "year": 2026,
@@ -62,8 +66,8 @@
   "api_keys": [
     {
       "owner_type": "person",
-      "owner_id": "ksuid000000100",
-      "u_id": "ksuid000000100",
+        "owner_id": "valid.student@kent.edu",
+        "u_id": "valid.student@kent.edu",
       "key_name": "key-1",
       "slot_index": 1,
       "api_key_id": 1,
@@ -84,8 +88,8 @@
     },
     {
       "owner_type": "person",
-      "owner_id": "ksuid000000200",
-      "u_id": "ksuid000000200",
+        "owner_id": "valid.admin@kent.edu",
+        "u_id": "valid.admin@kent.edu",
       "key_name": "key-3",
       "slot_index": 3,
       "api_key_id": 3,

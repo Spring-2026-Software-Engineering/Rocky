@@ -75,6 +75,121 @@ def _reject_if_course_closed(course: dict[str, Any]):
     return jsonify({"error": "Course is closed. Reopen it to make changes."}), 403
 
 
+def _deactivate_overflow_course_keys(course: dict[str, Any], api_keys_collection, owner_type: str, owner_ids: list[str], max_slot_index: int, normalize_str):
+    normalized_owner_type = normalize_str(owner_type).lower()
+    if normalized_owner_type not in {"person", "group"}:
+        return 0
+
+    def normalize_identifier(value: Any) -> str:
+        if value is None:
+            return ""
+        string_value = str(value) if not isinstance(value, str) else value
+        return normalize_str(string_value).lower()
+
+    normalized_owner_ids = {
+        normalize_identifier(owner_id)
+        for owner_id in owner_ids
+        if normalize_identifier(owner_id)
+    }
+    if not normalized_owner_ids:
+        return 0
+
+    course_numeric_id = course.get("id") if isinstance(course.get("id"), int) else None
+    course_code = normalize_str(course.get("code"))
+    if course_numeric_id is None and not course_code:
+        return 0
+
+    lookup_filter: dict[str, Any] = {
+        "owner_type": normalized_owner_type,
+        "owner_id": {"$in": sorted(normalized_owner_ids)},
+    }
+    if course_numeric_id is not None:
+        lookup_filter["course_id"] = course_numeric_id
+    else:
+        lookup_filter["c_id"] = course_code
+
+    updated_count = 0
+    for key_entry in api_keys_collection.find(lookup_filter):
+        if not isinstance(key_entry, dict):
+            continue
+        slot_index = key_entry.get("slot_index") if isinstance(key_entry.get("slot_index"), int) else None
+        if slot_index is None or slot_index < 1:
+            key_name = normalize_str(key_entry.get("key_name"))
+            if key_name.startswith("key-") and key_name[4:].isdigit():
+                slot_index = int(key_name[4:])
+            else:
+                continue
+        if slot_index <= max_slot_index:
+            continue
+        if key_entry.get("is_active", True) is False:
+            continue
+
+        updated_key = dict(key_entry)
+        updated_key["is_active"] = False
+        api_keys_collection.replace_one({"_id": key_entry.get("_id")}, updated_key)
+        updated_count += 1
+
+    return updated_count
+
+
+def _reconcile_course_key_activity(course: dict[str, Any], api_keys_collection, owner_type: str, owner_ids: list[str], max_slot_index: int, normalize_str):
+    normalized_owner_type = normalize_str(owner_type).lower()
+    if normalized_owner_type not in {"person", "group"}:
+        return 0
+
+    def normalize_identifier(value: Any) -> str:
+        if value is None:
+            return ""
+        string_value = str(value) if not isinstance(value, str) else value
+        return normalize_str(string_value).lower()
+
+    normalized_owner_ids = {
+        normalize_identifier(owner_id)
+        for owner_id in owner_ids
+        if normalize_identifier(owner_id)
+    }
+    if not normalized_owner_ids:
+        return 0
+
+    course_numeric_id = course.get("id") if isinstance(course.get("id"), int) else None
+    course_code = normalize_str(course.get("code"))
+    if course_numeric_id is None and not course_code:
+        return 0
+
+    lookup_filter: dict[str, Any] = {
+        "owner_type": normalized_owner_type,
+        "owner_id": {"$in": sorted(normalized_owner_ids)},
+    }
+    if course_numeric_id is not None:
+        lookup_filter["course_id"] = course_numeric_id
+    else:
+        lookup_filter["c_id"] = course_code
+
+    updated_count = 0
+    for key_entry in api_keys_collection.find(lookup_filter):
+        if not isinstance(key_entry, dict):
+            continue
+        slot_index = key_entry.get("slot_index") if isinstance(key_entry.get("slot_index"), int) else None
+        if slot_index is None or slot_index < 1:
+            key_name = normalize_str(key_entry.get("key_name"))
+            if key_name.startswith("key-") and key_name[4:].isdigit():
+                slot_index = int(key_name[4:])
+            else:
+                continue
+
+        should_be_active = slot_index <= max_slot_index
+        is_active = key_entry.get("is_active", True) is not False
+        if should_be_active == is_active:
+            continue
+
+        updated_key = dict(key_entry)
+        updated_key["is_active"] = should_be_active
+        api_keys_collection.replace_one({"_id": key_entry.get("_id")}, updated_key)
+        updated_count += 1
+
+    return updated_count
+
+
 def create_course(deps: dict[str, Any]):
     require_admin = deps["require_admin"]
     validate_course_payload = deps["validate_course_payload"]
@@ -498,6 +613,7 @@ def update_member_key_limit_route(deps: dict[str, Any], course_id: str, member_i
     _resolve_requester_user_id = deps["_resolve_requester_user_id"]
     get_course_record = deps["get_course_record"]
     courses = deps["courses"]
+    api_keys = deps["api_keys"]
     can_manage_people = deps["can_manage_people"]
     update_course_member_key_limit = deps["update_course_member_key_limit"]
     _bad_request = deps["_bad_request"]
@@ -547,13 +663,30 @@ def update_member_key_limit_route(deps: dict[str, Any], course_id: str, member_i
         return _bad_request("Request body must be a JSON object.")
 
     key_limit = data.get("keyLimit") if "keyLimit" in data else data.get("key_limit")
-    if not isinstance(key_limit, int) or key_limit < 1:
-        return _bad_request("keyLimit must be an integer >= 1.")
+    if not isinstance(key_limit, int) or key_limit < 0:
+        return _bad_request("keyLimit must be an integer >= 0.")
 
     try:
         updated = update_course_member_key_limit(course, member_id, key_limit)
     except ValueError as exc:
         return _bad_request("keyLimit cannot exceed the course limit.")
+
+    _deactivate_overflow_course_keys(
+        updated,
+        api_keys,
+        "person",
+        [target_member.get("id") or "", target_member.get("email") or ""],
+        key_limit,
+        normalize_str,
+    )
+    _reconcile_course_key_activity(
+        updated,
+        api_keys,
+        "person",
+        [target_member.get("id") or "", target_member.get("email") or ""],
+        key_limit,
+        normalize_str,
+    )
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -594,8 +727,8 @@ def update_instructor_handout_limit_route(deps: dict[str, Any], course_id: str):
         if "instructorHandoutLimit" in data
         else data.get("instructor_handout_limit")
     )
-    if not isinstance(handout_limit, int) or handout_limit < 1:
-        return _bad_request("instructorHandoutLimit must be an integer >= 1.")
+    if not isinstance(handout_limit, int) or handout_limit < 0:
+        return _bad_request("instructorHandoutLimit must be an integer >= 0.")
 
     try:
         updated = update_course_instructor_handout_limit(course, handout_limit)
@@ -611,9 +744,11 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
     _resolve_requester_user_id = deps["_resolve_requester_user_id"]
     get_course_record = deps["get_course_record"]
     courses = deps["courses"]
+    api_keys = deps["api_keys"]
     update_course_instructor_key_limit = deps["update_course_instructor_key_limit"]
     _bad_request = deps["_bad_request"]
     _serialize_value = deps["_serialize_value"]
+    normalize_str = deps["normalize_str"]
 
     identity = require_requester_identity()
     if identity[0] is None:
@@ -637,13 +772,22 @@ def update_instructor_key_limit_route(deps: dict[str, Any], course_id: str):
         return _bad_request("Request body must be a JSON object.")
 
     key_limit = data.get("instructorKeyLimit") if "instructorKeyLimit" in data else data.get("instructor_key_limit")
-    if not isinstance(key_limit, int) or key_limit < 1:
-        return _bad_request("instructorKeyLimit must be an integer >= 1.")
+    if not isinstance(key_limit, int) or key_limit < 0:
+        return _bad_request("instructorKeyLimit must be an integer >= 0.")
 
     try:
         updated = update_course_instructor_key_limit(course, key_limit)
     except ValueError:
         return _bad_request("Unable to update instructor key limit.")
+
+    _reconcile_course_key_activity(
+        updated,
+        api_keys,
+        "person",
+        [course.get("instructor_id") or "", course.get("instructor_email") or ""],
+        key_limit,
+        normalize_str,
+    )
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify({"message": "Instructor key limit updated successfully."})
@@ -654,10 +798,12 @@ def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id:
     _resolve_requester_user_id = deps["_resolve_requester_user_id"]
     get_course_record = deps["get_course_record"]
     courses = deps["courses"]
+    api_keys = deps["api_keys"]
     can_manage_people = deps["can_manage_people"]
     update_course_group_key_limit = deps["update_course_group_key_limit"]
     _bad_request = deps["_bad_request"]
     _serialize_value = deps["_serialize_value"]
+    normalize_str = deps["normalize_str"]
 
     identity = require_requester_identity()
     if identity[0] is None:
@@ -680,13 +826,16 @@ def update_group_key_limit_route(deps: dict[str, Any], course_id: str, group_id:
         return _bad_request("Request body must be a JSON object.")
 
     key_limit = data.get("keyLimit") if "keyLimit" in data else data.get("key_limit")
-    if not isinstance(key_limit, int) or key_limit < 1:
-        return _bad_request("keyLimit must be an integer >= 1.")
+    if not isinstance(key_limit, int) or key_limit < 0:
+        return _bad_request("keyLimit must be an integer >= 0.")
 
     try:
         updated = update_course_group_key_limit(course, group_id, key_limit)
     except ValueError as exc:
         return _bad_request("Unable to update group key limit.")
+
+    _deactivate_overflow_course_keys(updated, api_keys, "group", [group_id], key_limit, normalize_str)
+    _reconcile_course_key_activity(updated, api_keys, "group", [group_id], key_limit, normalize_str)
 
     courses.replace_one({"_id": course["_id"]}, updated)
     return jsonify(_serialize_value(updated))
@@ -916,6 +1065,7 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
         slot_index = 1
 
     owner_key_limit = _get_owner_key_limit(course, owner_type, owner_id)
+
     owner_keys = [
         entry
         for entry in _iter_course_api_keys(course)
@@ -944,15 +1094,23 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
         and owner_id not in {normalized_requester, normalize_str(email).lower()}
     )
     if is_handout_action:
-        handout_limit = course.get("instructor_handout_limit")
-        if not isinstance(handout_limit, int) or handout_limit < 1:
-            handout_limit = 2
-        instructor_key_limit = course.get("instructor_key_limit")
-        if not isinstance(instructor_key_limit, int) or instructor_key_limit < 1:
-            instructor_key_limit = 2
-        handout_limit = min(handout_limit, instructor_key_limit)
-
         requester_identifiers = {normalized_requester, normalize_str(email).lower()}
+
+        def normalize_id(value: Any) -> str:
+            if value is None:
+                return ""
+            string_value = str(value) if not isinstance(value, str) else value
+            return normalize_str(string_value).lower()
+
+        instructor_ta_identifiers = {
+            normalize_id(course.get("instructor_id") or course.get("instructorId")),
+            normalize_id(course.get("instructor_email") or course.get("instructorEmail")),
+        }
+        ta_ids_list = course.get("ta_ids") if isinstance(course.get("ta_ids"), list) else course.get("taIds") if isinstance(course.get("taIds"), list) else []
+        ta_emails_list = course.get("ta_emails") if isinstance(course.get("ta_emails"), list) else course.get("taEmails") if isinstance(course.get("taEmails"), list) else []
+        instructor_ta_identifiers.update(normalize_id(tid) for tid in ta_ids_list)
+        instructor_ta_identifiers.update(normalize_id(temail) for temail in ta_emails_list)
+        instructor_ta_identifiers.discard("")
 
         def _is_handed_out_key(entry: dict[str, Any]) -> bool:
             if not isinstance(entry, dict) or not normalize_str(entry.get("hash")):
@@ -960,24 +1118,21 @@ def regenerate_course_api_key_route(deps: dict[str, Any], course_id: str):
             if entry.get("is_active", True) is False:
                 return False
             entry_owner_type = normalize_str(entry.get("owner_type")).lower() or "person"
-            entry_owner_id = normalize_str(entry.get("owner_id")).lower()
+            entry_owner_value = entry.get("owner_id")
+            entry_owner_id = normalize_id(entry_owner_value)
             if entry_owner_type == "group":
                 return True
             if normalize_str(entry.get("group_created_by")):
                 return True
-            return entry_owner_id not in requester_identifiers
+            if entry_owner_id in instructor_ta_identifiers:
+                return False
+            return entry_owner_id and entry_owner_id not in requester_identifiers
 
         active_handed_out_keys = [
             entry
             for entry in _iter_course_api_keys(course)
             if _is_handed_out_key(entry)
         ]
-        target_is_handed_out_key = bool(
-            isinstance(target_key, dict)
-            and _is_handed_out_key(target_key)
-        )
-        if not target_is_handed_out_key and len(active_handed_out_keys) >= handout_limit:
-            return _bad_request(f"Instructor handout key limit reached ({handout_limit}).")
 
     if target_key is None and len(owner_keys) >= owner_key_limit:
         return _bad_request(f"Key limit reached for this owner ({owner_key_limit}).")

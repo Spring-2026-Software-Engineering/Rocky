@@ -62,6 +62,7 @@ export type CourseMember = {
 	id: string | null;
 	name: string | null;
 	email: string;
+	role?: 'student' | 'instructor';
 	keyLimit: number;
 };
 
@@ -144,11 +145,11 @@ export function normalizeCourse(raw: ApiCourse, index = 0): Course {
 		isActive: raw.is_active !== false,
 		color: raw.color?.trim() || COURSE_EDITOR_DEFAULT_COLOR,
 		instructorKeyLimit:
-			typeof raw.instructor_key_limit === 'number' && Number.isFinite(raw.instructor_key_limit) && raw.instructor_key_limit > 0
-				? Math.floor(raw.instructor_key_limit)
-				: 2,
-		instructorHandoutLimit:
-			typeof raw.instructor_handout_limit === 'number' && Number.isFinite(raw.instructor_handout_limit) && raw.instructor_handout_limit > 0
+		typeof raw.instructor_key_limit === 'number' && Number.isFinite(raw.instructor_key_limit) && raw.instructor_key_limit >= 0
+			? Math.floor(raw.instructor_key_limit)
+			: 2,
+	instructorHandoutLimit:
+		typeof raw.instructor_handout_limit === 'number' && Number.isFinite(raw.instructor_handout_limit) && raw.instructor_handout_limit >= 0
 				? Math.floor(raw.instructor_handout_limit)
 				: 2,
 		hasApiKey: Boolean(raw.has_api_key),
@@ -176,7 +177,7 @@ function normalizeCourseMember(raw: ApiCourseMember, accountsByEmail?: Record<st
 		name,
 		email,
 		keyLimit:
-			typeof raw.key_limit === 'number' && Number.isFinite(raw.key_limit) && raw.key_limit > 0
+			typeof raw.key_limit === 'number' && Number.isFinite(raw.key_limit) && raw.key_limit >= 0
 				? Math.floor(raw.key_limit)
 				: 1
 	};
@@ -208,7 +209,7 @@ export function normalizeCourseGroup(raw: ApiCourseGroup, index = 0): CourseGrou
 		name: raw.name?.trim() || `Group ${index + 1}`,
 		memberIds: normalizedMemberIds,
 		keyLimit:
-			typeof raw.key_limit === 'number' && Number.isFinite(raw.key_limit) && raw.key_limit > 0
+			typeof raw.key_limit === 'number' && Number.isFinite(raw.key_limit) && raw.key_limit >= 0
 				? Math.floor(raw.key_limit)
 				: 1
 	};
