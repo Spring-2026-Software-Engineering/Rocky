@@ -4,7 +4,8 @@
 
 /* ========== TOPBAR ========== */
 .topbar {
-	height: var(--size-topbar-height);
+	position: relative;
+	height: 80px;
 	background: var(--color-bg-topbar);
 	display: flex;
 	align-items: center;
@@ -13,6 +14,8 @@
 	box-shadow: var(--shadow-topbar);
 	flex-shrink: 0;
 	border-bottom: 3px solid var(--color-highlight-gold);
+	padding-top: 3px;
+	box-sizing: content-box;
 }
 
 .brand-logo {
@@ -39,9 +42,11 @@
 }
 
 .ksu-logo {
-	height: 40px;
-	width: auto;
-	margin-left: auto;
+    height: 40px;
+    width: auto;
+    position: absolute;
+    left: 83%;
+    transform: translateX(-0%);
 }
 
 /* Hamburger menu styles, doesn't show on desktop */
@@ -122,9 +127,9 @@
 @media (max-width: 768px) {
 	.sidebar {
 		position: fixed;
-		top: var(--size-topbar-height);
+		top: 80px;
 		left: 0;
-		height: calc(100% - var(--size-topbar-height));
+		height: calc(100% - 80px);
 		transform: translateX(-100%);
 		transition: transform 0.25s ease;
 		z-index: 200;
@@ -145,7 +150,7 @@
 	.sidebar-backdrop {
 		display: block;
 		position: fixed;
-		inset: var(--size-topbar-height) 0 0 0;
+		inset: 80px 0 0 0;
 		background: rgba(0, 0, 0, 0.4);
 		z-index: 199;
 	}

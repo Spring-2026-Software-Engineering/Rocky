@@ -71,7 +71,7 @@
 }
 
 .users-col-id {
-	width: 20%;
+	width: 30%;
 }
 
 .users-col-admin {
@@ -120,7 +120,7 @@
 
     .users-col-name    { width: 130px; }
     .users-col-email   { width: 200px; }
-    .users-col-id      { width: 180px; }
+    .users-col-id      { width: 210px; }
     .users-col-admin   { width: 60px; }
     .users-col-active  { width: 60px; }
     .users-col-actions { width: 110px; }
