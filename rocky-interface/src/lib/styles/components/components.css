@@ -49,6 +49,16 @@
     transform: translateX(-0%);
 }
 
+@media (max-width: 768px) {
+    .ksu-logo {
+        height: 28px;
+        position: static;
+        transform: none;
+        margin-left: auto;
+        margin-right: var(--space-sm);
+    }
+}
+
 /* Hamburger menu styles, doesn't show on desktop */
 .hamburger {
 	display:none;
