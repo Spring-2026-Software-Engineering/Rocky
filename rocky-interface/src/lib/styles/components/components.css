@@ -45,8 +45,8 @@
     height: 56px;
     width: auto;
     position: absolute;
-    left: 83%;
-    transform: translateX(-0%);
+    left: 85%;
+    transform: translateY(-4px);
 }
 
 @media (max-width: 768px) {
