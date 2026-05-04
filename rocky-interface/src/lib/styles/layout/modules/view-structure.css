@@ -68,3 +68,24 @@
 	background: var(--color-gray-300);
 	border-radius: 3px;
 }
+
+@media (max-width: 768px) {
+    .view-header {
+        flex-wrap: wrap;
+        gap: var(--space-md);
+    }
+
+    .view-title h1 {
+        font-size: var(--font-size-xl);
+    }
+
+    .view-actions {
+        flex-shrink: 1;
+        gap: var(--space-sm);
+    }
+
+    .view-btn {
+        padding: 6px var(--space-md);
+        font-size: var(--font-size-xs);
+    }
+}

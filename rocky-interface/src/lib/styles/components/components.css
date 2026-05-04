@@ -4,7 +4,8 @@
 
 /* ========== TOPBAR ========== */
 .topbar {
-	height: var(--size-topbar-height);
+	position: relative;
+	height: 80px;
 	background: var(--color-bg-topbar);
 	display: flex;
 	align-items: center;
@@ -13,6 +14,8 @@
 	box-shadow: var(--shadow-topbar);
 	flex-shrink: 0;
 	border-bottom: 3px solid var(--color-highlight-gold);
+	padding-top: 3px;
+	box-sizing: content-box;
 }
 
 .brand-logo {
@@ -39,9 +42,21 @@
 }
 
 .ksu-logo {
-	height: 40px;
-	width: auto;
-	margin-left: auto;
+    height: 40px;
+    width: auto;
+    position: absolute;
+    left: 83%;
+    transform: translateX(-0%);
+}
+
+@media (max-width: 768px) {
+    .ksu-logo {
+        height: 28px;
+        position: static;
+        transform: none;
+        margin-left: auto;
+        margin-right: var(--space-sm);
+    }
 }
 
 /* Hamburger menu styles, doesn't show on desktop */
@@ -90,10 +105,10 @@
 	background: transparent;
 	text-align: left;
 	color: var(--color-text-inverse);
-	padding: 14px var(--space-lg);
+	padding: 16px var(--space-lg);
 	width: 100%;
 	cursor: pointer;
-	font-size: var(--font-size-base);
+	font-size: var(--font-size-lg);
 	font-weight: var(--font-weight-semibold);
 	transition: background-color var(--transition-base);
 	border-left: 4px solid transparent;
@@ -108,8 +123,13 @@
 	border-left-color: var(--color-highlight-gold);
 }
 
+.nav-link-icon {
+    width: 22px;
+    height: 22px;
+}
+
 .spacer {
-	flex: 1;
+	flex: 0;
 }
 
 @media (max-width: 768px) {
@@ -117,22 +137,26 @@
 		flex: 0;
 	}
 }
+
 /* Overlay for mobile sidebar */
 @media (max-width: 768px) {
 	.sidebar {
 		position: fixed;
-		top: var(--size-topbar-height);
+		top: 80px;
 		left: 0;
-		height: calc(100% - var(--size-topbar-height));
+		height: calc(100% - 80px);
 		transform: translateX(-100%);
 		transition: transform 0.25s ease;
 		z-index: 200;
+		overflow-y: auto;
+		justify-content: flex-start;
 	}
 
 	.sidebar.open {
 		transform: translateX(0);
 	}
 }
+
 .sidebar-backdrop {
 	display: none;
 }
@@ -141,7 +165,7 @@
 	.sidebar-backdrop {
 		display: block;
 		position: fixed;
-		inset: var(--size-topbar-height) 0 0 0;
+		inset: 80px 0 0 0;
 		background: rgba(0, 0, 0, 0.4);
 		z-index: 199;
 	}
@@ -256,11 +280,14 @@
 /*  Mobile View for Courses Sidebar */
 @media (max-width: 768px) {
 	.course-popout {
-		position: static;
+		position: static !important;
+		left: auto;
+		top: auto;
+		bottom: auto;
 		width: 100%;
 		height: auto;
 		max-height: 400px;
-		border-radius: 0;
+		border-radius: 0px;
 		border-left: none;
 		border-right: none;
 		box-shadow: none;
@@ -272,7 +299,20 @@
 
 @media (max-width: 768px) {
     .course-popout-header {
-        display: none;
+        display: none ! important;
+    }
+}
+
+@media (max-width: 768px) {
+	.course-tab-group {
+		position: static;
+	}
+}
+
+@media (max-width: 768px) {
+    .sidebar .course-popout {
+        max-width: var(--size-sidebar-width);
+        overflow-x: hidden;
     }
 }
 
@@ -469,6 +509,43 @@
 .go-btn:hover {
 	color: var(--color-accent);
 	text-decoration: underline;
+}
+
+/* ========== COURSE COMPOSER ========== */
+.course-composer-layer {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+}
+
+.course-composer-popout {
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    padding: var(--space-xl);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.course-composer-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-lg);
+}
+
+.course-composer-title-row h3 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
 }
 
 /* ========== LIST VIEW ========== */
