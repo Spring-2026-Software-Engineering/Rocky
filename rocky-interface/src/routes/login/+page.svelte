@@ -195,6 +195,7 @@
     </div>
 
     <footer class="login-footer">
+      <a href="/credits">Credits</a>
       <a href="https://www.kent.edu/privacy-statement#cookies">Privacy and cookies</a>
     </footer>
   </div>
