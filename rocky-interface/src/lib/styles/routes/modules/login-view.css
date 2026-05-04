@@ -124,7 +124,10 @@
 .login-footer {
 	width: min(760px, 100%);
 	margin: 0 auto;
-	text-align: right;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
 }
 
 .login-footer a {
@@ -258,6 +261,11 @@
 	.login-signin-btn {
 		font-size: 1.15rem;
 		width: 100%;
+	}
+
+	.login-footer {
+		align-items: flex-start;
+		flex-direction: column;
 	}
 
 	.preview-shell {
