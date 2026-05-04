@@ -9,25 +9,25 @@
 	};
 
 	const teamCredits: Credit[] = [
-    { name: 'Branson', title: 'Project stakeholder', variant: 'gold' },
-    { name: 'Ian Rohrbacher', title: 'Scrum master', variant: 'navy' },
-    { name: 'Archie Horne', title: '(waiting for contribution submission)', variant: 'gold' },
-    { name: 'Tasmia Jannat Shammi', title: '(waiting for contribution submission)', variant: 'navy' },
-    { name: 'Zoe Eigenbrod', title: '(waiting for contribution submission)', variant: 'gold' },
-    { name: 'Dovlet Gurbanov', title: '(waiting for contribution submission)', variant: 'navy' },
-    { name: 'Ian Smaglinski', title: 'Account page, Credits page, API key generator and hasher, Bug Fixer.', variant: 'gold' },
-    { name: 'Simran Gautam', title: '(waiting for contribution submission)', variant: 'navy' },
-    { name: 'Chris Vuletich', title: '(waiting for contribution submission)', variant: 'gold' },
-    { name: 'Savar Shrestha', title: '(waiting for contribution submission)', variant: 'navy' }
+    { name: 'Branson', title: 'Project Stakeholder', variant: 'gold' },
+    { name: 'Ian Rohrbacher', title: 'Scrum Master, Full Stack Developer', variant: 'navy' },
+    { name: 'Chris Vuletich', title: 'Front-end Developer', variant: 'gold' },
+    { name: 'Savar Shrestha', title: 'Mobile Developer, Dashboard Devoloper', variant: 'navy' },
+    { name: 'Ian Smaglinski', title: 'Account, Help, and Credits Page, API Key Generator Script', variant: 'gold' },
+    { name: 'Archie Horne', title: 'Artist, Presentation Director', variant: 'navy' },
+    { name: 'Zoe Eigenbrod', title: 'Developer Tools, Table Manager, Burndown Director', variant: 'gold' },
+    { name: 'Dovlet Gurbanov', title: '', variant: 'navy' },
+    { name: 'Simran Gautam', title: '', variant: 'gold' },
+    { name: 'Tasmia Jannat Shammi', title: '', variant: 'navy' },
   ];
 
 	const assetCredits: Credit[] = [
 		{
 			name: 'Kent State University',
-			title: 'Main login image and Kent State logo',
+			title: 'Background Login Image and Kent State Logo',
 			variant: 'gold'
 		},
-		{ name: 'Archie Horne', title: 'Profile pictures and Rocky logo', variant: 'navy' }
+		{ name: 'Archie Horne', title: 'Profile Pictures, Navigation Icons, Rocky Logo, Favicon', variant: 'navy' }
 	];
 
 	let isRolling = false;
