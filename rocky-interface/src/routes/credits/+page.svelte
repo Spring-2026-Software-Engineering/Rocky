@@ -15,7 +15,7 @@
     { name: 'Savar Shrestha', title: 'Mobile Developer, Dashboard Developer', variant: 'navy' },
     { name: 'Ian Smaglinski', title: 'Account, Help, and Credits Page, API Key Generator Script', variant: 'gold' },
     { name: 'Archie Horne', title: 'Artist, Presentation Director', variant: 'navy' },
-    { name: 'Zoe Eigenbrod', title: 'Developer Tools, Table Manager, Burndown Director', variant: 'gold' },
+    { name: 'Zoe Eigenbrod', title: 'Developer Tools, Table Manager, Burndown Director, User Page', variant: 'gold' },
     { name: 'Dovlet Gurbanov', title: '', variant: 'navy' },
     { name: 'Simran Gautam', title: '', variant: 'gold' },
     { name: 'Tasmia Jannat Shammi', title: '', variant: 'navy' },
